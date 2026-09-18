@@ -30,17 +30,19 @@ class CustomTask(ManipulationEnv):
         self.robots[0].robot_model.set_base_xpos([-0.5, 0, 0])
 
         # 2. A red box
-        self.cube = BoxObject(
+        cube = BoxObject(
             name="Cube",
             size=[0.02, 0.02, 0.02],
             rgba=[1, 0, 0, 1]
         )
 
+        self.objects = [cube]
+
         # 3. Sampler for placing objects
         self.placement_initializer = UniformRandomSampler(
             name="ObjectSampler",
-            mujoco_objects=self.cube,
-            x_range=[-0.4, 0.4],
+            mujoco_objects=self.objects,
+            x_range=[-0.4, 0.3], # As +0.4 was sometimes unfeasible for grabbing!
             y_range=[-0.4, 0],
             rotation=[-np.pi, np.pi], # Spawn the cube with a random rotation between -180° and +180°
             reference_pos=self.mujoco_arena.table_top_abs,  # Tells the placer to choose x and y relative to the table
@@ -52,7 +54,7 @@ class CustomTask(ManipulationEnv):
         self.model = ManipulationTask(
             mujoco_arena=self.mujoco_arena,
             mujoco_robots=[self.robots[0].robot_model],
-            mujoco_objects=[self.cube]
+            mujoco_objects=self.objects
         )
 
     def _reset_internal(self):
