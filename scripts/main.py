@@ -87,50 +87,49 @@ def pick_and_place_task(config):
         obj_name = obj.root_body
         obj_id = env.sim.model.body_name2id(obj_name)
         # Grab the position
-        pos = env.sim.data.body_xpos[obj_id]
-        # Grab the rotation (quaternion)
-        quat = env.sim.data.body_xquat[obj_id]
-        target_pos_rot = (pos, quat)
+        pos = env.sim.data.body_xpos[obj_id].copy()
+        # Grab the rotation (quaternion)                # Copy! Otherwise we get a reference to the original array and 
+        quat = env.sim.data.body_xquat[obj_id].copy()   # it will be modified by the env.step() function!
+        obj_pos_rot = (pos, quat)
         n_faces = 4 if isinstance(obj, objects.BoxObject) else 100
-        pick_and_place_action(env, target_pos_rot, n_faces)
+        pick_and_place_action(env, obj_pos_rot, n_faces)
 
     env.close()
 
-def pick_and_place_action(env, target_pos_rot, n_faces=4):
+def pick_and_place_action(env, obj_pos_rot, n_faces=4):
     """
-    Define the position over the cube, which is target_pos + 10cm on the z-axis
+    Define the position over the cube, which is object_pos + 10cm on the z-axis
     target_pos:
         - [0], positions (x,y,z)
         - [1], rotations (qx, qy, qz, qw)
     """
-    target_pos = target_pos_rot[0] + np.array([0, 0, 0.10])
-    target_rot = target_pos_rot[1]
+    obj_pos = obj_pos_rot[0]
+    obj_rot = obj_pos_rot[1]
 
-    print(f"Faces: {n_faces}")
+    over_obj_pos = obj_pos + np.array([0, 0, 0.10])
+
     # 1. Move over the target
-    movements.move_to_target(env, target_pos, "Move over")
+    movements.move_to_target(env, over_obj_pos, "Move over")
 
     # 2. Orientate the gripper as the cube
-    movements.yaw_rotation(env, target_rot, "Rotate", n_faces)
+    movements.yaw_rotation(env, obj_rot, "Rotate", n_faces)
 
     # 2. Start the descent, we just reuse the same function...
     #    but we ensure the gripper is initially open!
-    init_grab = True
-    movements.toggle_grab(env, init_grab)
-    movements.move_to_target(env, target_pos_rot[0], "Descent")
+    movements.move_to_target(env, obj_pos, "Descent")
 
     # 3. Grab the cube and elevate it!
     movements.toggle_grab(env)
-    movements.move_to_target(env, target_pos, "Elevate")
+    movements.move_to_target(env, over_obj_pos, "Elevate")
 
     # 4. Go in the middle, rotate, go down and drop!
-    target_pos = [0,0, target_pos_rot[0][2]] # Keep the same z as the original (on table surface)
-    movements.move_to_target(env, target_pos, "Move center")
+    over_final_pos = [0,0, over_obj_pos[2]]
+    movements.move_to_target(env, over_final_pos, "Move center")
 
     # We align the cube with the system axes by putting the target as 
     # a quaternion with w=1 (scalar value) and rotations around the axes at 0
     movements.yaw_rotation(env, [1, 0, 0, 0], "Final rotation") 
-    drop_position = [target_pos[0], target_pos[1], target_pos_rot[0][2]]
+    drop_position = [0, 0, obj_pos[2]] # Keep the same z as the original (on table surface)
     movements.move_to_target(env, drop_position, "Final descent")
     movements.toggle_grab(env)
 

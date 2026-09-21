@@ -3,6 +3,7 @@ from scipy.spatial.transform import Rotation as R
 import settings
 from robosuite.environments.manipulation.single_arm_env import SingleArmEnv
 
+
 def move_to_target(env: "SingleArmEnv", target_pos: np.ndarray, str: str, max_steps: int = 150, tolerance: float = 0.005):
     """Moves the eef from its initial position to the target position.
 
@@ -42,7 +43,7 @@ def move_to_target(env: "SingleArmEnv", target_pos: np.ndarray, str: str, max_st
         # 3.a If not reached the target, compute proportional action
         action[0:3] = np.clip(settings.translation_k * delta_pos, -0.7, 0.7) # We proportionally move, clipped to abs 0.7 to not move at max speed
         #action[3:6] = 0.0  Already zero as per definition in the start
-        action[-1] = _get_grabber_state(env)
+        #action[-1] = _get_grabber_state(env)
 
         # 4. Execute
         obs, reward, done, info = env.step(action)
@@ -62,17 +63,7 @@ def _get_grabber_state(env: "SingleArmEnv") -> float:
     Returns:
         (float): -1.0 if the gripper is open or 1.0 if the gripper is closed
     """
-    # Take the list of all objects in the env
-    all_objects = []
-    for obj in env.objects:
-        if isinstance(obj.contact_geoms, list):
-            all_objects.extend(obj.contact_geoms)
-        else:
-            all_objects.append(obj.contact_geoms)
-
-    # Get the current gripper state
-    grabbing = env._check_grasp(gripper=env.robots[0].gripper, object_geoms=all_objects)
-    return 1.0 if grabbing else -1.0
+    return env.gripper_state
 
 def _obs_init(env: "SingleArmEnv") -> dict:
     """Initializes the observation dictionary.
@@ -115,7 +106,7 @@ def optimal_eef_rotation(env: SingleArmEnv, obj_quat: np.ndarray, n_faces: int =
     half_face_width = face_width / 2.0
 
     # Find the yaw of the nearest face
-    shortest_yaw = (object_yaw + half_face_width) % face_width
+    shortest_yaw = (object_yaw + half_face_width) % face_width - half_face_width
 
     # Compute the needed rotation
     yaw_rotation = R.from_euler('z', shortest_yaw)
@@ -142,7 +133,7 @@ def yaw_rotation(env, object_quat, str, n_faces=4):
         # Compute the optimal eef rotation
         target_rotation = optimal_eef_rotation(env, object_quat)
         # Execute the rotation
-        rotation(env, obs, target_rotation, str, n_faces)
+        rotation(env, obs, target_rotation, str)
 
 def _delta_rotation(obs: dict, target_rotation: R) -> np.ndarray:
     """
@@ -221,7 +212,7 @@ def rotation(env, obs, target_rot, str, max_steps=150, tolerance=1.0):
     # Eventually after 'max_steps' steps the loop finishes...
     print(f"Action: {str}, Target not reached even in {steps} steps...")
         
-def toggle_grab(env: "SingleArmEnv", init_grab: bool = False, min_steps: int = 30):
+def toggle_grab(env: "SingleArmEnv", min_steps: int = 30):
     """Toggles the current gripper's grab state.
 
     If it is the first time we call this function we use init_grab to ensure 
@@ -229,7 +220,6 @@ def toggle_grab(env: "SingleArmEnv", init_grab: bool = False, min_steps: int = 3
 
     Args:
         env (SingleArmEnv): The simulation environment.
-        init_grab (bool, optional): Whether it's the first time we call the function or not.. Defaults to False.
         min_steps (int, optional): The minimum steps we run the opening or closing action to 
             before going on with the next movements.. Defaults to 30.
     """
@@ -247,11 +237,9 @@ def toggle_grab(env: "SingleArmEnv", init_grab: bool = False, min_steps: int = 3
         env.step(action)
         env.render()
 
-    # Decide the gripper value and keep it for the entire loop
-    if init_grab:
-        action[-1] = - 1.0
-    else:
-        action[-1] = - (_get_grabber_state(env))
+    # Decide the gripper value and keep it for the entire loop; also update it in the env variable!
+    action[-1] = - (_get_grabber_state(env))
+    env.gripper_state = action[-1] 
 
     # Keep closing for 'min_steps' otherwise the gripper won't completely close itself and miss the object.
     for i in range(min_steps):

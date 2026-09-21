@@ -20,11 +20,12 @@ class CustomTask(SingleArmEnv):
             objects.BoxObject,
             objects.BallObject,
             objects.CylinderObject,
-            objects.CapsuleObject,
+            #objects.CapsuleObject,
             #objects.CanObject,
             #objects.MilkObject,
             #objects.CerealObject
         ]
+        self.gripper_state = -1.0 # Start with the gripper open
         super().__init__(**kwargs)
 
     def _load_model(self):
