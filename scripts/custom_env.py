@@ -1,34 +1,52 @@
 import random
 
 import numpy as np
-from robosuite.models.arenas import TableArena
-import robosuite.models.objects as objects
-from robosuite.models.tasks import ManipulationTask
+import settings
 from robosuite.environments.base import register_env
 from robosuite.environments.manipulation.single_arm_env import SingleArmEnv
-import settings
+from robosuite.models import objects
+from robosuite.models.arenas import TableArena
+from robosuite.models.tasks import ManipulationTask
 
 # UniformRandomSampler places objects randomly within a given range
 # We can also give a sampler per object with the SequentialCompositeSampler (future?)
-from robosuite.utils.placement_samplers import UniformRandomSampler, SequentialCompositeSampler
+from robosuite.utils.placement_samplers import (
+    SequentialCompositeSampler,
+    UniformRandomSampler,
+)
+
 
 @register_env
 class CustomTask(SingleArmEnv):
 
-    def __init__(self, **kwargs):
+    def __init__(self, reward_shaping: bool = False, **kwargs) -> None:
+        """
+        Initializes the custom environment inherited by the SingleArmEnv environment provided by robosuite.
+
+        Args:
+            reward_shaping (bool): Whether to use reward shaping.
+            **kwargs: Additional keyword arguments for the environment.
+        """
+        self.reward_shaping = reward_shaping
         self.available_objects = [
             objects.BoxObject,
-            objects.BallObject,
-            objects.CylinderObject,
+            objects.BoxObject,
+            objects.BoxObject,
+            #objects.BallObject,
+            #objects.CylinderObject,
             #objects.CapsuleObject,
             #objects.CanObject,
             #objects.MilkObject,
             #objects.CerealObject
         ]
         self.gripper_state = -1.0 # Start with the gripper open
+        self.sampler = None
         super().__init__(**kwargs)
 
-    def _load_model(self):
+    def _load_model(self) -> None:
+        """
+        Creates the actual environment and initializes all objects contained in it.
+        """
         super()._load_model()
 
         # Create the environment
@@ -43,12 +61,11 @@ class CustomTask(SingleArmEnv):
         self.robots[0].robot_model.set_base_xpos([-0.5, 0, 0])
 
         # 2. Spawn and place some objects...
-        self.objects = []
-        self.objects.append(self._create_objects())
+        self._create_objects()
 
         # 3. Sampler for placing objects
-        self.sampler, samplers_names = self._define_sampler()
-        random.shuffle(samplers_names)
+        samplers_names = self._define_sampler()
+        random.SystemRandom().shuffle(samplers_names) # Randomize the order of the samplers for each reset
 
         for id, obj in enumerate(self.objects):
             target_sampler = samplers_names[id % len(samplers_names)]
@@ -59,10 +76,18 @@ class CustomTask(SingleArmEnv):
             mujoco_arena=self.mujoco_arena,
             mujoco_robots=[self.robots[0].robot_model],
             mujoco_objects=self.objects,
-            #placement_initializer=self.sampler
         )
 
-    def _define_sampler(self):
+    def _define_sampler(self) -> list[str]:
+        """
+        Defines the sampler used for deciding the placement of newly spawned objects.
+        In particular a SequentialCompositeSample has been used to combine multiple UniformRandomSampler(s)
+        for defining a particular spawning area.
+
+        Returns:
+            sampler, samplers_names[] (SequentialCompositeSampler, np.ndarray): The created SequentialCompositeSampler
+                and the names of the samplers used for defining the spawning area. 
+        """
         # Define the spawnable surface without the central square
         # which is the area of release
         X_MIN, X_MAX = -0.35, +0.05
@@ -71,37 +96,41 @@ class CustomTask(SingleArmEnv):
         CX_MIN, CX_MAX = -0.05, +0.05
         CY_MIN, CY_MAX = -0.05, +0.05
 
-        sampler = SequentialCompositeSampler(name="Sampler")
+        self.sampler = SequentialCompositeSampler(name="Sampler")
 
         # Now we define the 4 separate spawnable areas (left, right, bottom, up)
         # 1. Left
-        sampler.append_sampler(UniformRandomSampler(
+        self.sampler.append_sampler(UniformRandomSampler(
             name="LeftSampler", mujoco_objects=None, x_range=[X_MIN, X_MAX], y_range=[Y_MIN, CY_MIN], rotation=[-np.pi, np.pi], 
             reference_pos=self.mujoco_arena.table_top_abs,ensure_object_boundary_in_range=True, ensure_valid_placement=True
         ))
 
         # 2. Right
-        sampler.append_sampler(UniformRandomSampler(
+        self.sampler.append_sampler(UniformRandomSampler(
             name="RightSampler", mujoco_objects=None, x_range=[X_MIN, X_MAX], y_range=[CY_MAX, Y_MAX], rotation=[-np.pi, np.pi],
             reference_pos=self.mujoco_arena.table_top_abs,ensure_object_boundary_in_range=True, ensure_valid_placement=True
         ))
 
         # 3. Up
-        sampler.append_sampler(UniformRandomSampler(
+        self.sampler.append_sampler(UniformRandomSampler(
             name="UpSampler", mujoco_objects=None, x_range=[CX_MAX, X_MAX], y_range=[CY_MIN, CY_MAX], rotation=[-np.pi, np.pi],
             reference_pos=self.mujoco_arena.table_top_abs,ensure_object_boundary_in_range=True, ensure_valid_placement=True
         ))
 
         # 4. Bottom
-        sampler.append_sampler(UniformRandomSampler(
+        self.sampler.append_sampler(UniformRandomSampler(
             name="BottomSampler", mujoco_objects=None, x_range=[X_MIN, CX_MIN], y_range=[CY_MIN, CY_MAX], rotation=[-np.pi, np.pi],
             reference_pos=self.mujoco_arena.table_top_abs,ensure_object_boundary_in_range=True, ensure_valid_placement=True
         ))
 
-        return sampler, ["LeftSampler", "RightSampler", "UpSampler", "BottomSampler"]
+        return ["LeftSampler", "RightSampler", "UpSampler", "BottomSampler"]
 
-    def _create_objects(self):
-        chosen_objects = random.sample(self.available_objects, settings.n_objects)
+    def _create_objects(self) -> None:
+        """
+        This function randomly picks n_objects (defined in settings.py) by the list of possible objects defined.
+        in the environment, then create them one by one and adds them to the objects list of the environment.
+        """
+        chosen_objects = random.SystemRandom().sample(self.available_objects, settings.n_objects)
         self.objects = []
 
         for i, class_obj in enumerate(chosen_objects):
@@ -116,20 +145,63 @@ class CustomTask(SingleArmEnv):
             self.objects.append(obj_instance)
 
     def _reset_internal(self):
+        """
+        Resets the internal simulation state of the environment.
+        """
         super()._reset_internal()
 
-        # For every reset we re-compute a random positioning for objects
+        # For every reset we re-create the object and compute a random positioning
+        self._create_objects()
         self._place_objects()
 
     def reward(self, action):
-        # In the future for RL we will use this as the reward function (logic)
-        return 0.0
 
-    def _check_success(self):
-        # In the future for RL this will be our function for binary success checking...
-        return False
+        # If the simulation has succeded return 1!
+        if self._check_success():
+            return 1.0
+
+        # If there should not be any reward policy or there is no object, return 0
+        if not self.reward_shaping or not self.objects:
+            return 0.0
+
+        # Compute how far is the object from the central drop point
+        obj = self.objects[0]
+        obj_id = self.sim.model.body_name2id(obj.root_body)
+        obj_pos = self.sim.data.body_xpos[obj_id]
+        dist_xy = np.linalg.norm(obj_pos[:2] - np.array([0.0, 0.0]))
+
+        # Clip the reward between 0.0 and 0.9 based on how far the object is from the drop point
+        return float(np.clip(1.0 - dist_xy, 0.0, 0.9))
+
+    def _check_success(self, xy_tolerance : float = 0.03, velocity_tolerance : float = 0.01) -> bool:
+
+        # If there are no object then we should not even evaluate the success
+        if not self.objects:
+            return False
+
+        # Compute the distance from the drop point
+        obj = self.objects[0]
+        obj_id = self.sim.model.body_name2id(obj.root_body)
+        obj_pos = self.sim.data.body_xpos[obj_id].copy()
+
+        dist_xy = np.linalg.norm(obj_pos[:2] - np.array([0.0, 0.0]))
+        # If the distance is greater than the tolerance we failed
+        if dist_xy > xy_tolerance:
+            return False
+
+        # Compute the object velocity
+        obj_vel = self.sim.data.get_body_xvelp(obj.root_body)
+        # If it is "fast enough" (let's say it is moving or rolling), we failed
+        if np.linalg.norm(obj_vel) > velocity_tolerance:
+            return False
+
+        # If the gripper is open (-1.0) it means our simulation returned to neutral correctly and we return True
+        return self.gripper_state <= 0
 
     def _place_objects(self):
+        """
+        This function positions the objects in the environment by using the defined env.sampler.
+        """
         new_pos = self.sampler.sample()
         """
         sample() returns a dict shaped like this:

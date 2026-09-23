@@ -1,8 +1,10 @@
 import os
-from robosuite.robots import ROBOT_CLASS_MAPPING
-from robosuite.robots.single_arm import SingleArm
+
 from robosuite.models.robots.manipulators import UR5e
 from robosuite.models.robots.robot_model import register_robot
+from robosuite.robots import ROBOT_CLASS_MAPPING
+from robosuite.robots.single_arm import SingleArm
+
 
 # Register the XML file
 @register_robot
