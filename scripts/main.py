@@ -9,7 +9,7 @@ import robosuite as suite
 # Import the settings file
 import settings
 from robosuite import load_controller_config, macros
-from robosuite.models import objects
+from robosuite.environments.manipulation.single_arm_env import SingleArmEnv
 from robosuite.wrappers import DomainRandomizationWrapper
 
 
@@ -38,7 +38,19 @@ def main():
         while task_loop:
             match num_choice:
                 case 1:
-                    pick_and_place_task(config)
+                    n_tasks = int(input("How many times? "))
+                    results = [[], [], []]
+                    for i in range(n_tasks):
+                        steps, reward, accuracy = pick_and_place_task(config, i)
+                        results[0].append(steps)
+                        results[1].append(reward)
+                        results[2].append(accuracy)
+
+                    averages = [sum(sublist) / len(sublist) for sublist in results]
+
+                    print("="*60)
+                    print(f"Final report.\n - Average steps: {averages[0]: .2f}.\n - Average reward: {averages[1]: .2f}.\n - Average accuracy over {n_tasks} iterations: {averages[2]: .4f}")
+                    print("="*60)
 
             choice = input("Want to repeat the task? (Y/N): ")
             task_loop = choice.upper() == "Y"
@@ -46,9 +58,7 @@ def main():
         choice = input("Want to terminate? (Otherwise choose a task later...) (Y/N): ")
         menu_loop = choice.upper() != "Y"
 
-def pick_and_place_task(config):
-    # PickAndPlace situation
-
+def create_randomized_env(config: dict) -> DomainRandomizationWrapper:
     # As the docs say, we use this so that entire geom groups are randomized as a whole
     macros.USING_INSTANCE_RANDOMIZATION = True
     # Create the base environment
@@ -56,10 +66,10 @@ def pick_and_place_task(config):
         env_name=settings.env_name,
         robots=settings.robot,
         gripper_types=settings.gripper_types,
-        has_renderer=True,
+        has_renderer=True, 
         has_offscreen_renderer=False,
         use_camera_obs=False,
-        control_freq=20, # Limits the robot to 20 actions/second
+        control_freq=2, # Limits the robot to 20 actions/second (5 for testing in lab...)
         controller_configs=config,
         hard_reset=False, # Avoids segfault on macos or glfw error on Linux (per docs...)
         horizon=1000, # So we are sure that all the pick and places terminate
@@ -78,7 +88,15 @@ def pick_and_place_task(config):
     )
 
     env.reset()
-    env.render()
+    if env.has_renderer:
+        env.render()
+
+    return env
+
+def pick_and_place_task(config: dict, task_index: int) -> tuple[int, float, float]:
+    # PickAndPlace situation
+
+    env = create_randomized_env(config)
 
     for obj in env.objects:
         obj_name = obj.root_body
@@ -88,14 +106,80 @@ def pick_and_place_task(config):
         # Grab the rotation (quaternion)                # Copy! Otherwise we get a reference to the original array and 
         quat = env.sim.data.body_xquat[obj_id].copy()   # it will be modified by the env.step() function!
         obj_pos_rot = (pos, quat)
-        pick_and_place_action(env, obj, obj_pos_rot)
+        steps, reward, accuracy = pick_and_place_action(env, obj, obj_pos_rot, task_index)
 
         success = env.env._check_success()
         print(f"{obj_name}: {'Success' if success else 'Failed'}!")
 
+        return (steps, reward, accuracy)
+
+    # Close the env for any cleanup
     env.close()
 
-"""
+def pick_and_place_action(env: "SingleArmEnv", obj, obj_pos_rot: tuple, task_index: int) -> tuple[int, float, float]:
+    """
+    Define the position over the cube, which is object_pos + 10cm on the z-axis
+    target_pos:
+        - [0], positions (x,y,z)
+        - [1], rotations (qx, qy, qz, qw)
+    """
+    obj_pos, obj_rot = obj_pos_rot[0], obj_pos_rot[1]
+
+    # A z of 30cm is the chosen ideal quote
+    over_obj_pos = obj_pos + np.array([0, 0, 0.30])
+
+    # Initialize the movements controller
+    movement_ctrl = movements.MovementController(env)
+
+    n_faces = movement_ctrl.determine_n_faces(obj)
+
+    """
+    Let's print the rewards to see if the heuristic is correct (reward should be growing in a monothonic way.)
+    """
+
+    # 1. Move over the target
+    movement_ctrl.complex_traslation(over_obj_pos, "Move over")
+
+    # 2. Orientate the gripper as the cube
+    movement_ctrl.yaw_rotation(obj_rot, "Rotate", n_faces)
+
+    # 2. Start the descent, we just reuse the same function...
+    #    but we ensure the gripper is initially open!
+    movement_ctrl.complex_traslation(obj_pos, "Descent")
+
+
+    # 3. Grab the cube and elevate it!
+    movement_ctrl.toggle_grab()
+    movement_ctrl.complex_traslation(over_obj_pos, "Elevate")
+
+
+    # 4. Go in the middle, rotate, go down and drop!
+    over_final_pos = np.array([0, 0, over_obj_pos[2]])
+    movement_ctrl.complex_traslation(over_final_pos, "Move center")
+
+    # We align the cube with the system axes by putting the target as 
+    # a quaternion with w=1 (scalar value) and rotations around the axes at 0
+    movement_ctrl.yaw_rotation([1, 0, 0, 0], "Final rotation", n_faces) 
+    drop_position = np.array([0, 0, obj_pos[2] + 0.02]) # Keep the same z as the original (on table surface) plus a margin
+    movement_ctrl.complex_traslation(drop_position, "Final descent")
+    movement_ctrl.toggle_grab()
+
+    # 5. Go back to neutral position
+    neutral_pos = np.array([0, 0, obj_pos[2] + 0.30])
+    movement_ctrl.complex_traslation(neutral_pos, "Neutral position")
+
+    total_steps = movement_ctrl.steps
+    total_reward = movement_ctrl.reward
+    accuracy = total_reward/total_steps
+
+    print(f"[Task-{task_index}] Report:\n - Final total steps: {total_steps}\n - Final total reward: {total_reward: .4f}\n - Final accuracy: {accuracy: .2f}")
+
+    return (total_steps, total_reward, accuracy)
+
+if __name__ == "__main__":
+    main()
+
+    """
 
 Still under construction...
 
@@ -144,72 +228,3 @@ def stacking_action(env, obj_pos_rot, obj, table_body_id):
                                     allowed_body_ids={table_body_id, obj_body_id} | gripper_body_ids)
     movements.toggle_grab(env)
 """
-
-def pick_and_place_action(env, obj, obj_pos_rot):
-    """
-    Define the position over the cube, which is object_pos + 10cm on the z-axis
-    target_pos:
-        - [0], positions (x,y,z)
-        - [1], rotations (qx, qy, qz, qw)
-    """
-    obj_pos, obj_rot = obj_pos_rot[0], obj_pos_rot[1]
-
-    over_obj_pos = obj_pos + np.array([0, 0, 0.10])
-
-    # Initialize the movements controller
-    movement_ctrl = movements.MovementController(env)
-
-    n_faces = movement_ctrl.determine_n_faces(obj)
-
-    total_steps = 0
-    total_reward = 0
-
-    # 1. Move over the target
-    steps, reward = movement_ctrl.complex_traslation(over_obj_pos, "Move over")
-    total_steps += steps
-    total_reward += reward
-
-    # 2. Orientate the gripper as the cube
-    steps, reward = movement_ctrl.yaw_rotation(obj_rot, "Rotate", n_faces)
-    total_steps += steps
-    total_reward += reward
-
-    # 2. Start the descent, we just reuse the same function...
-    #    but we ensure the gripper is initially open!
-    steps, reward = movement_ctrl.complex_traslation(obj_pos, "Descent")
-    total_steps += steps
-    total_reward += reward
-
-    # 3. Grab the cube and elevate it!
-    movement_ctrl.toggle_grab()
-    steps, reward = movement_ctrl.complex_traslation(over_obj_pos, "Elevate")
-    total_steps += steps
-    total_reward += reward
-
-    # 4. Go in the middle, rotate, go down and drop!
-    over_final_pos = np.array([0, 0, over_obj_pos[2]])
-    steps, reward = movement_ctrl.complex_traslation(over_final_pos, "Move center")
-    total_steps += steps
-    total_reward += reward
-
-    # We align the cube with the system axes by putting the target as 
-    # a quaternion with w=1 (scalar value) and rotations around the axes at 0
-    steps, reward = movement_ctrl.yaw_rotation([1, 0, 0, 0], "Final rotation", n_faces) 
-    total_steps += steps
-    total_reward += reward
-    drop_position = np.array([0, 0, obj_pos[2] + 0.01]) # Keep the same z as the original (on table surface) plus a margin
-    steps, reward = movement_ctrl.complex_traslation(drop_position, "Final descent")
-    total_steps += steps
-    total_reward += reward
-    movement_ctrl.toggle_grab()
-
-    # 5. Go back to neutral position
-    neutral_pos = np.array([0, 0, obj_pos[2] + 0.30])
-    steps, reward = movement_ctrl.complex_traslation(neutral_pos, "Neutral position")
-    total_steps += steps
-    total_reward += reward
-
-    print(f"Final total steps: {total_steps}. Final total reward: {total_reward}")
-
-if __name__ == "__main__":
-    main()

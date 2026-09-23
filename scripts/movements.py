@@ -10,9 +10,11 @@ class MovementController:
     def __init__(self, env: SingleArmEnv, gripper_state: float = -1.0):
         self.env = env
         self.gripper_state = gripper_state if gripper_state is not None else self._get_grabber_state()
+        self.steps = 0
+        self.reward = 0.0
     
     def complex_traslation(self, target_pos: np.ndarray, act_descr: str, stop_on_contact_geom_ids: list | None = None, 
-                        allowed_body_ids: list | None = None, max_steps: int = 200, tolerance: float = 0.005) -> tuple[int, float]:
+                        allowed_body_ids: list | None = None, max_steps: int = 200, tolerance: float = 0.005) -> None:
         """
         This functions makes the eef moves from its initial position to the target position.
         It uses the function move_on_single_axis to implement one-axis movements to avoid collisions.
@@ -33,43 +35,20 @@ class MovementController:
         obs = self._obs_init()
         new_target_pos = obs["robot0_eef_pos"]
 
-        total_steps = 0
-        total_reward = 0
+        current_steps = 0
+        current_reward = 0.0
 
         # Implement one-axis movements to avoid collisions, we move on the z and then x, y axes separately.
         for i in range(target_pos.size):
             new_target_pos[target_pos.size - i - 1] = target_pos[target_pos.size - i - 1]
             steps, reward = self.simple_traslation(new_target_pos, act_descr, stop_on_contact_geom_ids, allowed_body_ids, max_steps, tolerance)
-            total_steps += steps
-            total_reward += reward
+            current_steps += steps
+            current_reward += reward
 
-        print(f"Action: {act_descr}, Target reached within {total_steps} steps. Reward: {total_reward}!")
+        self.steps += current_steps
+        self.reward += current_reward
 
-        return (total_steps, total_reward)
-
-    def _unexpected_contact(self, held_geoms_ids: list, allowed_body_ids: list, dist_threshold: float = 0.0) -> bool:
-        for i in range(self.env.sim.data.ncon):
-            contact = self.env.sim.data.contact[i]
-            geom1, geom2 = contact.geom1, contact.geom2
-
-            # Check whether the contact involves the gripper or the held object
-            involves_held = geom1 in held_geoms_ids or geom2 in held_geoms_ids
-
-            # If the conctact happened not between an held geometry then we don't care
-            if not involves_held: 
-                continue
-
-            # Get the other geometry involved in the contact (other than the held one)
-            other_geom = geom2 if geom1 in held_geoms_ids else geom1
-            other_body = self.env.sim.model.geom_bodyid[other_geom]
-
-            # Check for contact distance (as MuJoco also considers margin for contacts...)
-            if other_body not in allowed_body_ids and contact.dist <= dist_threshold:
-                    return True
-
-        return False  # No unexpected contacts detected
-
-
+        # print(f"Action: {act_descr}, Target reached within {current_steps} steps. Reward: {current_reward: .4f}!")
 
     def simple_traslation(self, target_pos: np.ndarray, act_descr: str, 
                         stop_on_contact_geom_ids: list | None = None, allowed_body_ids: list | None = None, 
@@ -94,7 +73,7 @@ class MovementController:
         obs, _, _, _ = self.env.step(action)
 
         total_steps = 0
-        total_reward = 0
+        total_reward = 0.0
 
         # Now we start to move.
         for _ in range(max_steps):
@@ -119,7 +98,8 @@ class MovementController:
 
             # 4. Execute
             obs, reward, _, _ = self.env.step(action)
-            self.env.render()
+            if self.env.has_renderer:
+                self.env.render()
 
             total_reward += reward
             total_steps += 1
@@ -133,7 +113,8 @@ class MovementController:
             """
 
         # Eventually after 'max_steps' steps the loop finishes...
-        print(f"Action: {act_descr}, Target not reached even in {total_steps} steps. Reward: {total_reward}")
+        # print(f"Action: {act_descr}, Target not reached even in {total_steps} steps. Reward: {total_reward: .4f}")
+
         return (total_steps, total_reward)
 
     def _obs_init(self) -> dict:
@@ -246,7 +227,7 @@ class MovementController:
 
         return best_rotation
 
-    def yaw_rotation(self, object_quat: np.ndarray, act_descr: str, n_faces: int = 4) -> tuple[int, float]:
+    def yaw_rotation(self, object_quat: np.ndarray, act_descr: str, n_faces: int = 4) -> None:
         """Executes a gripper yaw-rotation (around the z-axis) reaching the target rotation passed.
 
         Args:
@@ -262,9 +243,10 @@ class MovementController:
         # Compute the optimal eef rotation
         target_rotation = self.optimal_eef_rotation(object_quat, eef_quat, n_faces)
         # Execute the rotation
-        steps, reward = self.rotation(obs, target_rotation, act_descr)
+        current_steps, current_reward = self.rotation(obs, target_rotation, act_descr)
 
-        return (steps, reward)
+        self.steps += current_steps
+        self.reward += current_reward
 
     def _delta_rotation(self, obs: dict, target_rotation: R) -> np.ndarray:
         """
@@ -309,7 +291,7 @@ class MovementController:
         action = np.zeros(self.env.action_dim)
 
         total_steps = 0
-        total_reward = 0
+        total_reward = 0.0
 
         for _ in range(max_steps):
             delta_rotvec = self._delta_rotation(obs, target_rot)
@@ -320,7 +302,7 @@ class MovementController:
 
             # Note: We put abs(...) because the difference in rotation can also be negative!
             if degree_difference < tolerance:
-                print(f"Action: {act_descr}, Aligned within {total_steps} steps! Final difference: {degree_difference:.2f}°. Reward: {total_reward}")
+                # print(f"Action: {act_descr}, Aligned within {total_steps} steps! Final difference: {degree_difference:.2f}°. Reward: {total_reward: .4f}")
                 return (total_steps, total_reward)
 
             # Introducing active correction...
@@ -337,13 +319,15 @@ class MovementController:
 
             # Execute
             obs, reward, _, _ = self.env.step(action)
-            self.env.render()
+            if self.env.has_renderer:
+                self.env.render()
 
             total_reward += reward
             total_steps += 1
             
         # Eventually after 'max_steps' steps the loop finishes...
-        print(f"Action: {act_descr}, Target not reached even in {total_steps} steps...")
+        # print(f"Action: {act_descr}, Target not reached even in {total_steps} steps...")
+
         return (total_steps, total_reward)
             
     def toggle_grab(self, min_steps: int = 30):
@@ -369,7 +353,8 @@ class MovementController:
         # We first run some steps to ensure enough time has passed from the previouse stages
         for _ in range(settings.hold_steps):
             self.env.step(action)
-            self.env.render()
+            if self.env.has_renderer:
+                self.env.render()
 
         # Decide the gripper value and keep it for the entire loop; also update it in the env variable!
         self.gripper_state = - (self.gripper_state)
@@ -385,4 +370,32 @@ class MovementController:
             #action[3:6] = 0.0   Already zero as per definition
 
             obs, _, _, _ = self.env.step(action)
-            self.env.render()
+            if self.env.has_renderer:
+                self.env.render()
+
+
+    """
+    Under development...
+
+    def _unexpected_contact(self, held_geoms_ids: list, allowed_body_ids: list, dist_threshold: float = 0.0) -> bool:
+        for i in range(self.env.sim.data.ncon):
+            contact = self.env.sim.data.contact[i]
+            geom1, geom2 = contact.geom1, contact.geom2
+
+            # Check whether the contact involves the gripper or the held object
+            involves_held = geom1 in held_geoms_ids or geom2 in held_geoms_ids
+
+            # If the conctact happened not between an held geometry then we don't care
+            if not involves_held: 
+                continue
+
+            # Get the other geometry involved in the contact (other than the held one)
+            other_geom = geom2 if geom1 in held_geoms_ids else geom1
+            other_body = self.env.sim.model.geom_bodyid[other_geom]
+
+            # Check for contact distance (as MuJoco also considers margin for contacts...)
+            if other_body not in allowed_body_ids and contact.dist <= dist_threshold:
+                    return True
+
+        return False  # No unexpected contacts detected
+    """

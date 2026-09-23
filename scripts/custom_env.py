@@ -156,6 +156,8 @@ class CustomTask(SingleArmEnv):
 
     def reward(self, action):
 
+        reward = 0.0
+
         # If the simulation has succeded return 1!
         if self._check_success():
             return 1.0
@@ -168,10 +170,45 @@ class CustomTask(SingleArmEnv):
         obj = self.objects[0]
         obj_id = self.sim.model.body_name2id(obj.root_body)
         obj_pos = self.sim.data.body_xpos[obj_id]
-        dist_xy = np.linalg.norm(obj_pos[:2] - np.array([0.0, 0.0]))
 
-        # Clip the reward between 0.0 and 0.9 based on how far the object is from the drop point
-        return float(np.clip(1.0 - dist_xy, 0.0, 0.9))
+        # Introduce favouring of smoother movements
+        # Get eef position
+        eef_pos = self.sim.data.site_xpos[self.robots[0].eef_site_id]
+
+        # 1. Bonus for closeness to objects
+        dist_eef_obj = np.linalg.norm(eef_pos - obj_pos)
+        # We use tanh to normalize the value between [0, 1] scaled by importance
+        reward += settings.closeness * (1.0 - np.tanh(10.0 * dist_eef_obj))
+
+        # 2. Bonus for grasping and lifting the object
+        is_grasped = self._check_grasp(gripper=self.robots[0].gripper, object_geoms=obj)
+        if is_grasped:
+            reward += settings.grasp
+
+            # Bonus for elevating the cube (future: reward linear to a range of ideal z-values)
+            table_z = self.mujoco_arena.table_top_abs[2]
+            # We favour higher z when distant from the drop point, otherwise we favour lower z
+            dist_xy = np.linalg.norm(obj_pos[:2] - np.array([0.0, 0.0]))
+            drop_zone_factor = np.clip(dist_xy / 0.10, 0.0, 1.0)
+
+            # Define an ideal z height
+            target_z = table_z + (settings.z_target * drop_zone_factor)
+
+            # Compute how off we are from that ideal z
+            delta_z = abs(obj_pos[2] - target_z)
+
+            # Bonus for stability near the ideal z
+            reward += settings.lift * (1.0 - np.tanh(15.0 * delta_z))
+
+            # Bonus for centered placement
+            reward += settings.placing * (1.0 - np.tanh(10.0 * dist_xy))
+
+        # Penalty for sudden movements
+        action_penalty = settings.sudden_movements_penalty * np.linalg.norm(action)
+        reward -= action_penalty
+
+        # Clip the reward between 0.0 and 0.95
+        return float(np.clip(reward, 0.0, 0.95))
 
     def _check_success(self, xy_tolerance : float = 0.03, velocity_tolerance : float = 0.01) -> bool:
 
