@@ -1,16 +1,20 @@
+import time
+
+import mujoco
+import numpy as np
+import robosuite as suite
+from robosuite import load_controller_config, macros
+from robosuite.environments.manipulation.single_arm_env import SingleArmEnv
+from robosuite.wrappers import DomainRandomizationWrapper
+
 import custom_env  # noqa: F401
 import custom_robot  # noqa: F401
 
 # Import utilities files
 import movements
-import numpy as np
-import robosuite as suite
 
 # Import the settings file
 import settings
-from robosuite import load_controller_config, macros
-from robosuite.environments.manipulation.single_arm_env import SingleArmEnv
-from robosuite.wrappers import DomainRandomizationWrapper
 
 
 def main():
@@ -79,16 +83,18 @@ def create_randomized_env(config: dict) -> DomainRandomizationWrapper:
     # We use domain randomization to create a more robust dataset
     env = DomainRandomizationWrapper(
         env,
-        randomize_color=True,
+        randomize_color=False,
         randomize_lighting=True,
-        randomize_camera=True,
+        randomize_camera=False,
         randomize_dynamics=False, # Breaks the whole robot, but seems useful for the future...
         randomize_on_reset=True,
         randomize_every_n_steps=0, # Randomization must not happen during the episode
     )
 
     env.reset()
+
     if env.has_renderer:
+        env.sim._render_context_offscreen.vopt.flags[mujoco.mjtVisFlag.mjVIS_RANGEFINDER] = 0
         env.render()
 
     return env
@@ -106,16 +112,38 @@ def pick_and_place_task(config: dict, task_index: int) -> tuple[int, float, floa
         # Grab the rotation (quaternion)                # Copy! Otherwise we get a reference to the original array and 
         quat = env.sim.data.body_xquat[obj_id].copy()   # it will be modified by the env.step() function!
         obj_pos_rot = (pos, quat)
-        steps, reward, accuracy = pick_and_place_action(env, obj, obj_pos_rot, task_index)
 
-        success = env.env._check_success()
-        print(f"{obj_name}: {'Success' if success else 'Failed'}!")
+        test_movement(env)
+        #steps, reward, accuracy = pick_and_place_action(env, obj, obj_pos_rot, task_index)
 
-        return (steps, reward, accuracy)
+        #success = env.env._check_success()
+        #print(f"{obj_name}: {'Success' if success else 'Failed'}!")
+
+        return (0, 0, 0)#(steps, reward, accuracy)
 
     # Close the env for any cleanup
     env.close()
 
+def test_movement(env):
+
+    action = np.zeros(env.action_dim)
+
+    """for _ in range(50):
+        action[-1] = 1.0
+        env.step(action)
+        env.render()
+    """
+    """for _ in range(50):
+        action[-1] = 0.0
+        env.step(action)
+        env.render()
+    """
+    for _ in range(50):
+        action[-1] = 1.0
+        env.step(action)
+        env.render()
+
+        
 def pick_and_place_action(env: "SingleArmEnv", obj, obj_pos_rot: tuple, task_index: int) -> tuple[int, float, float]:
     """
     Define the position over the cube, which is object_pos + 10cm on the z-axis

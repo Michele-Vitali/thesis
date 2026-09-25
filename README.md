@@ -1,50 +1,36 @@
-# 🎓 Vitali Michele's Thesis: A Data-Driven Pipeline for Robotic Manipulation via Vision-Language-Action Models
+# P-Rob3 robosuite integration
 
-This repository contains the code used in my thesis project adapted to the needs of the robotic arm on which we will test the VLA Model resulting from all of this.
+This bundle adapts the Webots-derived P-Rob3 MJCF to robosuite 1.4.1.
 
-## 🚀 Get started
+## Important architecture
 
-Follow these simple steps to ensure the project works smoothly on your pc.
+robosuite treats the manipulator arm and gripper as two separate MJCF models. The original P-Rob3 model contained the P-Grip inside the robot XML, which caused the `ManipulatorModel` end-effector lookup to fail and also caused the 8 P-Rob3 joints to be interpreted as arm joints.
 
-> **Note**:
-Due to strict library dependencies (Robosuite, MuJoco, numpy, ...) this project **requires python 3.10** and not any newer versions!  
-If you have installed a different version please go to this [link](https://www.python.org/downloads/) and download it.
+The bundle therefore contains:
 
-### 1. Clone the repository
+- `assets/robots/PRob3/PRob3.xml`: six-DOF P-Rob3 arm only.
+- `assets/robots/PRob3/PGripper.xml`: P-Grip model merged at `right_hand` by robosuite.
+- `assets/robots/PRob3/PRob3_standalone.xml`: original full standalone MJCF kept as a reference.
+- `scripts/custom_robot.py`: custom robot + custom 1-DOF robosuite gripper registration.
+- `scripts/settings.py`: uses `PRob3Gripper` instead of `None`.
+
+## Important physics fix
+
+The six arm actuators are MuJoCo `motor` actuators, not `position` actuators. robosuite's OSC controller writes torques directly to `sim.data.ctrl`, so using position actuators would interpret those values as position targets rather than joint torques.
+
+The gripper retains position actuators because robosuite's gripper interface maps the normalized [-1, 1] gripper command to the physical joint position ranges.
+
+## Run
+
+Keep the directory structure intact and run from `scripts/`:
+
 ```bash
-git clone https://github.com/Michele-Vitali/thesis.git
-cd thesis
-```
-### 2. Create and activate a Virtual Environment
-If you're using Windows:
-```bash
-py -3.10 -m venv venv
-.\venv\Scripts\activate
-```
-If you're using Linux or Mac:
-```bash
-python3.10 -m venv venv
-source venv/bin/activate
-```
-
-**Note**:
-Once activated you should see the (venv) at the beginning of your terminal line; this indicates that you are currently using the isolated virtual environment as intended.
-
-### 3. Install the dependencies
-In the repository you can find a 'requirements.txt' file which contains all the needed libraries for this project to run.  
-Make sure you are in the root directory of the project, where the 'requirements' file is located, then run:
-```bash
-pip install --upgrade pip
-pip install -r requirements.txt
-```
-
-### 4. Run the project!
-Navigate to the scripts directory and you can start the simulation:
-```bash
-cd scripts
 python main.py
 ```
 
-## Troubleshoot section
-If at any time you encounter any particular problem running the project from Windows you can first follow the troubleshooting section at the bottom of this page of the robosuite official docs (as most of the time the problems are related to that specific library setup): [robosuite docs troubleshoot](https://robosuite.ai/docs/installation.html).
-If that's not the case feel free to let me know the problem by opening an issue here: [github](https://github.com/Michele-Vitali/thesis/issues).
+The expected action dimensionality is now 7:
+
+- 6 arm OSC-Pose dimensions
+- 1 P-Grip command
+
+The custom gripper maps that one command to the two physical P-Grip joint actuators.

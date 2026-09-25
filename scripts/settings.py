@@ -1,7 +1,7 @@
 # Setup values
 env_name = "CustomTask"
 robot = "PRob3"
-gripper_types = None
+gripper_types = "PRob3Gripper"
 
 # Movements values
 translation_k = 10.0 # Useful for deciding how strong the movement should be.

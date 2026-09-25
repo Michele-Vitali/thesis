@@ -1,0 +1,439 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mujoco model="P-Rob3 P-Grip">
+
+    <asset>
+        <mesh name="finger" file="meshes/finger.obj" />
+        <mesh name="finger_connector_shape"
+              file="meshes/finger_connector_shape.obj"
+              scale="0.01 0.01 0.01" />
+        <mesh name="screw" file="meshes/screw.obj" />
+
+        <material name="rubber"
+                  rgba="0.025 0.025 0.025 1"
+                  shininess="0.9"
+                  specular="0.25" />
+
+        <material name="metal"
+                  rgba="0.7 0.7 0.7 1"
+                  shininess="0.3"
+                  specular="0.25" />
+    </asset>
+
+    <worldbody>
+
+        <body name="gripper_base" pos="0 0 0">
+
+            <body name="eef" pos="0 0 0">
+
+                <site name="ft_frame"
+                      pos="0 0 0"
+                      size="0.001"
+                      type="sphere"
+                      rgba="1 1 0 0"
+                      group="1" />
+
+                <site name="grip_site"
+                      pos="0 0 0.085"
+                      size="0.002"
+                      type="sphere"
+                      rgba="1 0 0 0.5"
+                      group="1" />
+
+                <site name="grip_site_cylinder"
+                      pos="0 0 0.085"
+                      size="0.005 0.05"
+                      type="cylinder"
+                      rgba="0 1 0 0.3"
+                      group="1" />
+
+                <site name="ee"
+                      pos="0 0 0.085"
+                      size="0.001"
+                      type="sphere"
+                      rgba="0 0 0 0"
+                      group="1" />
+
+                <site name="ee_x"
+                      pos="0 0 0.085"
+                      size="0.003 0.05"
+                      type="cylinder"
+                      rgba="1 0 0 0"
+                      group="1" />
+
+                <site name="ee_y"
+                      pos="0 0 0.085"
+                      size="0.003 0.05"
+                      quat="0.70710678 0.70710678 0 0"
+                      rgba="0 1 0 0"
+                      group="1" />
+
+                <site name="ee_z"
+                      pos="0 0 0.085"
+                      size="0.003 0.05"
+                      quat="0.70710678 0 0.70710678 0"
+                      rgba="0 0 1 0"
+                      group="1" />
+
+                <site name="gripper_middle_range_site"
+                      pos="0 0 0.085"
+                      quat="0.7071091263 -0 -0.7071044361 -0"
+                      size="0.002"
+                      type="sphere" />
+
+                <!-- ========================= -->
+                <!-- RIGHT FINGER               -->
+                <!-- ========================= -->
+
+                <body name="right_finger"
+                      pos="0 0 0.058"
+                      quat="0.9853298847 0.1706605353 0 0">
+
+                    <inertial
+                        pos="0 0.0501360152 0.07281600969"
+                        mass="0.109592"
+                        quat="0.5496682549 0.4448199744 0.4448199744 -0.5496682549"
+                        diaginertia="1.434363601e-05 0.0001376381439 0.0001406530893" />
+
+                    <geom name="finger_visual"
+                          type="mesh"
+                          mesh="finger"
+                          material="rubber"
+                          pos="-0.0007002 0.0360533 -0.0141252"
+                          quat="0.4867420813 0.5129170429 0.4867412544 0.5129144223"
+                          contype="0"
+                          conaffinity="0"
+                          group="2" />
+
+                    <geom name="screw_visual"
+                          type="mesh"
+                          mesh="screw"
+                          material="metal"
+                          pos="-0.0007002 0.0360533 -0.0141252"
+                          quat="0.4867420813 0.5129170429 0.4867412544 0.5129144223"
+                          contype="0"
+                          conaffinity="0"
+                          group="2" />
+
+                    <geom name="finger_connector_visual"
+                          type="mesh"
+                          mesh="finger_connector_shape"
+                          material="metal"
+                          contype="0"
+                          conaffinity="0"
+                          group="2"
+                          quat="0.5000000443 -0.5000001007 -0.4999999275 -0.4999999275" />
+
+                    <geom name="right_finger_col_0"
+                          type="box"
+                          pos="0 0.0437334 0.0442707"
+                          quat="0.9896509577 -0.1434955813 -0 -0"
+                          size="0.017 0.0115 0.035"
+                          group="3"
+                          friction="20 0.005 0.0001" />
+
+                    <geom name="right_finger_col_1"
+                          type="box"
+                          pos="0 0.0561311 0.0865105"
+                          quat="0.9807852207 -0.1950906222 -0 -0"
+                          size="0.015 0.01 0.02"
+                          group="3"
+                          friction="20 0.005 0.0001" />
+
+                    <geom name="right_finger_col_2"
+                          type="box"
+                          pos="0 0.0566597 0.105248"
+                          quat="0.9914449519 0.1305255043 0 0"
+                          size="0.013 0.0105 0.015"
+                          group="3"
+                          friction="20 0.005 0.0001" />
+
+                    <geom name="right_finger_col_3"
+                          type="box"
+                          pos="0 0.048226 0.127972"
+                          quat="0.9876878138 -0.1564377909 0 0"
+                          size="0.013 0.002 0.0125"
+                          group="3"
+                          friction="20 0.005 0.0001" />
+
+                    <geom name="right_finger_col_4"
+                          type="box"
+                          pos="0 0.058726 0.127073"
+                          quat="0.9510578344 0.3090129378 0 0"
+                          size="0.012 0.0035 0.0125"
+                          group="3"
+                          friction="20 0.005 0.0001" />
+
+                    <geom name="right_finger_col_5"
+                          type="box"
+                          pos="0 0.052619 0.121813"
+                          quat="0.8166436106 0.5771422817 0 0"
+                          size="0.011 0.007 0.007"
+                          group="3"
+                          friction="20 0.005 0.0001" />
+
+                    <geom name="right_finger_col_6"
+                          type="box"
+                          pos="0 0.0673743 0.108562"
+                          quat="0.9930704633 0.1175204448 -0 -0"
+                          size="0.012 0.0035 0.01"
+                          group="3"
+                          friction="20 0.005 0.0001" />
+
+                    <joint name="gripper_right"
+                           type="hinge"
+                           pos="0 0 0"
+                           axis="-1 0 0"
+                           range="-0.523599 0.0"
+                           limited="true" />
+
+                    <site name="right_finger_sensor_0"
+                          pos="0.013 0.02 0.118"
+                          quat="1 0 0 0.523599"
+                          size="0.002"
+                          type="sphere" />
+
+                    <site name="right_finger_sensor_1"
+                          pos="-0.013 0.02 0.118"
+                          quat="0 0.2588189596 0.9659258492 3.14159"
+                          size="0.002"
+                          type="sphere" />
+
+                    <site name="right_finger_sensor_2"
+                          pos="-7.548e-10 0.0214379 0.13449"
+                          quat="-0.2843081537 -0.7040203807 -0.6507873519 1.65885"
+                          size="0.002"
+                          type="sphere" />
+
+                    <site name="right_finger_sensor_3"
+                          pos="-6.75982e-08 0.0173238 0.0871813"
+                          quat="0.1294270016 0.3794640046 0.9161090112 1.58784"
+                          size="0.002"
+                          type="sphere" />
+
+                </body>
+
+
+                <!-- ========================= -->
+                <!-- LEFT FINGER                -->
+                <!-- ========================= -->
+
+                <body name="left_finger"
+                      pos="0 0 0.058"
+                      quat="1.326794897e-06 0 0.1706609671 0.9853298099">
+
+                    <inertial
+                        pos="0 0.0501360152 0.07281600969"
+                        mass="0.109592"
+                        quat="0.5496682549 0.4448199744 0.4448199744 -0.5496682549"
+                        diaginertia="1.434363601e-05 0.0001376381439 0.0001406530893" />
+
+                    <geom name="left_finger_visual"
+                          type="mesh"
+                          mesh="finger"
+                          material="rubber"
+                          pos="-0.0007002 0.0360533 -0.0141252"
+                          quat="0.4867420813 0.5129170429 0.4867412544 0.5129144223"
+                          contype="0"
+                          conaffinity="0"
+                          group="2" />
+
+                    <geom name="left_screw_visual"
+                          type="mesh"
+                          mesh="screw"
+                          material="metal"
+                          pos="-0.0007002 0.0360533 -0.0141252"
+                          quat="0.4867420813 0.5129170429 0.4867412544 0.5129144223"
+                          contype="0"
+                          conaffinity="0"
+                          group="2" />
+
+                    <geom name="left_finger_connector_visual"
+                          type="mesh"
+                          mesh="finger_connector_shape"
+                          material="metal"
+                          contype="0"
+                          conaffinity="0"
+                          group="2"
+                          quat="0.5000000443 -0.5000001007 -0.4999999275 -0.4999999275" />
+
+                    <geom name="left_finger_col_0"
+                          type="box"
+                          pos="0 0.0437334 0.0442707"
+                          quat="0.9896509577 -0.1434955813 -0 -0"
+                          size="0.017 0.0115 0.035"
+                          group="3"
+                          friction="20 0.005 0.0001" />
+
+                    <geom name="left_finger_col_1"
+                          type="box"
+                          pos="0 0.0561311 0.0865105"
+                          quat="0.9807852207 -0.1950906222 -0 -0"
+                          size="0.015 0.01 0.02"
+                          group="3"
+                          friction="20 0.005 0.0001" />
+
+                    <geom name="left_finger_col_2"
+                          type="box"
+                          pos="0 0.0566597 0.105248"
+                          quat="0.9914449519 0.1305255043 0 0"
+                          size="0.013 0.0105 0.015"
+                          group="3"
+                          friction="20 0.005 0.0001" />
+
+                    <geom name="left_finger_col_3"
+                          type="box"
+                          pos="0 0.048226 0.127972"
+                          quat="0.9876878138 -0.1564377909 0 0"
+                          size="0.013 0.002 0.0125"
+                          group="3"
+                          friction="20 0.005 0.0001" />
+
+                    <geom name="left_finger_col_4"
+                          type="box"
+                          pos="0 0.058726 0.127073"
+                          quat="0.9510578344 0.3090129378 0 0"
+                          size="0.012 0.0035 0.0125"
+                          group="3"
+                          friction="20 0.005 0.0001" />
+
+                    <geom name="left_finger_col_5"
+                          type="box"
+                          pos="0 0.052619 0.121813"
+                          quat="0.8166436106 0.5771422817 0 0"
+                          size="0.011 0.007 0.007"
+                          group="3"
+                          friction="20 0.005 0.0001" />
+
+                    <geom name="left_finger_col_6"
+                          type="box"
+                          pos="0 0.0673743 0.108562"
+                          quat="0.9930704633 0.1175204448 -0 -0"
+                          size="0.012 0.0035 0.01"
+                          group="3"
+                          friction="20 0.005 0.0001" />
+
+                    <!--
+                        The original exported axis was not aligned with
+                        the right finger hinge axis.
+
+                        With this body's quaternion, +X local produces
+                        the mirrored hinge direction needed for the
+                        two-finger gripper.
+                    -->
+                    <joint name="gripper_left"
+                           type="hinge"
+                           pos="0 0 0"
+                           axis="-1 0 0"
+                           range="-0.523599 0.0"
+                           limited="true" />
+
+                    <site name="left_finger_sensor_0"
+                          pos="0.013 0.02 0.118"
+                          quat="1 0 0 0.523602"
+                          size="0.002"
+                          type="sphere" />
+
+                    <site name="left_finger_sensor_1"
+                          pos="-0.013 0.02 0.118"
+                          quat="0 0.2588189596 0.9659258492 3.14159"
+                          size="0.002"
+                          type="sphere" />
+
+                    <site name="left_finger_sensor_2"
+                          pos="-7.548e-10 0.0214379 0.13449"
+                          quat="-0.2843081537 -0.7040203807 -0.6507873519 1.65885"
+                          size="0.002"
+                          type="sphere" />
+
+                    <site name="left_finger_sensor_3"
+                          pos="-6.75982e-08 0.0173238 0.0871813"
+                          quat="-0.1294270016 -0.3794640046 -0.9161090112 -1.587845307"
+                          size="0.002"
+                          type="sphere" />
+
+                </body>
+
+            </body>
+
+        </body>
+
+    </worldbody>
+
+
+    <!--
+        Couple the two physical finger joints.
+
+        The two bodies use mirrored initial orientations, so the same
+        MuJoCo joint coordinate produces mirrored physical motion.
+        This is the MJCF equivalent of the official P-Grip 2F mimic
+        relation (the right finger mirrors the actuated finger).
+
+        In this exported geometry, q = 0 is the open-side limit and
+        negative q closes the fingers. The magnitude of the official
+        P-Grip 2F range is 0..30 degrees, therefore the equivalent
+        MJCF range here is -30..0 degrees.
+    -->
+    <equality>
+        <joint joint1="gripper_right"
+               joint2="gripper_left"
+               polycoef="0 1 0 0 0" />
+    </equality>
+
+
+    <!--
+        Only ONE actuator is needed.
+
+        The left finger follows the right finger through
+        the equality constraint.
+    -->
+    <actuator>
+
+        <position name="gripper_right_motor"
+                  joint="gripper_right"
+                  kp="3"
+                  ctrlrange="-0.523599 0.0"
+                  ctrllimited="true"
+                  forcelimited="true"
+                  forcerange="-5.44164 5.44164" />
+
+    </actuator>
+
+
+    <sensor>
+
+        <force name="force_ee"
+               site="ft_frame" />
+
+        <torque name="torque_ee"
+                site="ft_frame" />
+
+        <rangefinder name="gripper_middle_distance_sensor"
+                     site="gripper_middle_range_site" />
+
+        <rangefinder name="right_finger_sensor_0"
+                     site="right_finger_sensor_0" />
+
+        <rangefinder name="right_finger_sensor_1"
+                     site="right_finger_sensor_1" />
+
+        <rangefinder name="right_finger_sensor_2"
+                     site="right_finger_sensor_2" />
+
+        <rangefinder name="right_finger_sensor_3"
+                     site="right_finger_sensor_3" />
+
+        <rangefinder name="left_finger_sensor_0"
+                     site="left_finger_sensor_0" />
+
+        <rangefinder name="left_finger_sensor_1"
+                     site="left_finger_sensor_1" />
+
+        <rangefinder name="left_finger_sensor_2"
+                     site="left_finger_sensor_2" />
+
+        <rangefinder name="left_finger_sensor_3"
+                     site="left_finger_sensor_3" />
+
+    </sensor>
+
+</mujoco>

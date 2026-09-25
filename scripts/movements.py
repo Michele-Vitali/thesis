@@ -9,9 +9,27 @@ class MovementController:
 
     def __init__(self, env: SingleArmEnv, gripper_state: float = -1.0):
         self.env = env
-        self.gripper_state = gripper_state if gripper_state is not None else self._get_grabber_state()
+        self.gripper_state = (
+            gripper_state
+            if gripper_state is not None
+            else -1.0
+        )
+
+        # Actual high-level target sent to the gripper.
+        # -1 = closed
+        # +1 = open
+        self.gripper_target = self.gripper_state
         self.steps = 0
         self.reward = 0.0
+
+    def _set_gripper_target(self, command: float):
+        """
+        Set the gripper target.
+
+        Args:
+            command: -1 for closed, +1 for open.
+        """
+        self.gripper_target = np.clip(command, -1.0, 1.0)
     
     def complex_traslation(self, target_pos: np.ndarray, act_descr: str, stop_on_contact_geom_ids: list | None = None, 
                         allowed_body_ids: list | None = None, max_steps: int = 200, tolerance: float = 0.005) -> None:
@@ -357,8 +375,10 @@ class MovementController:
                 self.env.render()
 
         # Decide the gripper value and keep it for the entire loop; also update it in the env variable!
-        self.gripper_state = - (self.gripper_state)
-        action[-1] = self.gripper_state
+        self.gripper_state = -(self.gripper_state)
+        self._set_gripper_target(self.gripper_state)
+
+        action[-1] = self.gripper_target
 
         # Keep closing for 'min_steps' otherwise the gripper won't completely close itself and miss the object.
         for _ in range(min_steps):
@@ -368,6 +388,7 @@ class MovementController:
 
             action[0:3] = np.clip(settings.stationary_k * delta_pos, -0.05, 0.05)
             #action[3:6] = 0.0   Already zero as per definition
+            action[-1] = self.gripper_target
 
             obs, _, _, _ = self.env.step(action)
             if self.env.has_renderer:

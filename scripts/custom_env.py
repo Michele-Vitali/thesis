@@ -54,7 +54,7 @@ class CustomTask(SingleArmEnv):
         # 1. Table
         self.mujoco_arena = TableArena(
             table_full_size=(0.8, 0.8, 0.05),
-            table_offset=(0, 0, 0.8)
+            table_offset=(0, 0, 0.5)
         )
 
         self.mujoco_arena.set_origin([0.16, 0, 0])
