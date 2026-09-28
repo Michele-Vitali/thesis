@@ -1,11 +1,10 @@
 import os
 
 import numpy as np
-
+from robosuite.models.grippers import GRIPPER_MAPPING
+from robosuite.models.grippers.gripper_model import GripperModel
 from robosuite.models.robots.manipulators.manipulator_model import ManipulatorModel
 from robosuite.models.robots.robot_model import register_robot
-from robosuite.models.grippers.gripper_model import GripperModel
-from robosuite.models.grippers import GRIPPER_MAPPING
 from robosuite.robots import ROBOT_CLASS_MAPPING
 from robosuite.robots.single_arm import SingleArm
 
@@ -41,70 +40,22 @@ class PRob3Gripper(GripperModel):
         """
         Initial positions of the physical finger joints.
         """
-        return np.array([0.0, 0.0])
+        return np.array([0.523599, 0.523599])
 
     @property
     def speed(self):
-        return 0.20
-
-    @property
-    def _important_sites(self):
-        return {
-            "grip_site": "grip_site",
-            "grip_cylinder": "grip_site_cylinder",
-            "ee": "ee",
-            "ee_x": "ee_x",
-            "ee_y": "ee_y",
-            "ee_z": "ee_z",
-        }
-
-    @property
-    def _important_geoms(self):
-        return {
-            "left_finger": [
-                "left_finger_col_0",
-                "left_finger_col_1",
-                "left_finger_col_2",
-                "left_finger_col_3",
-                "left_finger_col_4",
-                "left_finger_col_5",
-                "left_finger_col_6",
-            ],
-            "right_finger": [
-                "right_finger_col_0",
-                "right_finger_col_1",
-                "right_finger_col_2",
-                "right_finger_col_3",
-                "right_finger_col_4",
-                "right_finger_col_5",
-                "right_finger_col_6",
-            ],
-            "left_fingerpad": [
-                "left_finger_col_0",
-                "left_finger_col_1",
-                "left_finger_col_2",
-                "left_finger_col_3",
-                "left_finger_col_4",
-                "left_finger_col_5",
-                "left_finger_col_6",
-            ],
-            "right_fingerpad": [
-                "right_finger_col_0",
-                "right_finger_col_1",
-                "right_finger_col_2",
-                "right_finger_col_3",
-                "right_finger_col_4",
-                "right_finger_col_5",
-                "right_finger_col_6",
-            ],
-        }
+        return 0.0035
 
     def format_action(self, action):
 
+        action = np.asarray(action, dtype=float).reshape(-1)
+
         assert len(action) == 1
+
         self.current_action = np.clip(
-            self.current_action * 1.0 + self.speed * np.sign(action), -1.0, 1.0
+            self.current_action + self.speed * np.sign(action), -1.0, 1.0
         )
+
         return self.current_action
 
 GRIPPER_MAPPING["PRob3Gripper"] = PRob3Gripper
@@ -166,8 +117,18 @@ class PRob3(ManipulatorModel):
     @property
     def init_qpos(self):
         return np.array(
-            [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+            [0.0, -0.366, 0.800, 0.0, 1.137, 0.0]
         )
 
+class PRob3SingleArm(SingleArm):
 
-ROBOT_CLASS_MAPPING["PRob3"] = SingleArm
+    def reset(self, deterministic=False):
+        super().reset(deterministic)
+
+        if self.has_gripper:
+            # P-Grip starts completely open
+            self.gripper.current_action = np.array([1.0])
+    
+
+
+ROBOT_CLASS_MAPPING["PRob3"] = PRob3SingleArm

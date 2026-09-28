@@ -183,8 +183,9 @@
                            type="hinge"
                            pos="0 0 0"
                            axis="-1 0 0"
-                           range="-0.523599 0.0"
-                           limited="true" />
+                           range="0 0.523599"
+                           limited="true"
+                           damping="0.03" />
 
                     <site name="right_finger_sensor_0"
                           pos="0.013 0.02 0.118"
@@ -324,8 +325,9 @@
                            type="hinge"
                            pos="0 0 0"
                            axis="-1 0 0"
-                           range="-0.523599 0.0"
-                           limited="true" />
+                           range="0 0.523599"
+                           limited="true"
+                           damping="0.03" />
 
                     <site name="left_finger_sensor_0"
                           pos="0.013 0.02 0.118"
@@ -391,7 +393,7 @@
         <position name="gripper_right_motor"
                   joint="gripper_right"
                   kp="3"
-                  ctrlrange="-0.523599 0.0"
+                  ctrlrange="0.05 1.0472"
                   ctrllimited="true"
                   forcelimited="true"
                   forcerange="-5.44164 5.44164" />

@@ -54,11 +54,11 @@ class CustomTask(SingleArmEnv):
         # 1. Table
         self.mujoco_arena = TableArena(
             table_full_size=(0.8, 0.8, 0.05),
-            table_offset=(0, 0, 0.5)
+            table_offset=(0, 0, 0.3)
         )
 
-        self.mujoco_arena.set_origin([0.16, 0, 0])
-        self.robots[0].robot_model.set_base_xpos([-0.5, 0, 0])
+        self.mujoco_arena.set_origin([0.0, 0.0, 0.0])
+        self.robots[0].robot_model.set_base_xpos([-0.5, 0.0, 0.0])
 
         # 2. Spawn and place some objects...
         self._create_objects()

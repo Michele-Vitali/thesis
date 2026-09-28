@@ -1,25 +1,24 @@
-import time
-
-import mujoco
-import numpy as np
-import robosuite as suite
-from robosuite import load_controller_config, macros
-from robosuite.environments.manipulation.single_arm_env import SingleArmEnv
-from robosuite.wrappers import DomainRandomizationWrapper
-
 import custom_env  # noqa: F401
 import custom_robot  # noqa: F401
 
 # Import utilities files
 import movements
+import mujoco
+import numpy as np
+import robosuite as suite
 
 # Import the settings file
 import settings
+from mink import SE3, SO3, Configuration, FrameTask, PostureTask, ConfigurationLimit
+from robosuite import load_controller_config, macros
+from robosuite.environments.manipulation.single_arm_env import SingleArmEnv
+from robosuite.wrappers import DomainRandomizationWrapper
+from robosuite.utils.transform_utils import mat2euler
 
 
 def main():
     # Create the CompositeController with OSC POSE and JOINT_POSITION modality
-    config = load_controller_config(default_controller="OSC_POSE")
+    config = load_controller_config(default_controller="JOINT_POSITION")
 
     # Menu
     menu_loop = True
@@ -73,7 +72,7 @@ def create_randomized_env(config: dict) -> DomainRandomizationWrapper:
         has_renderer=True, 
         has_offscreen_renderer=False,
         use_camera_obs=False,
-        control_freq=2, # Limits the robot to 20 actions/second (5 for testing in lab...)
+        control_freq=20, # Limits the robot to 20 actions/second (5 for testing in lab...)
         controller_configs=config,
         hard_reset=False, # Avoids segfault on macos or glfw error on Linux (per docs...)
         horizon=1000, # So we are sure that all the pick and places terminate
@@ -83,9 +82,9 @@ def create_randomized_env(config: dict) -> DomainRandomizationWrapper:
     # We use domain randomization to create a more robust dataset
     env = DomainRandomizationWrapper(
         env,
-        randomize_color=False,
+        randomize_color=True,
         randomize_lighting=True,
-        randomize_camera=False,
+        randomize_camera=True,
         randomize_dynamics=False, # Breaks the whole robot, but seems useful for the future...
         randomize_on_reset=True,
         randomize_every_n_steps=0, # Randomization must not happen during the episode
@@ -113,8 +112,7 @@ def pick_and_place_task(config: dict, task_index: int) -> tuple[int, float, floa
         quat = env.sim.data.body_xquat[obj_id].copy()   # it will be modified by the env.step() function!
         obj_pos_rot = (pos, quat)
 
-        test_movement(env)
-        #steps, reward, accuracy = pick_and_place_action(env, obj, obj_pos_rot, task_index)
+        steps, reward, accuracy = pick_and_place_action(env, obj, obj_pos_rot, task_index)
 
         #success = env.env._check_success()
         #print(f"{obj_name}: {'Success' if success else 'Failed'}!")
@@ -124,26 +122,7 @@ def pick_and_place_task(config: dict, task_index: int) -> tuple[int, float, floa
     # Close the env for any cleanup
     env.close()
 
-def test_movement(env):
 
-    action = np.zeros(env.action_dim)
-
-    """for _ in range(50):
-        action[-1] = 1.0
-        env.step(action)
-        env.render()
-    """
-    """for _ in range(50):
-        action[-1] = 0.0
-        env.step(action)
-        env.render()
-    """
-    for _ in range(50):
-        action[-1] = 1.0
-        env.step(action)
-        env.render()
-
-        
 def pick_and_place_action(env: "SingleArmEnv", obj, obj_pos_rot: tuple, task_index: int) -> tuple[int, float, float]:
     """
     Define the position over the cube, which is object_pos + 10cm on the z-axis
@@ -151,19 +130,56 @@ def pick_and_place_action(env: "SingleArmEnv", obj, obj_pos_rot: tuple, task_ind
         - [0], positions (x,y,z)
         - [1], rotations (qx, qy, qz, qw)
     """
+    """
+    
     obj_pos, obj_rot = obj_pos_rot[0], obj_pos_rot[1]
 
     # A z of 30cm is the chosen ideal quote
     over_obj_pos = obj_pos + np.array([0, 0, 0.30])
+    """
 
     # Initialize the movements controller
     movement_ctrl = movements.MovementController(env)
 
-    n_faces = movement_ctrl.determine_n_faces(obj)
+    (obj_pos, obj_rot) = obj_pos_rot
+    # Compute the target position (20cm over the object)
+    target_pos = obj_pos + np.array([0.0, 0.0, 0.2])
+    # Compute the target rotation (perpendicular to the table)
+
+
+    # Mink setup
+    # Get the MuJoco model for Mink to do further computations
+    mj_model = env.sim.model._model
+    configuration = Configuration(mj_model)
+    configuration.update(env.sim.data.qpos.copy())
+
+    eef_tsk = FrameTask(
+        frame_name="gripper0_grip_site",
+        frame_type="site",
+        position_cost=1.0,  # We do not favour traslation over orientation or viceversa
+        orientation_cost=1.0
+    )
+
+    posture_task = PostureTask(
+        model=mj_model,
+        cost=1e-2   # As per common default for soft regularization via docs
+    )
+
+    joint_limits = [ConfigurationLimit(mj_model)]
+
+    # Define a transformation matrix to then build a SE3 Mink transformation
+    target_matrix = np.eye(4)
+    target_matrix[:3, :3] = target_rotation.as_matrix()
+    target_matrix[:3, 3] = target_pos
+
+    target_pose = SE3.from_matrix(target_matrix)
+
+    movement_ctrl.get_robot_joints_pos()
 
     """
+    n_faces = movement_ctrl.determine_n_faces(obj)
+
     Let's print the rewards to see if the heuristic is correct (reward should be growing in a monothonic way.)
-    """
 
     # 1. Move over the target
     movement_ctrl.complex_traslation(over_obj_pos, "Move over")
@@ -203,7 +219,13 @@ def pick_and_place_action(env: "SingleArmEnv", obj, obj_pos_rot: tuple, task_ind
     print(f"[Task-{task_index}] Report:\n - Final total steps: {total_steps}\n - Final total reward: {total_reward: .4f}\n - Final accuracy: {accuracy: .2f}")
 
     return (total_steps, total_reward, accuracy)
+    """
+    obj_pos, obj_rot = obj_pos_rot[0], obj_pos_rot[1]
+    success = movement_ctrl.move_above_object(obj, obj_pos, obj_rot, height=0.10)
+    print("Move over object: ", success)
 
+    return (0,0,0)
+    
 if __name__ == "__main__":
     main()
 
