@@ -1,11 +1,10 @@
-import time
-
 import mujoco
 import numpy as np
 import robosuite as suite
+
 from robosuite import load_controller_config, macros
-from robosuite.environments.manipulation.single_arm_env import SingleArmEnv
 from robosuite.wrappers import DomainRandomizationWrapper
+from scipy.spatial.transform import Rotation as R
 
 import custom_env  # noqa: F401
 import custom_robot  # noqa: F401
@@ -17,68 +16,76 @@ import movements
 import settings
 
 
+# Compare the old initial pose with a top-down pose already found valid in our kinematic tests.
+INIT_POSES = {
+    "OLD INIT": np.array([0.0, -0.366, 0.8, 0.0, 1.137, 0.0]),
+    "TOP-DOWN INIT": np.array([0.0, 0.05473, 1.23560, 0.0, 1.85127, 0.0]),
+}
+
+PREGRASP_HEIGHT = 0.10
+POSITION_TOLERANCE = 0.01
+ROTATION_TOLERANCE = 1.0
+MIN_JOINT_MARGIN = 0.02
+
+
 def main():
-    # Create the CompositeController with OSC POSE and JOINT_POSITION modality
-    config = load_controller_config(default_controller="OSC_POSE")
+    n_tests = int(input("How many random tests for each init pose? "))
 
-    # Menu
-    menu_loop = True
-    while menu_loop:
-        input_good = False
-        print("\n\nChoose the task you want to simulate: ")
-        print("1 - Pick and Place")
-        while not input_good:
-            choice = input("Choice: ")
-            try:
-                num_choice = int(choice)
-                if num_choice < 1 or num_choice > 1:
-                    raise ValueError
-                else:
-                    input_good = True
-            except ValueError:
-                print("Invalid choice... Retry.")
+    all_results = {}
 
-        task_loop = True
-        while task_loop:
-            match num_choice:
-                case 1:
-                    n_tasks = int(input("How many times? "))
-                    results = [[], [], []]
-                    for i in range(n_tasks):
-                        steps, reward, accuracy = pick_and_place_task(config, i)
-                        results[0].append(steps)
-                        results[1].append(reward)
-                        results[2].append(accuracy)
+    for init_name, init_qpos in INIT_POSES.items():
+        print("\n" + "=" * 70)
+        print(init_name)
+        print("=" * 70)
 
-                    averages = [sum(sublist) / len(sublist) for sublist in results]
+        config = load_controller_config(default_controller="OSC_POSE")
+        env = create_randomized_env(config, init_qpos)
 
-                    print("="*60)
-                    print(f"Final report.\n - Average steps: {averages[0]: .2f}.\n - Average reward: {averages[1]: .2f}.\n - Average accuracy over {n_tasks} iterations: {averages[2]: .4f}")
-                    print("="*60)
+        results = []
 
-            choice = input("Want to repeat the task? (Y/N): ")
-            task_loop = choice.upper() == "Y"
+        try:
+            for i in range(n_tests):
+                # Same seed index for both init poses, so the comparison is as fair as possible.
+                np.random.seed(i)
+                env.reset()
 
-        choice = input("Want to terminate? (Otherwise choose a task later...) (Y/N): ")
-        menu_loop = choice.upper() != "Y"
+                if env.has_renderer:
+                    env.render()
 
-def create_randomized_env(config: dict) -> DomainRandomizationWrapper:
+                result = test_osc_pose(env, i)
+                results.append(result)
+        finally:
+            env.close()
+
+        all_results[init_name] = results
+        print_report(init_name, results)
+
+    print_comparison(all_results)
+
+
+def create_randomized_env(config: dict, arm_qpos: np.ndarray) -> DomainRandomizationWrapper:
     # As the docs say, we use this so that entire geom groups are randomized as a whole
     macros.USING_INSTANCE_RANDOMIZATION = True
+
     # Create the base environment
     env = suite.make(
         env_name=settings.env_name,
         robots=settings.robot,
         gripper_types=settings.gripper_types,
-        has_renderer=True, 
+        has_renderer=True,
         has_offscreen_renderer=False,
         use_camera_obs=False,
-        control_freq=2, # Limits the robot to 20 actions/second (5 for testing in lab...)
+        control_freq=20, # Limits the robot to 20 actions/second (5 for testing in lab...)
         controller_configs=config,
         hard_reset=False, # Avoids segfault on macos or glfw error on Linux (per docs...)
-        horizon=1000, # So we are sure that all the pick and places terminate
+        horizon=50000, # So we are sure that all the pick and places terminate
         reward_shaping=True, # So we enable RL success check
     )
+
+    # Set the arm initial configuration directly on the instantiated robosuite robot.
+    robot_init_qpos = np.asarray(env.robots[0].init_qpos, dtype=float).copy()
+    robot_init_qpos[:6] = np.asarray(arm_qpos, dtype=float)
+    env.robots[0].init_qpos = robot_init_qpos
 
     # We use domain randomization to create a more robust dataset
     env = DomainRandomizationWrapper(
@@ -94,165 +101,251 @@ def create_randomized_env(config: dict) -> DomainRandomizationWrapper:
     env.reset()
 
     if env.has_renderer:
-        env.sim._render_context_offscreen.vopt.flags[mujoco.mjtVisFlag.mjVIS_RANGEFINDER] = 0
+        if getattr(env.sim, "_render_context_offscreen", None) is not None:
+            env.sim._render_context_offscreen.vopt.flags[mujoco.mjtVisFlag.mjVIS_RANGEFINDER] = 0
         env.render()
 
     return env
 
-def pick_and_place_task(config: dict, task_index: int) -> tuple[int, float, float]:
-    # PickAndPlace situation
 
-    env = create_randomized_env(config)
+def test_osc_pose(env, test_index: int) -> dict:
+    obj = env.objects[0]
+    obj_name = obj.root_body
+    obj_id = env.sim.model.body_name2id(obj_name)
 
-    for obj in env.objects:
-        obj_name = obj.root_body
-        obj_id = env.sim.model.body_name2id(obj_name)
-        # Grab the position
-        pos = env.sim.data.body_xpos[obj_id].copy()
-        # Grab the rotation (quaternion)                # Copy! Otherwise we get a reference to the original array and 
-        quat = env.sim.data.body_xquat[obj_id].copy()   # it will be modified by the env.step() function!
-        obj_pos_rot = (pos, quat)
+    obj_pos = env.sim.data.body_xpos[obj_id].copy()
+    obj_rot = env.sim.data.body_xquat[obj_id].copy()
 
-        test_movement(env)
-        #steps, reward, accuracy = pick_and_place_action(env, obj, obj_pos_rot, task_index)
+    over_obj_pos = obj_pos + np.array([0.0, 0.0, PREGRASP_HEIGHT])
 
-        #success = env.env._check_success()
-        #print(f"{obj_name}: {'Success' if success else 'Failed'}!")
-
-        return (0, 0, 0)#(steps, reward, accuracy)
-
-    # Close the env for any cleanup
-    env.close()
-
-def test_movement(env):
-
-    action = np.zeros(env.action_dim)
-
-    """for _ in range(50):
-        action[-1] = 1.0
-        env.step(action)
-        env.render()
-    """
-    """for _ in range(50):
-        action[-1] = 0.0
-        env.step(action)
-        env.render()
-    """
-    for _ in range(50):
-        action[-1] = 1.0
-        env.step(action)
-        env.render()
-
-        
-def pick_and_place_action(env: "SingleArmEnv", obj, obj_pos_rot: tuple, task_index: int) -> tuple[int, float, float]:
-    """
-    Define the position over the cube, which is object_pos + 10cm on the z-axis
-    target_pos:
-        - [0], positions (x,y,z)
-        - [1], rotations (qx, qy, qz, qw)
-    """
-    obj_pos, obj_rot = obj_pos_rot[0], obj_pos_rot[1]
-
-    # A z of 30cm is the chosen ideal quote
-    over_obj_pos = obj_pos + np.array([0, 0, 0.30])
-
-    # Initialize the movements controller
     movement_ctrl = movements.MovementController(env)
-
     n_faces = movement_ctrl.determine_n_faces(obj)
 
-    """
-    Let's print the rewards to see if the heuristic is correct (reward should be growing in a monothonic way.)
-    """
+    initial_obs = env._get_observations()
+    initial_q, initial_margins = get_arm_joint_data(env)
+    initial_rotation = R.from_quat(initial_obs["robot0_eef_quat"])
+    initial_tool_z = initial_rotation.as_matrix()[:, 2]
+    initial_tilt = angle_from_down(initial_tool_z)
 
-    # 1. Move over the target
-    movement_ctrl.complex_traslation(over_obj_pos, "Move over")
+    print("\n" + "-" * 70)
+    print(f"TEST {test_index + 1}")
+    print("-" * 70)
+    print("OBJECT POS:", np.round(obj_pos, 5))
+    print("TARGET POS:", np.round(over_obj_pos, 5))
+    print("INITIAL Q:", np.round(initial_q, 5))
+    print("INITIAL TOOL +Z:", np.round(initial_tool_z, 5))
+    print(f"INITIAL TILT FROM DOWN: {initial_tilt:.3f} deg")
+    print(f"INITIAL MIN JOINT MARGIN: {np.nanmin(initial_margins):.5f} rad")
 
-    # 2. Orientate the gripper as the cube
-    movement_ctrl.yaw_rotation(obj_rot, "Rotate", n_faces)
+    # 1. Reach the pre-grasp position using the original OSC translation logic.
+    movement_ctrl.complex_traslation(
+        over_obj_pos,
+        "Move over",
+        max_steps=300,
+        tolerance=0.005
+    )
 
-    # 2. Start the descent, we just reuse the same function...
-    #    but we ensure the gripper is initially open!
-    movement_ctrl.complex_traslation(obj_pos, "Descent")
+    # 2. Compute exactly the same top-down grasp orientation used by the old MovementController.
+    obs = movement_ctrl._obs_init()
+    target_rotation = movement_ctrl.optimal_eef_rotation(
+        obj_rot,
+        obs["robot0_eef_quat"],
+        n_faces
+    )
+
+    # 3. Reach that orientation using OSC_POSE while actively correcting position.
+    rotation_steps, rotation_reward = movement_ctrl.rotation(
+        obs,
+        target_rotation,
+        "Rotate",
+        max_steps=300,
+        tolerance=ROTATION_TOLERANCE,
+    )
+
+    movement_ctrl.steps += rotation_steps
+    movement_ctrl.reward += rotation_reward
+
+    # 4. Measure the final state.
+    final_obs = movement_ctrl._obs_init()
+    final_pos = final_obs["robot0_eef_pos"].copy()
+    final_rotation = R.from_quat(final_obs["robot0_eef_quat"])
+
+    position_error = np.linalg.norm(over_obj_pos - final_pos)
+
+    rotation_error = np.degrees(
+        (target_rotation * final_rotation.inv()).magnitude()
+    )
+
+    tool_z = final_rotation.as_matrix()[:, 2]
+    tilt_from_down = angle_from_down(tool_z)
+
+    final_q, final_margins = get_arm_joint_data(env)
+    min_joint_margin = np.nanmin(final_margins)
+
+    position_ok = position_error < POSITION_TOLERANCE
+    rotation_ok = rotation_error < ROTATION_TOLERANCE
+    joints_ok = min_joint_margin > MIN_JOINT_MARGIN
+
+    success = position_ok and rotation_ok and joints_ok
+
+    print("FINAL EEF POS:", np.round(final_pos, 5))
+    print(f"POSITION ERROR: {position_error * 1000:.3f} mm")
+    print(f"ROTATION ERROR: {rotation_error:.3f} deg")
+    print("TOOL +Z:", np.round(tool_z, 5))
+    print(f"TILT FROM DOWN: {tilt_from_down:.3f} deg")
+    print("FINAL Q:", np.round(final_q, 5))
+    print("FINAL JOINT MARGINS:", np.round(final_margins, 5))
+    print(f"MIN JOINT MARGIN: {min_joint_margin:.5f} rad")
+    print("RESULT:", "SUCCESS" if success else "FAIL")
+
+    return {
+        "success": success,
+        "position_error": position_error,
+        "rotation_error": rotation_error,
+        "tilt": tilt_from_down,
+        "q": final_q,
+        "joint_margins": final_margins,
+    }
 
 
-    # 3. Grab the cube and elevate it!
-    movement_ctrl.toggle_grab()
-    movement_ctrl.complex_traslation(over_obj_pos, "Elevate")
+def get_arm_joint_data(env) -> tuple[np.ndarray, np.ndarray]:
+    robot = env.robots[0]
+
+    qpos_indexes = np.asarray(
+        robot._ref_joint_pos_indexes,
+        dtype=int
+    )
+
+    q = env.sim.data.qpos[qpos_indexes].copy()
+
+    margins = []
+
+    for qpos_index, joint_q in zip(qpos_indexes, q):
+        joint_ids = np.where(
+            np.asarray(env.sim.model.jnt_qposadr) == qpos_index
+        )[0]
+
+        if len(joint_ids) == 0:
+            margins.append(np.nan)
+            continue
+
+        joint_id = int(joint_ids[0])
+
+        lower_limit, upper_limit = env.sim.model.jnt_range[joint_id]
+
+        margin = min(
+            joint_q - lower_limit,
+            upper_limit - joint_q
+        )
+
+        margins.append(margin)
+
+    return q, np.asarray(margins)
 
 
-    # 4. Go in the middle, rotate, go down and drop!
-    over_final_pos = np.array([0, 0, over_obj_pos[2]])
-    movement_ctrl.complex_traslation(over_final_pos, "Move center")
+def angle_from_down(tool_z: np.ndarray) -> float:
+    return np.degrees(
+        np.arccos(
+            np.clip(
+                np.dot(
+                    tool_z,
+                    np.array([0.0, 0.0, -1.0])
+                ),
+                -1.0,
+                1.0,
+            )
+        )
+    )
 
-    # We align the cube with the system axes by putting the target as 
-    # a quaternion with w=1 (scalar value) and rotations around the axes at 0
-    movement_ctrl.yaw_rotation([1, 0, 0, 0], "Final rotation", n_faces) 
-    drop_position = np.array([0, 0, obj_pos[2] + 0.02]) # Keep the same z as the original (on table surface) plus a margin
-    movement_ctrl.complex_traslation(drop_position, "Final descent")
-    movement_ctrl.toggle_grab()
 
-    # 5. Go back to neutral position
-    neutral_pos = np.array([0, 0, obj_pos[2] + 0.30])
-    movement_ctrl.complex_traslation(neutral_pos, "Neutral position")
+def print_report(init_name: str, results: list[dict]):
+    successes = sum(
+        result["success"]
+        for result in results
+    )
 
-    total_steps = movement_ctrl.steps
-    total_reward = movement_ctrl.reward
-    accuracy = total_reward/total_steps
+    position_errors = np.array([
+        result["position_error"]
+        for result in results
+    ])
 
-    print(f"[Task-{task_index}] Report:\n - Final total steps: {total_steps}\n - Final total reward: {total_reward: .4f}\n - Final accuracy: {accuracy: .2f}")
+    rotation_errors = np.array([
+        result["rotation_error"]
+        for result in results
+    ])
 
-    return (total_steps, total_reward, accuracy)
+    joint_margins = np.array([
+        np.nanmin(result["joint_margins"])
+        for result in results
+    ])
+
+    print("\n" + "=" * 70)
+    print(f"REPORT - {init_name}")
+    print("=" * 70)
+
+    print(
+        f"Successes: {successes}/{len(results)} "
+        f"({100 * successes / len(results):.1f}%)"
+    )
+
+    print(
+        f"Average position error: "
+        f"{np.mean(position_errors) * 1000:.3f} mm"
+    )
+
+    print(
+        f"Maximum position error: "
+        f"{np.max(position_errors) * 1000:.3f} mm"
+    )
+
+    print(
+        f"Average rotation error: "
+        f"{np.mean(rotation_errors):.3f} deg"
+    )
+
+    print(
+        f"Maximum rotation error: "
+        f"{np.max(rotation_errors):.3f} deg"
+    )
+
+    print(
+        f"Minimum joint margin seen: "
+        f"{np.min(joint_margins):.5f} rad"
+    )
+
+    print("=" * 70)
+
+
+def print_comparison(all_results: dict[str, list[dict]]):
+    print("\n\n" + "=" * 70)
+    print("FINAL OSC_POSE COMPARISON")
+    print("=" * 70)
+
+    for init_name, results in all_results.items():
+        successes = sum(
+            result["success"]
+            for result in results
+        )
+
+        average_rotation_error = np.mean([
+            result["rotation_error"]
+            for result in results
+        ])
+
+        minimum_joint_margin = min(
+            np.nanmin(result["joint_margins"])
+            for result in results
+        )
+
+        print(
+            f"{init_name}: "
+            f"{successes}/{len(results)} successes | "
+            f"avg rot err {average_rotation_error:.3f} deg | "
+            f"min joint margin {minimum_joint_margin:.5f} rad"
+        )
+
+    print("=" * 70)
+
 
 if __name__ == "__main__":
     main()
-
-    """
-
-Still under construction...
-
-def stacking_action(env, obj_pos_rot, obj, table_body_id):
-    obj_pos = obj_pos_rot[0]
-    obj_rot = obj_pos_rot[1]
-
-    over_obj_pos = obj_pos + np.array([0, 0, 0.10])
-
-    # Save the contact geoms of the object we are manipulating
-    gripper = env.robots[0].gripper
-    geom_names = [name for names in gripper.important_geoms.values() for name in names]
-    gripper_geom_ids = {env.sim.model.geom_name2id(name) for name in geom_names}
-    gripper_body_ids = {env.sim.model.geom_bodyid[geom_id] for geom_id in gripper_geom_ids}
-
-    held_geom_ids = {env.sim.model.geom_name2id(g) for g in obj.contact_geoms}
-
-    monitored_geom_ids = held_geom_ids | gripper_geom_ids
-
-    # 1. Move over the target
-    movements.complex_traslation(env, over_obj_pos, "Move over")
-
-    # 2. Orientate the gripper as the cube
-    movements.yaw_rotation(env, obj_rot, "Rotate")
-
-    # 2. Start the descent, we just reuse the same function...
-    #    but we ensure the gripper is initially open!
-    movements.complex_traslation(env, obj_pos, "Descent")
-
-    # 3. Grab the cube and elevate it!
-    movements.toggle_grab(env)
-    movements.complex_traslation(env, over_obj_pos, "Elevate")
-
-    # 4. Go in the middle, rotate, go down and drop!
-    over_final_pos = np.array([0, 0, over_obj_pos[2]])
-    movements.complex_traslation(env, over_final_pos, "Move center")
-
-    # We align the cube with the system axes by putting the target as 
-    # a quaternion with w=1 (scalar value) and rotations around the axes at 0
-    movements.yaw_rotation(env, [1, 0, 0, 0], "Final rotation") 
-    drop_position = np.array([0, 0, obj_pos[2]]) # Keep the same z as the original (on table surface)
-    # For now we activate the stop on contact only for the descent
-    obj_body_id = env.sim.model.body_name2id(obj.root_body)
-    movements.complex_traslation(env, drop_position, "Final descent", 
-                                    stop_on_contact_geom_ids=monitored_geom_ids, 
-                                    allowed_body_ids={table_body_id, obj_body_id} | gripper_body_ids)
-    movements.toggle_grab(env)
-"""
