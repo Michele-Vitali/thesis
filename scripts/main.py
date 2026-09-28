@@ -1,6 +1,6 @@
 import custom_env  # noqa: F401
 import custom_robot  # noqa: F401
-import ik
+from ik import IKController
 
 # Import utilities files
 import movements
@@ -19,6 +19,8 @@ from robosuite.wrappers import DomainRandomizationWrapper
 def main():
     # Create the CompositeController JOINT_POSITION modality
     config = load_controller_config(default_controller="JOINT_POSITION")
+    config["output_min"] = -0.05
+    config["output_max"] = 0.05
 
     task_loop = True
     while task_loop:
@@ -108,9 +110,11 @@ def pick_and_place_action(env: "SingleArmEnv", obj, pos: np.array, quat: np.arra
         - [1], rotations (qw, qx, qy, qz)
     """
 
+    MAX_JOINT_DELTA = 0.05
+
     # Initialize movements and IK controllers
     movement_ctrl = movements.MovementController(env)
-    ik_ctrl = ik.IKController(env)
+    ik_ctrl = IKController(env)
 
     # Convert the quaternion to robosuite convention (x, y, z, w)
     quat_robosuite = T.convert_quat(quat, to="xyzw")
@@ -120,9 +124,38 @@ def pick_and_place_action(env: "SingleArmEnv", obj, pos: np.array, quat: np.arra
     target_position, r_matrix = ik_ctrl.define_target(pos, quat_matrix)
 
     # Create the mink target in a suitable format
-    mink_transformation = ik.make_mink_target(target_position, r_matrix)
+    target_pose = ik_ctrl.make_mink_target(target_position, r_matrix)
+    # Get the starting position of the joints
+    q_start = env.sim.data.qpos.copy()
 
-    movement_ctrl.get_robot_joints_pos()
+    # Solve the IK problem
+    q_solution = ik_ctrl.solve_target_pose(q_start, target_pose)
+
+    robot_qpos_indices = ik_ctrl.get_arm_qpos_indices()
+
+    q_final = q_solution[robot_qpos_indices].copy()
+
+    env.render()
+
+    for _ in range(5000):
+        q_current = env.sim.data.qpos[robot_qpos_indices].copy()
+        joint_command = (q_final - q_current)
+        joint_command = np.clip(joint_command / MAX_JOINT_DELTA, -1.0, +1.0)
+        action = np.zeros(env.action_dim)
+        
+        action[:6] = joint_command
+        action[6] = 0.0
+
+        env.step(action)
+        env.render()
+
+        joint_error = np.linalg.norm(q_final - q_current)
+
+        if joint_error < 1e-3:
+            print("Position reached!")
+            break
+
+    env.close()
 
     """
     n_faces = movement_ctrl.determine_n_faces(obj)
