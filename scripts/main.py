@@ -1,5 +1,6 @@
 import custom_env  # noqa: F401
 import custom_robot  # noqa: F401
+import ik
 
 # Import utilities files
 import movements
@@ -9,57 +10,34 @@ import robosuite as suite
 
 # Import the settings file
 import settings
-from mink import SE3, SO3, Configuration, FrameTask, PostureTask, ConfigurationLimit
 from robosuite import load_controller_config, macros
+from robosuite.utils import transform_utils as T
 from robosuite.environments.manipulation.single_arm_env import SingleArmEnv
 from robosuite.wrappers import DomainRandomizationWrapper
-from robosuite.utils.transform_utils import mat2euler
 
 
 def main():
-    # Create the CompositeController with OSC POSE and JOINT_POSITION modality
+    # Create the CompositeController JOINT_POSITION modality
     config = load_controller_config(default_controller="JOINT_POSITION")
 
-    # Menu
-    menu_loop = True
-    while menu_loop:
-        input_good = False
-        print("\n\nChoose the task you want to simulate: ")
-        print("1 - Pick and Place")
-        while not input_good:
-            choice = input("Choice: ")
-            try:
-                num_choice = int(choice)
-                if num_choice < 1 or num_choice > 1:
-                    raise ValueError
-                else:
-                    input_good = True
-            except ValueError:
-                print("Invalid choice... Retry.")
+    task_loop = True
+    while task_loop:
+        n_tasks = int(input("How many times do you want to simulate the task? "))
+        results = [[], [], []]
+        for i in range(n_tasks):
+            steps, reward, accuracy = pick_and_place_task(config, i)
+            results[0].append(steps)
+            results[1].append(reward)
+            results[2].append(accuracy)
 
-        task_loop = True
-        while task_loop:
-            match num_choice:
-                case 1:
-                    n_tasks = int(input("How many times? "))
-                    results = [[], [], []]
-                    for i in range(n_tasks):
-                        steps, reward, accuracy = pick_and_place_task(config, i)
-                        results[0].append(steps)
-                        results[1].append(reward)
-                        results[2].append(accuracy)
+        averages = [sum(sublist) / len(sublist) for sublist in results]
 
-                    averages = [sum(sublist) / len(sublist) for sublist in results]
+        print("="*60)
+        print(f"Final report.\n - Average steps: {averages[0]: .2f}.\n - Average reward: {averages[1]: .2f}.\n - Average accuracy over {n_tasks} iterations: {averages[2]: .4f}")
+        print("="*60)
 
-                    print("="*60)
-                    print(f"Final report.\n - Average steps: {averages[0]: .2f}.\n - Average reward: {averages[1]: .2f}.\n - Average accuracy over {n_tasks} iterations: {averages[2]: .4f}")
-                    print("="*60)
-
-            choice = input("Want to repeat the task? (Y/N): ")
-            task_loop = choice.upper() == "Y"
-
-        choice = input("Want to terminate? (Otherwise choose a task later...) (Y/N): ")
-        menu_loop = choice.upper() != "Y"
+        choice = input("Want to repeat the tasks? (Y/N): ")
+        task_loop = choice.upper() == "Y"
 
 def create_randomized_env(config: dict) -> DomainRandomizationWrapper:
     # As the docs say, we use this so that entire geom groups are randomized as a whole
@@ -110,9 +88,8 @@ def pick_and_place_task(config: dict, task_index: int) -> tuple[int, float, floa
         pos = env.sim.data.body_xpos[obj_id].copy()
         # Grab the rotation (quaternion)                # Copy! Otherwise we get a reference to the original array and 
         quat = env.sim.data.body_xquat[obj_id].copy()   # it will be modified by the env.step() function!
-        obj_pos_rot = (pos, quat)
 
-        steps, reward, accuracy = pick_and_place_action(env, obj, obj_pos_rot, task_index)
+        steps, reward, accuracy = pick_and_place_action(env, obj, pos, quat, task_index)
 
         #success = env.env._check_success()
         #print(f"{obj_name}: {'Success' if success else 'Failed'}!")
@@ -123,56 +100,27 @@ def pick_and_place_task(config: dict, task_index: int) -> tuple[int, float, floa
     env.close()
 
 
-def pick_and_place_action(env: "SingleArmEnv", obj, obj_pos_rot: tuple, task_index: int) -> tuple[int, float, float]:
+def pick_and_place_action(env: "SingleArmEnv", obj, pos: np.array, quat: np.array, task_index: int) -> tuple[int, float, float]:
     """
     Define the position over the cube, which is object_pos + 10cm on the z-axis
     target_pos:
         - [0], positions (x,y,z)
-        - [1], rotations (qx, qy, qz, qw)
-    """
-    """
-    
-    obj_pos, obj_rot = obj_pos_rot[0], obj_pos_rot[1]
-
-    # A z of 30cm is the chosen ideal quote
-    over_obj_pos = obj_pos + np.array([0, 0, 0.30])
+        - [1], rotations (qw, qx, qy, qz)
     """
 
-    # Initialize the movements controller
+    # Initialize movements and IK controllers
     movement_ctrl = movements.MovementController(env)
+    ik_ctrl = ik.IKController(env)
 
-    (obj_pos, obj_rot) = obj_pos_rot
-    # Compute the target position (20cm over the object)
-    target_pos = obj_pos + np.array([0.0, 0.0, 0.2])
-    # Compute the target rotation (perpendicular to the table)
+    # Convert the quaternion to robosuite convention (x, y, z, w)
+    quat_robosuite = T.convert_quat(quat, to="xyzw")
+    quat_matrix = T.quat2mat(quat_robosuite)
 
+    # Define the transformation needed for mink
+    target_position, r_matrix = ik_ctrl.define_target(pos, quat_matrix)
 
-    # Mink setup
-    # Get the MuJoco model for Mink to do further computations
-    mj_model = env.sim.model._model
-    configuration = Configuration(mj_model)
-    configuration.update(env.sim.data.qpos.copy())
-
-    eef_tsk = FrameTask(
-        frame_name="gripper0_grip_site",
-        frame_type="site",
-        position_cost=1.0,  # We do not favour traslation over orientation or viceversa
-        orientation_cost=1.0
-    )
-
-    posture_task = PostureTask(
-        model=mj_model,
-        cost=1e-2   # As per common default for soft regularization via docs
-    )
-
-    joint_limits = [ConfigurationLimit(mj_model)]
-
-    # Define a transformation matrix to then build a SE3 Mink transformation
-    target_matrix = np.eye(4)
-    target_matrix[:3, :3] = target_rotation.as_matrix()
-    target_matrix[:3, 3] = target_pos
-
-    target_pose = SE3.from_matrix(target_matrix)
+    # Create the mink target in a suitable format
+    mink_transformation = ik.make_mink_target(target_position, r_matrix)
 
     movement_ctrl.get_robot_joints_pos()
 
@@ -220,9 +168,6 @@ def pick_and_place_action(env: "SingleArmEnv", obj, obj_pos_rot: tuple, task_ind
 
     return (total_steps, total_reward, accuracy)
     """
-    obj_pos, obj_rot = obj_pos_rot[0], obj_pos_rot[1]
-    success = movement_ctrl.move_above_object(obj, obj_pos, obj_rot, height=0.10)
-    print("Move over object: ", success)
 
     return (0,0,0)
     
