@@ -284,15 +284,21 @@ class IKController:
 
         return score, np.min(normalized_margin)
 
-    def solve_target_pose(self, pose, q_start = None, dt=0.01, max_iterations=500,
+    def solve_target_pose(self, pose, q_start_arm = None, dt=0.01, max_iterations=500,
                       pos_tolerance=0.005, rot_tolerance=0.0175): # The rot tolerance is in rad (0.0175 rad = 1.0 deg)
 
-        if q_start is None: 
-            q_start = self.env.sim.data.qpos.copy()
-        # Retrieve the joints' positions as float values.
+        q_start = self.env.sim.data.qpos.copy()
         q_start = np.asarray(q_start, dtype=float).copy()
 
         arm_indices = self.get_arm_qpos_indices()
+
+        if q_start_arm is not None: 
+            q_start_arm = np.asarray(q_start_arm, dtype=float).reshape(-1)
+
+            if q_start_arm.size != len(arm_indices):
+                raise ValueError("q_start_Arm contains a different number of values than the number of joints!")
+
+            q_start[arm_indices] = q_start_arm
 
         # The posture preference must always correspond to the REAL current
         # robot configuration, not to each random IK seed.
@@ -399,16 +405,7 @@ class IKController:
             )
 
         if len(valid_solutions) == 0:
-            # We did not find any solution...
-            print("No valid IK solution found with any seed.")
-
-            if best_failed_seed is not None:
-                print(
-                    f"Best failed seed: {best_failed_seed} | "
-                    f"position={best_failed_position_error * 1000.0:.2f} mm | "
-                    f"rotation={np.degrees(best_failed_rotation_error):.2f} deg"
-                )
-
+            # We did not find any solution...s
             return None
 
         # ------------------------------------------------------------------

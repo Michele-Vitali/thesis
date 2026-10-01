@@ -1,5 +1,6 @@
 import math
 
+from mink import SE3
 import numpy as np
 import settings
 from ik import IKController
@@ -455,7 +456,7 @@ class MovementController:
             quat (np.ndarray, optional): The rotation we wanto to reach. Defaults to None.
 
         Returns:
-            SE3: The trasnformation needed to reach the wanted position and rotation.
+            SE3: The transformation needed to reach the wanted position and rotation.
         """
 
         quat_matrix = None
@@ -466,13 +467,20 @@ class MovementController:
         target_pose = self.ik_ctrl.create_mink_target(pos, quat_matrix)
         
         return target_pose
+
+    def _get_ik_solution(self, pos, quat, q_start = None):
+            
+        target_pose = self.build_pose(pos, quat)
+            
+        # Solve the IK problem
+        q_solution = self.ik_ctrl.solve_target_pose(target_pose, q_start_arm=q_start)
+
+        return q_solution
+
     
     def move_robot_to_position(self, pos: np.array, quat: np.array):
 
-        target_pose = self.build_pose(pos, quat)
-        
-        # Solve the IK problem
-        q_solution = self.ik_ctrl.solve_target_pose(target_pose)
+        q_solution = self._check_for_solution(pos, quat)
     
         done = self.move_joints_to_pose(q_solution)
 
@@ -483,83 +491,180 @@ class MovementController:
         target_z = pos[2] + elevation
 
         needed_steps = math.ceil(settings.desired_elevation / settings.elevation_step)
-        max_retries = settings.elevation_max_retries
 
         current_pos = pos.copy()
 
         for _ in range(needed_steps):
 
-            solution_found = False
-            n_retry = 0
-            perturbation_strength = 0
+            is_perturbated = False
+
             # Compute the next quote we want to reach...
-            next_z = min(pos[2] + settings.elevation_step, target_z)
-            perturbated_pos = pos.copy()
-            q_solution = []
+            next_z = min(current_pos[2] + settings.elevation_step, target_z)
+            z_offset = next_z - current_pos[2]
+            traslate_solution = None
+            elevate_solution = None
+            pos_solution = None
 
-            while not solution_found and n_retry < max_retries + 1: # +1 Since we need to include the first legit try with no perturbation
-                # Build the perturbated pose
-                noise = np.random.uniform(0.0, 1.0, size=pos.shape - 1) # Uniformly pick a vlaue between 0.0 and 1.0 for the xy values
-                perturbated_pos = pos[:3] + (perturbation_strength * noise)    # Perturbate the position
-                print(f"Perturbated position: {perturbated_pos}")
-                target_pose = self.build_pose(perturbated_pos, quat)
+            # First try to elevate from the current point...
+            target_pos = current_pos + np.array([0.0, 0.0, z_offset])
+            elevate_solution = self._check_for_solution(target_pos, quat=quat)
 
-                current_q = self.get_robot_joints_pos()
-                # If we really perturbated the initial position...
-                if n_retry != 0:
-                    partial_solution = self._check_for_solution(target_pose)
+            # If no solution was found...
+            if elevate_solution is None:
+                # Start perturbating the current xy position
+                n_tries = math.ceil(settings.max_radius / settings.radius_step)
+                found_candidate_solution = False
 
-                    if partial_solution is not None:
-                        # First move to the new xy location.
-                        #self.move_joints_to_pose(partial_solution)
-                        current_q = partial_solution
-                        target_pose = self.build_pose(perturbated_pos)
+                for n_try in range(1, n_tries + 1):
+                    candidate_solutions = []
+                    # Get all the candidate positions starting from the current xy
+                    current_radius = settings.radius_step * n_try
+                    candidate_positions = self._generate_elevation_position_candidates(current_pos, current_radius)
+
+                    # For each candidate we must check:
+                    # 1) If the traslation to the candidate position is feasible
+                    # 2) If the elevation from the candidate puts us in a good scenario
+                    for candidate in candidate_positions:
+                        # 1 Check if there is a solution for the traslation
+                        q_traslation_solution = self._check_for_solution(candidate, quat=quat)
+
+                        if q_traslation_solution is None:
+                            # It means we cannot move to that candidate xy, so we skip that candidate...
+                            continue
+
+                        # 2 Check if we can elevate starting from the previously found joints' positions (q_raslation_solution)
+                        candidate_elevated = candidate.copy()
+                        candidate_elevated[2] = candidate_elevated[2] + z_offset
+                        q_elevation_solution = self._check_for_solution(candidate_elevated, quat=quat, q_start=q_traslation_solution)
+
+                        if q_elevation_solution is None:
+                            # It means we cannot elevate to that z starting from the candidate position; skip it...
+                            continue
+                        else:
+                            # We found a candidate that puts us in an elevated good scenario!
+                            found_candidate_solution = True
+                            candidate_movements = [q_traslation_solution, q_elevation_solution, candidate_elevated]
+                            candidate_solutions.append(candidate_movements)
+
+                    if found_candidate_solution:
+                        # Break out from the perturbation loop
+                        break
+
+                if not found_candidate_solution:
+                    print("We could not find any solution for the current scenario, simulation halted!")
+                    print(f"Maximum reached is: z={next_z - z_offset}!")
+                    return False
+                else:
+                    is_perturbated = True
+                    # We first decide which solution is best!
+                    if len(candidate_solutions) > 1:
+                        traslate_solution, elevate_solution, pos_solution = self._score_candidate_solutions(candidate_solutions)
                     else:
-                        # If we cannot move to that specific xy, pass to the next perturbation try
-                        continue 
+                        traslate_solution, elevate_solution, pos_solution = candidate_solutions[0]
+
+            # Arrived here we should be close to certain to have found at least 1 solution...
+            # but we still control...
+            if elevate_solution is None:
+                print("The actual state of the robot is unrecoverable, no solutions (even perturbating) could be found...")
+                return False
+            else:
+                print(f"Moving the robot to z={next_z}!")
+                # We first check if it was a perturbated solution, if yes we first need to traslate
+                if is_perturbated:
+                    print(f"Found a perturbated solution for elevation! First moving to {pos_solution}")
+                    current_pos = pos_solution
+                    done = self.move_joints_to_pose(traslate_solution)
+                else:
+                    current_pos[2] = next_z
+
+                # Then we elevate
+                done = self.move_joints_to_pose(elevate_solution)
+
+        print("Elevation job finished!")
+            
+
+    def _score_candidate_solutions(self, solutions):
+        # To score solutions we first choose the ones with the highest joint margin
+        # since this means we have more freedom of movement later.
+        # Then if we have ties we choose the one with the highest average joint margin.
+        actual_best = None
+        min_joint_margin = -np.inf
+        avg_joint_margin = -np.inf
+
+        for sol in solutions:   
+            # Get the joint margins after the elevation
+            joint_margins = self._get_joints_margin(sol[1])
+
+            # Compute the minimum joint margin and the average over all the joints' margins
+            sol_min_joint_margin = np.min(joint_margins)
+            sol_avg_joint_margin = np.mean(joint_margins)
+
+            # Now compare with the best solution with the previously cited crtierions
+            if sol_min_joint_margin > min_joint_margin:
+
+                actual_best = sol
+                min_joint_margin = sol_min_joint_margin
+                avg_joint_margin = sol_avg_joint_margin
+
+            elif np.isclose(sol_min_joint_margin, min_joint_margin):
+
+                if sol_avg_joint_margin > avg_joint_margin:
+
+                    actual_best = sol
+                    min_joint_margin = sol_min_joint_margin
+                    avg_joint_margin = sol_avg_joint_margin
+
+        return actual_best
 
 
-                if not solution_found:
-                    n_retry += 1
-                    perturbation_strength += 0.01
+    def _get_joints_margin(self, q: np.ndarray) -> np.ndarray:
 
-            # If no perturbation was needed, just move.
-            if solution_found and n_retry == 0:
-                self.move_joints_to_pose(q_solution)
-            elif solution_found and n_retry > 0:
-                # We first move to the perturbated xy position and then elevate
-                continue
+        # First retrieve the real joints limits.
+        lower_limits, upper_limits = self.ik_ctrl._get_arm_joint_limits()
 
-    def _check_for_solution(self, pose, q_start = None):
+        # Compute the normalized distance of each joint from its closest limit.
+        joint_range = upper_limits - lower_limits
+        lower_margin = (q - lower_limits) / joint_range
+        upper_margin = (upper_limits - q) / joint_range
+        joint_margins = np.minimum(lower_margin, upper_margin)
 
-        # Check if there is a valid IK solution for the current xy configuration
-        q_solution = self.ik_ctrl.solve_target_pose(pose, q_start)
+        return joint_margins
+
+    def _check_for_solution(self, pos: np.ndarray, quat: np.ndarray = None, q_start: np.ndarray = None):
+
+        q_solution = self._get_ik_solution(pos, quat, q_start=q_start)
+
         if q_solution is not None:
-            print("A solution for the position exists!")
-
-            # Retrieve the real joint limits.
-            lower_limits, upper_limits = self.ik_ctrl._get_arm_joint_limits()
-
-            # Compute the normalized distance of each joint from its closest limit.
-            joint_range = upper_limits - lower_limits
-            lower_margin = (q_solution - lower_limits) / joint_range
-            upper_margin = (upper_limits - q_solution) / joint_range
-            joint_margins = np.minimum(lower_margin, upper_margin)
+            # Compute the joint margins.
+            joint_margins = self._get_joints_margin(q_solution)
 
             min_joint_margin = np.min(joint_margins)
 
-            print("Joint margins: ")
-            for i in range(len(q_solution)):
-                print(f"\t[Joint {i+1}] {joint_margins[i]}")
-
-            print(f"Minimum joint margin: {min_joint_margin}")
-
-            if min_joint_margin < 1e-3: # If we have a maring less than 0.001 we are in a critic situation
-                print("The solution had a joint margin too low!")
+            if min_joint_margin < 1e-3: # If we have a margin less than 0.001 we are in a critic situation
                 return None
             else:
-                print("A correct solution was found!")
                 return q_solution
         else:
-            print("No solution found for the position!")
             return None
+
+    def _generate_elevation_position_candidates(self, center_pos: np.ndarray, radius: float, n_candidates: int = settings.n_candidates):
+
+        # Security conversion
+        center_pos = np.asarray(center_pos, dtype=float)
+        # Compute the angles for the perturbation
+        angles = np.linspace(0.0, 2 * np.pi, n_candidates, endpoint=False)
+
+        # Initialized an empty array
+        candidates = []
+
+        for alpha in angles:
+            candidate_x = center_pos[0] + radius * np.cos(alpha)
+            candidate_y = center_pos[1] + radius * np.sin(alpha)
+            # Keep the same z!
+            candidate_z = center_pos[2]
+
+            # Add the candidate
+            candidates.append([candidate_x, candidate_y, candidate_z])
+
+        return np.asarray(candidates)
+
