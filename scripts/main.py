@@ -1,17 +1,16 @@
 import custom_env  # noqa: F401
 import custom_robot  # noqa: F401
-from ik import IKController
-
-# Import utilities files
-import movements
 import mujoco
 import numpy as np
 import robosuite as suite
 
 # Import the settings file
 import settings
+from ik import IKController
+
+# Import utilities files
+from movements import MovementController
 from robosuite import load_controller_config, macros
-from robosuite.utils import transform_utils as T
 from robosuite.environments.manipulation.single_arm_env import SingleArmEnv
 from robosuite.wrappers import DomainRandomizationWrapper
 
@@ -19,8 +18,8 @@ from robosuite.wrappers import DomainRandomizationWrapper
 def main():
     # Create the CompositeController JOINT_POSITION modality
     config = load_controller_config(default_controller="JOINT_POSITION")
-    config["output_min"] = -0.05
-    config["output_max"] = 0.05
+    config["output_min"] = -0.15
+    config["output_max"] = 0.15
 
     task_loop = True
     while task_loop:
@@ -110,149 +109,40 @@ def pick_and_place_action(env: "SingleArmEnv", obj, pos: np.array, quat: np.arra
         - [1], rotations (qw, qx, qy, qz)
     """
 
-    MAX_JOINT_DELTA = 0.05
+    # Initialize movements controller.
+    movements_ctrl = MovementController(env)
 
-    # Initialize movements and IK controllers
-    movement_ctrl = movements.MovementController(env)
-    ik_ctrl = IKController(env)
-
-    # Convert the quaternion to robosuite convention (x, y, z, w)
-    quat_robosuite = T.convert_quat(quat, to="xyzw")
-    quat_matrix = T.quat2mat(quat_robosuite)
-
-    # Define the transformation needed for mink
-    target_position, r_matrix = ik_ctrl.define_target(pos, quat_matrix)
-
-    # Create the mink target in a suitable format
-    target_pose = ik_ctrl.make_mink_target(target_position, r_matrix)
-    # Get the starting position of the joints
-    q_start = env.sim.data.qpos.copy()
-
-    # Solve the IK problem
-    q_solution = ik_ctrl.solve_target_pose(q_start, target_pose)
-
-    robot_qpos_indices = ik_ctrl.get_arm_qpos_indices()
-
-    q_final = q_solution[robot_qpos_indices].copy()
-
+    movements_ctrl.init_robot_pose()
+    # First render the still robot
     env.render()
 
-    for _ in range(5000):
-        q_current = env.sim.data.qpos[robot_qpos_indices].copy()
-        joint_command = (q_final - q_current)
-        joint_command = np.clip(joint_command / MAX_JOINT_DELTA, -1.0, +1.0)
-        action = np.zeros(env.action_dim)
-        
-        action[:6] = joint_command
-        action[6] = 0.0
+    # Now start the pick and place
+    # Define a boolean for knowing if some steps went wrong
+    move_on = False
 
+    # Move the robot to the final pre-grasping position
+    move_on = movements_ctrl.move_robot_to_position(pos, quat)
+    
+    # Verify the real Cartesian position after JOINT_POSITION execution
+    # create_mink_target() adds safe_offset_gripper, so we must check the same EEF target here.
+    #expected_eef_pos = pos + np.asarray(settings.safe_offset_gripper, dtype=float)
+    #move_on = movements_ctrl.check_eef_pos(expected_eef_pos)
+
+    # Close the gripper
+    move_on = movements_ctrl.toggle_grab()
+
+    # Start ascending
+    move_on = movements_ctrl.elevate_obj(pos, quat)
+
+    # Loop to visualize results and not close the sim instantly
+    for _ in range(100):
+        action = np.zeros(env.action_dim)
         env.step(action)
         env.render()
 
-        joint_error = np.linalg.norm(q_final - q_current)
-
-        if joint_error < 1e-3:
-            print("Position reached!")
-            break
-
     env.close()
-
-    """
-    n_faces = movement_ctrl.determine_n_faces(obj)
-
-    Let's print the rewards to see if the heuristic is correct (reward should be growing in a monothonic way.)
-
-    # 1. Move over the target
-    movement_ctrl.complex_traslation(over_obj_pos, "Move over")
-
-    # 2. Orientate the gripper as the cube
-    movement_ctrl.yaw_rotation(obj_rot, "Rotate", n_faces)
-
-    # 2. Start the descent, we just reuse the same function...
-    #    but we ensure the gripper is initially open!
-    movement_ctrl.complex_traslation(obj_pos, "Descent")
-
-
-    # 3. Grab the cube and elevate it!
-    movement_ctrl.toggle_grab()
-    movement_ctrl.complex_traslation(over_obj_pos, "Elevate")
-
-
-    # 4. Go in the middle, rotate, go down and drop!
-    over_final_pos = np.array([0, 0, over_obj_pos[2]])
-    movement_ctrl.complex_traslation(over_final_pos, "Move center")
-
-    # We align the cube with the system axes by putting the target as 
-    # a quaternion with w=1 (scalar value) and rotations around the axes at 0
-    movement_ctrl.yaw_rotation([1, 0, 0, 0], "Final rotation", n_faces) 
-    drop_position = np.array([0, 0, obj_pos[2] + 0.02]) # Keep the same z as the original (on table surface) plus a margin
-    movement_ctrl.complex_traslation(drop_position, "Final descent")
-    movement_ctrl.toggle_grab()
-
-    # 5. Go back to neutral position
-    neutral_pos = np.array([0, 0, obj_pos[2] + 0.30])
-    movement_ctrl.complex_traslation(neutral_pos, "Neutral position")
-
-    total_steps = movement_ctrl.steps
-    total_reward = movement_ctrl.reward
-    accuracy = total_reward/total_steps
-
-    print(f"[Task-{task_index}] Report:\n - Final total steps: {total_steps}\n - Final total reward: {total_reward: .4f}\n - Final accuracy: {accuracy: .2f}")
-
-    return (total_steps, total_reward, accuracy)
-    """
 
     return (0,0,0)
     
 if __name__ == "__main__":
     main()
-
-    """
-
-Still under construction...
-
-def stacking_action(env, obj_pos_rot, obj, table_body_id):
-    obj_pos = obj_pos_rot[0]
-    obj_rot = obj_pos_rot[1]
-
-    over_obj_pos = obj_pos + np.array([0, 0, 0.10])
-
-    # Save the contact geoms of the object we are manipulating
-    gripper = env.robots[0].gripper
-    geom_names = [name for names in gripper.important_geoms.values() for name in names]
-    gripper_geom_ids = {env.sim.model.geom_name2id(name) for name in geom_names}
-    gripper_body_ids = {env.sim.model.geom_bodyid[geom_id] for geom_id in gripper_geom_ids}
-
-    held_geom_ids = {env.sim.model.geom_name2id(g) for g in obj.contact_geoms}
-
-    monitored_geom_ids = held_geom_ids | gripper_geom_ids
-
-    # 1. Move over the target
-    movements.complex_traslation(env, over_obj_pos, "Move over")
-
-    # 2. Orientate the gripper as the cube
-    movements.yaw_rotation(env, obj_rot, "Rotate")
-
-    # 2. Start the descent, we just reuse the same function...
-    #    but we ensure the gripper is initially open!
-    movements.complex_traslation(env, obj_pos, "Descent")
-
-    # 3. Grab the cube and elevate it!
-    movements.toggle_grab(env)
-    movements.complex_traslation(env, over_obj_pos, "Elevate")
-
-    # 4. Go in the middle, rotate, go down and drop!
-    over_final_pos = np.array([0, 0, over_obj_pos[2]])
-    movements.complex_traslation(env, over_final_pos, "Move center")
-
-    # We align the cube with the system axes by putting the target as 
-    # a quaternion with w=1 (scalar value) and rotations around the axes at 0
-    movements.yaw_rotation(env, [1, 0, 0, 0], "Final rotation") 
-    drop_position = np.array([0, 0, obj_pos[2]]) # Keep the same z as the original (on table surface)
-    # For now we activate the stop on contact only for the descent
-    obj_body_id = env.sim.model.body_name2id(obj.root_body)
-    movements.complex_traslation(env, drop_position, "Final descent", 
-                                    stop_on_contact_geom_ids=monitored_geom_ids, 
-                                    allowed_body_ids={table_body_id, obj_body_id} | gripper_body_ids)
-    movements.toggle_grab(env)
-"""

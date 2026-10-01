@@ -39,7 +39,7 @@ class CustomTask(SingleArmEnv):
             #objects.MilkObject,
             #objects.CerealObject
         ]
-        self.gripper_state = -1.0 # Start with the gripper open
+        self.gripper_state = +1.0 # Start with the gripper open
         self.sampler = None
         super().__init__(**kwargs)
 
@@ -90,14 +90,15 @@ class CustomTask(SingleArmEnv):
         """
         # Define the spawnable surface without the central square
         # which is the area of release
-        X_MIN, X_MAX = -0.35, +0.05
-        Y_MIN, Y_MAX = -0.2, +0.2
+        X_MIN, X_MAX = -0.32, -0.08
+        Y_MIN, Y_MAX = -0.16, +0.16
 
-        CX_MIN, CX_MAX = -0.05, +0.05
-        CY_MIN, CY_MAX = -0.05, +0.05
+        #CX_MIN, CX_MAX = -0.05, +0.05
+        #CY_MIN, CY_MAX = -0.05, +0.05
 
         self.sampler = SequentialCompositeSampler(name="Sampler")
 
+        """
         # Now we define the 4 separate spawnable areas (left, right, bottom, up)
         # 1. Left
         self.sampler.append_sampler(UniformRandomSampler(
@@ -124,6 +125,13 @@ class CustomTask(SingleArmEnv):
         ))
 
         return ["LeftSampler", "RightSampler", "UpSampler", "BottomSampler"]
+        """
+        self.sampler.append_sampler(UniformRandomSampler(
+            name="SafeSampler", mujoco_objects=None, x_range=[X_MIN, X_MAX], y_range=[Y_MIN, Y_MAX], rotation=[-np.pi, np.pi],
+            reference_pos=self.mujoco_arena.table_top_abs, ensure_object_boundary_in_range=True, ensure_valid_placement=True
+        ))
+
+        return ["SafeSampler"]
 
     def _create_objects(self) -> None:
         """
@@ -151,7 +159,6 @@ class CustomTask(SingleArmEnv):
         super()._reset_internal()
 
         # For every reset we re-create the object and compute a random positioning
-        self._create_objects()
         self._place_objects()
 
     def reward(self, action):

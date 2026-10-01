@@ -3,12 +3,14 @@ env_name = "CustomTask"
 robot = "PRob3"
 gripper_types = "PRob3Gripper"
 
-# Movements values
-translation_k = 10.0 # Useful for deciding how strong the movement should be.
-stationary_k = 1.5 # Determines how strong the gripper should close (avoids slipping!)
-rotation_k = 0.5 # Influences the rollercoaster issue a lot!
-rotation_ramp_steps = 20 # Number of steps to bring rotational velocity to itx max (avoids sudden bursts)
-max_rot_speed = 0.3
+# Important variables
+safe_offset_gripper = [0.0, 0.0, 0.1]
+desired_elevation = 0.1 # 10cm
+elevation_step = 0.02 # 2 cm
+elevation_max_retries = 5
+
+# Starting pose for the robot sim
+starting_pose = [0.0, -0.366, 0.800, 0.0, 1.137, 0.0]
 
 # Reward and penalty factors
 closeness = 0.1
@@ -20,4 +22,3 @@ z_target = 0.3
 
 # Other values
 n_objects = 1
-hold_steps = 5

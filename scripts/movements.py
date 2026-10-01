@@ -1,5 +1,8 @@
+import math
+
 import numpy as np
 import settings
+from ik import IKController
 from robosuite.environments.manipulation.single_arm_env import SingleArmEnv
 from robosuite.models import objects
 from scipy.spatial.transform import Rotation as R
@@ -9,21 +12,72 @@ class MovementController:
 
     def __init__(self, env: SingleArmEnv, gripper_state: float = 1.0):
         self.env = env
-        self.gripper_state = (
-            gripper_state
-            if gripper_state is not None
-            else -1.0
-        )
-
-        # Actual high-level target sent to the gripper.
-        # -1 = closed
-        # +1 = open
-        self.gripper_target = self.gripper_state
+        self.gripper_state = gripper_state
         self.steps = 0
         self.reward = 0.0
+        self.q_joints = self.get_robot_joints_pos()
+        self.MAX_JOINT_DELTA = 0.15
+        self.ik_ctrl = IKController(self.env)
+
+    def move_joints_to_pose(self, q_final: np.ndarray, max_steps: int = 150, joint_err_tol: float = 0.01) -> bool:
+
+        if q_final is None:
+            print("Cannot move robot. No solution had been found!")
+            return False
+
+        # Get the current joint positions
+        q_current = self.get_robot_joints_pos()
+        
+        joint_target_reached = False
+
+        for _ in range(max_steps):
+            # Compute the joint command needed for the movement
+            joint_command = (q_final - q_current)
+            #Normalize it so we do not make too large movements
+            joint_command = np.clip(joint_command / self.MAX_JOINT_DELTA, -1.0, +1.0)
+
+            # Generate the action
+            action = np.zeros(self.env.action_dim)
+            action[:6] = joint_command
+            action[6] = 0.0 # Hold the current state
+
+            self.env.step(action)
+            self.env.render()
+
+            # Get the current joint positions
+            q_current = self.get_robot_joints_pos()
+            # Compute the error of each joint with respect to the desired pose
+            joint_error = q_final - q_current
+
+            # If the maximum error among the joint errors is below the tolerance we consider the task finished
+            if np.max(np.abs(joint_error)) < joint_err_tol:
+                print("Joint target reached!")
+                joint_target_reached = True
+                break     
+
+        if not joint_target_reached:
+            print("Joint target not reached!")
+
+        return joint_target_reached
+
+    def check_eef_pos(self, target_pos: np.ndarray, cartesian_err_tol: float = 0.005) -> bool:
+
+        cartesian_position_reached = False
+
+        obs = self.env._get_observations()
+        # Remember to use .copy() otherwise we would get a view that will change overtime
+        final_eef_pos = obs["robot0_eef_pos"].copy()
+
+        # Check the error with the norm of the distance between the target and actual position
+        cartesian_error = np.linalg.norm(target_pos - final_eef_pos)
+
+        if cartesian_error < cartesian_err_tol:
+            cartesian_position_reached = True
+
+        return cartesian_position_reached
 
     def get_robot_joints_pos(self):
-        joint_positions = self.env.robots[0].joint_positions
+        joint_positions = self.env.robots[0]._joint_positions
 
         return joint_positions
 
@@ -361,7 +415,7 @@ class MovementController:
         return (total_steps, total_reward)
 
 
-    def toggle_grab(self, min_steps: int = 30):
+    def toggle_grab(self, min_steps: int = 50):
         """Toggles the current gripper's grab state.
 
         If it is the first time we call this function we use init_grab to ensure
@@ -373,66 +427,139 @@ class MovementController:
                 before going on with the next movements.. Defaults to 30.
         """
 
-        # Initialize the obs dictionary
-        obs = self._obs_init()
+        # Grab the current gripper state from the controller's internal state variable...
+        current_state = self.gripper_state
 
-        # Grab the initial eef position
-        init_eef_pos = obs["robot0_eef_pos"].copy()
+        # Invert it!
+        self.gripper_state = - current_state
 
-        # Initialize the action
+        # Initialize the action, the first 6 elements stay at 0 (meaning no movements)
         action = np.zeros(self.env.action_dim)
-        action[-1] = self.gripper_state
+        
+        # Set the 7th to the wanted gripper state.
+        action[6] = self.gripper_state
 
-        # We first run some steps to ensure enough time has passed from the previouse stages
-        for _ in range(settings.hold_steps):
-            self.env.step(action)
-            if self.env.has_renderer:
-                self.env.render()
-
-        # Decide the gripper value and keep it for the entire loop; also update it in the env variable!
-        self.gripper_state = -(self.gripper_state)
-        self._set_gripper_target(self.gripper_state)
-
-        action[-1] = self.gripper_target
-
-        # Keep closing for 'min_steps' otherwise the gripper won't completely close itself and miss the object.
+        # Apply the action for at least 'min_steps' to ensure the grip are completely closed/open
         for _ in range(min_steps):
-            # Active correction
-            current_eef_pos = obs["robot0_eef_pos"]
-            delta_pos = init_eef_pos - current_eef_pos
+            self.env.step(action)
+            self.env.render()
 
-            action[0:3] = np.clip(settings.stationary_k * delta_pos, -0.05, 0.05)
-            #action[3:6] = 0.0   Already zero as per definition
+    def init_robot_pose(self):
+        self.move_joints_to_pose(np.asarray(settings.starting_pose, dtype=float))
 
-            action[-1] = self.gripper_target
+    def build_pose(self, pos: np.array, quat: np.array = None) -> SE3:
+        """Build a robot pose for reaching the specified position and rotation.
 
-            obs, _, _, _ = self.env.step(action)
-            if self.env.has_renderer:
-                self.env.render()
+        Args:
+            pos (np.ndarray): The position we want to reach.
+            quat (np.ndarray, optional): The rotation we wanto to reach. Defaults to None.
+
+        Returns:
+            SE3: The trasnformation needed to reach the wanted position and rotation.
+        """
+
+        quat_matrix = None
+        if quat is not None:
+            # Convert the quaternion to robosuite convention (x, y, z, w)
+            quat_matrix = self.ik_ctrl.quat_mj_to_mat(quat)
+    
+        target_pose = self.ik_ctrl.create_mink_target(pos, quat_matrix)
+        
+        return target_pose
+    
+    def move_robot_to_position(self, pos: np.array, quat: np.array):
+
+        target_pose = self.build_pose(pos, quat)
+        
+        # Solve the IK problem
+        q_solution = self.ik_ctrl.solve_target_pose(target_pose)
+    
+        done = self.move_joints_to_pose(q_solution)
+
+        return done
+
+    def elevate_obj(self, pos: np.ndarray, quat: np.ndarray = None, elevation: float = 0.10): #10 cm
+    
+        target_z = pos[2] + elevation
+
+        needed_steps = math.ceil(settings.desired_elevation / settings.elevation_step)
+        max_retries = settings.elevation_max_retries
+
+        current_pos = pos.copy()
+
+        for _ in range(needed_steps):
+
+            solution_found = False
+            n_retry = 0
+            perturbation_strength = 0
+            # Compute the next quote we want to reach...
+            next_z = min(pos[2] + settings.elevation_step, target_z)
+            perturbated_pos = pos.copy()
+            q_solution = []
+
+            while not solution_found and n_retry < max_retries + 1: # +1 Since we need to include the first legit try with no perturbation
+                # Build the perturbated pose
+                noise = np.random.uniform(0.0, 1.0, size=pos.shape - 1) # Uniformly pick a vlaue between 0.0 and 1.0 for the xy values
+                perturbated_pos = pos[:3] + (perturbation_strength * noise)    # Perturbate the position
+                print(f"Perturbated position: {perturbated_pos}")
+                target_pose = self.build_pose(perturbated_pos, quat)
+
+                current_q = self.get_robot_joints_pos()
+                # If we really perturbated the initial position...
+                if n_retry != 0:
+                    partial_solution = self._check_for_solution(target_pose)
+
+                    if partial_solution is not None:
+                        # First move to the new xy location.
+                        #self.move_joints_to_pose(partial_solution)
+                        current_q = partial_solution
+                        target_pose = self.build_pose(perturbated_pos)
+                    else:
+                        # If we cannot move to that specific xy, pass to the next perturbation try
+                        continue 
 
 
-    """
-    Under development...
+                if not solution_found:
+                    n_retry += 1
+                    perturbation_strength += 0.01
 
-    def _unexpected_contact(self, held_geoms_ids: list, allowed_body_ids: list, dist_threshold: float = 0.0) -> bool:
-        for i in range(self.env.sim.data.ncon):
-            contact = self.env.sim.data.contact[i]
-            geom1, geom2 = contact.geom1, contact.geom2
-
-            # Check whether the contact involves the gripper or the held object
-            involves_held = geom1 in held_geoms_ids or geom2 in held_geoms_ids
-
-            # If the conctact happened not between an held geometry then we don't care
-            if not involves_held:
+            # If no perturbation was needed, just move.
+            if solution_found and n_retry == 0:
+                self.move_joints_to_pose(q_solution)
+            elif solution_found and n_retry > 0:
+                # We first move to the perturbated xy position and then elevate
                 continue
 
-            # Get the other geometry involved in the contact (other than the held one)
-            other_geom = geom2 if geom1 in held_geoms_ids else geom1
-            other_body = self.env.sim.model.geom_bodyid[other_geom]
+    def _check_for_solution(self, pose, q_start = None):
 
-            # Check for contact distance (as MuJoco also considers margin for contacts...)
-            if other_body not in allowed_body_ids and contact.dist <= dist_threshold:
-                    return True
+        # Check if there is a valid IK solution for the current xy configuration
+        q_solution = self.ik_ctrl.solve_target_pose(pose, q_start)
+        if q_solution is not None:
+            print("A solution for the position exists!")
 
-        return False  # No unexpected contacts detected
-    """
+            # Retrieve the real joint limits.
+            lower_limits, upper_limits = self.ik_ctrl._get_arm_joint_limits()
+
+            # Compute the normalized distance of each joint from its closest limit.
+            joint_range = upper_limits - lower_limits
+            lower_margin = (q_solution - lower_limits) / joint_range
+            upper_margin = (upper_limits - q_solution) / joint_range
+            joint_margins = np.minimum(lower_margin, upper_margin)
+
+            min_joint_margin = np.min(joint_margins)
+
+            print("Joint margins: ")
+            for i in range(len(q_solution)):
+                print(f"\t[Joint {i+1}] {joint_margins[i]}")
+
+            print(f"Minimum joint margin: {min_joint_margin}")
+
+            if min_joint_margin < 1e-3: # If we have a maring less than 0.001 we are in a critic situation
+                print("The solution had a joint margin too low!")
+                return None
+            else:
+                print("A correct solution was found!")
+                return q_solution
+        else:
+            print("No solution found for the position!")
+            return None
