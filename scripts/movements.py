@@ -468,12 +468,12 @@ class MovementController:
         
         return target_pose
 
-    def _get_ik_solution(self, pos, quat, q_start = None):
+    def _get_ik_solution(self, pos: np.ndarray, quat: np.ndarray, q_start: np.ndarray = None, preview: bool = False):
             
         target_pose = self.build_pose(pos, quat)
             
         # Solve the IK problem
-        q_solution = self.ik_ctrl.solve_target_pose(target_pose, q_start_arm=q_start)
+        q_solution = self.ik_ctrl.solve_target_pose(target_pose, q_start_arm=q_start, preview=preview)
 
         return q_solution
 
@@ -486,11 +486,11 @@ class MovementController:
 
         return done
 
-    def elevate_obj(self, pos: np.ndarray, quat: np.ndarray = None, elevation: float = 0.10): #10 cm
-    
-        target_z = pos[2] + elevation
+    def elevate_obj(self, pos: np.ndarray, quat: np.ndarray = None, max_height: float = settings.ideal_z) -> np.ndarray:
 
-        needed_steps = math.ceil(settings.desired_elevation / settings.elevation_step)
+        z_difference = max_height - pos[2]
+
+        needed_steps = math.ceil(z_difference / settings.elevation_step)
 
         current_pos = pos.copy()
 
@@ -499,15 +499,16 @@ class MovementController:
             is_perturbated = False
 
             # Compute the next quote we want to reach...
-            next_z = min(current_pos[2] + settings.elevation_step, target_z)
+            next_z = min(current_pos[2] + settings.elevation_step, max_height)
             z_offset = next_z - current_pos[2]
+
             traslate_solution = None
             elevate_solution = None
             pos_solution = None
 
             # First try to elevate from the current point...
             target_pos = current_pos + np.array([0.0, 0.0, z_offset])
-            elevate_solution = self._check_for_solution(target_pos, quat=quat)
+            elevate_solution = self._check_for_solution(target_pos, quat=quat, preview=True)
 
             # If no solution was found...
             if elevate_solution is None:
@@ -526,7 +527,7 @@ class MovementController:
                     # 2) If the elevation from the candidate puts us in a good scenario
                     for candidate in candidate_positions:
                         # 1 Check if there is a solution for the traslation
-                        q_traslation_solution = self._check_for_solution(candidate, quat=quat)
+                        q_traslation_solution = self._check_for_solution(candidate, quat=quat, preview=True)
 
                         if q_traslation_solution is None:
                             # It means we cannot move to that candidate xy, so we skip that candidate...
@@ -535,7 +536,7 @@ class MovementController:
                         # 2 Check if we can elevate starting from the previously found joints' positions (q_raslation_solution)
                         candidate_elevated = candidate.copy()
                         candidate_elevated[2] = candidate_elevated[2] + z_offset
-                        q_elevation_solution = self._check_for_solution(candidate_elevated, quat=quat, q_start=q_traslation_solution)
+                        q_elevation_solution = self._check_for_solution(candidate_elevated, quat=quat, q_start=q_traslation_solution, preview=True)
 
                         if q_elevation_solution is None:
                             # It means we cannot elevate to that z starting from the candidate position; skip it...
@@ -553,7 +554,7 @@ class MovementController:
                 if not found_candidate_solution:
                     print("We could not find any solution for the current scenario, simulation halted!")
                     print(f"Maximum reached is: z={next_z - z_offset}!")
-                    return False
+                    return current_pos
                 else:
                     is_perturbated = True
                     # We first decide which solution is best!
@@ -566,21 +567,23 @@ class MovementController:
             # but we still control...
             if elevate_solution is None:
                 print("The actual state of the robot is unrecoverable, no solutions (even perturbating) could be found...")
-                return False
+                return current_pos
             else:
                 print(f"Moving the robot to z={next_z}!")
                 # We first check if it was a perturbated solution, if yes we first need to traslate
                 if is_perturbated:
                     print(f"Found a perturbated solution for elevation! First moving to {pos_solution}")
-                    current_pos = pos_solution
+                    current_pos = np.asarray(pos_solution, dtype=float).copy()
                     done = self.move_joints_to_pose(traslate_solution)
                 else:
-                    current_pos[2] = next_z
+                    current_pos = target_pos.copy()
 
                 # Then we elevate
                 done = self.move_joints_to_pose(elevate_solution)
 
         print("Elevation job finished!")
+
+        return current_pos
             
 
     def _score_candidate_solutions(self, solutions):
@@ -630,9 +633,9 @@ class MovementController:
 
         return joint_margins
 
-    def _check_for_solution(self, pos: np.ndarray, quat: np.ndarray = None, q_start: np.ndarray = None):
+    def _check_for_solution(self, pos: np.ndarray, quat: np.ndarray = None, q_start: np.ndarray = None, preview: bool = False) -> np.ndarray | None:
 
-        q_solution = self._get_ik_solution(pos, quat, q_start=q_start)
+        q_solution = self._get_ik_solution(pos, quat, q_start=q_start, preview=preview)
 
         if q_solution is not None:
             # Compute the joint margins.

@@ -243,6 +243,57 @@ class IKController:
 
         return seeds
 
+    def _generate_preview_seeds(self, q_start, n_local_seeds=settings.preview_local_seeds):
+        """Generate a small set of local seeds for fast IK preview.
+
+        Unlike the robust multi-start strategy, this function assumes that
+        the target pose is close to the current / hypothetical robot pose.
+
+        Args:
+            q_start (np.ndarray): Complete MuJoCo starting configuration.
+            n_local_seeds (int): Number of additional local seeds.
+
+        Returns:
+            list: Local seeds used for fast IK preview.
+        """
+
+        # Retrieve the arm joint indices.
+        arm_indices = self.get_arm_qpos_indices()
+
+        # Retrieve the arm joint limits.
+        lower_limits, upper_limits = self._get_arm_joint_limits()
+
+        current_arm_q = q_start[arm_indices].copy()
+
+        joint_range = upper_limits - lower_limits
+
+        # Keep a small safety margin from the physical joint limits.
+        safety_margin = 0.05 * joint_range
+        safe_lower = lower_limits + safety_margin
+        safe_upper = upper_limits - safety_margin
+
+        seeds = []
+
+        # The most important seed is exactly the current / hypothetical
+        # robot configuration.
+        seeds.append(q_start.copy())
+
+        # Deterministic generator so results remain reproducible.
+        rng = np.random.default_rng(1)
+
+        # Add only a few SMALL local perturbations.
+        for _ in range(n_local_seeds):
+
+            seed = q_start.copy()
+
+            perturbation = rng.uniform(-settings.preview_seed_perturbation, settings.preview_seed_perturbation, size=len(arm_indices)) * joint_range
+
+            seed[arm_indices] = np.clip(current_arm_q + perturbation, safe_lower, safe_upper)
+
+            seeds.append(seed)
+
+        return seeds
+
     def _score_solution(self, q_start, q_solution):
         """This function returns a score for the given solution. In particular it check how far it is from 
         the current robot posture and how far from their limits the joints will be after the transformation.
@@ -284,24 +335,33 @@ class IKController:
 
         return score, np.min(normalized_margin)
 
-    def solve_target_pose(self, pose, q_start_arm = None, dt=0.01, max_iterations=500,
-                      pos_tolerance=0.005, rot_tolerance=0.0175): # The rot tolerance is in rad (0.0175 rad = 1.0 deg)
+    def solve_target_pose(self, pose, q_start_arm=None, preview=False,
+                      dt=0.01, max_iterations=500,
+                      pos_tolerance=0.005,
+                      rot_tolerance=0.0175): # The rot tolerance is in rad (0.0175 rad = 1.0 deg)
 
+        # Always start from the complete REAL MuJoCo configuration.
         q_start = self.env.sim.data.qpos.copy()
         q_start = np.asarray(q_start, dtype=float).copy()
 
         arm_indices = self.get_arm_qpos_indices()
 
-        if q_start_arm is not None: 
+        # If an hypothetical arm configuration is provided, replace only
+        # the arm joints inside the complete MuJoCo configuration.
+        if q_start_arm is not None:
+
             q_start_arm = np.asarray(q_start_arm, dtype=float).reshape(-1)
 
             if q_start_arm.size != len(arm_indices):
-                raise ValueError("q_start_Arm contains a different number of values than the number of joints!")
+                raise ValueError(
+                    "q_start_arm contains a different number of values "
+                    "than the number of robot arm joints!"
+                )
 
             q_start[arm_indices] = q_start_arm
 
-        # The posture preference must always correspond to the REAL current
-        # robot configuration, not to each random IK seed.
+        # The posture preference corresponds to the actual starting
+        # configuration used for this IK problem.
         self.configuration.update(q_start)
         self.posture_task.set_target_from_configuration(self.configuration)
 
@@ -309,8 +369,20 @@ class IKController:
         self.position_task.set_target(pose)
         self.eef_task.set_target(pose)
 
-        # Generate the seeds.
-        seeds = self._generate_seeds(q_start)
+        # -------------------------------------------------------------
+        # Choose between robust global IK and fast local preview IK.
+        # -------------------------------------------------------------
+        if preview:
+            seeds = self._generate_preview_seeds(q_start)
+
+            position_iterations = settings.preview_position_iterations
+            pose_iterations = settings.preview_pose_iterations
+
+        else:
+            seeds = self._generate_seeds(q_start)
+
+            position_iterations = 150
+            pose_iterations = max_iterations
 
         valid_solutions = []
 
@@ -321,13 +393,14 @@ class IKController:
 
         for seed_index, seed in enumerate(seeds):
 
-            # Update the configuration with the current seed
+            # Update the configuration with the current seed.
             self.configuration.update(seed)
 
-            for _ in range(150):
+            # ---------------------------------------------------------
+            # STAGE 1: position-only convergence.
+            # ---------------------------------------------------------
+            for _ in range(position_iterations):
 
-                # This solve the IK problem by producing a vector of velocities tangent to the robot.
-                # This considers the actual configuration, both the positional task and the posture task and the joints' limits.
                 vel = mink.solve_ik(
                     configuration=self.configuration,
                     tasks=[self.position_task, self.posture_task],
@@ -336,10 +409,8 @@ class IKController:
                     limits=self.joint_limits
                 )
 
-                # Integrates the velocity and updates the configuration
                 self.configuration.integrate_inplace(vel, dt)
 
-                # Check if the positional error is small enough to consider the IK problem solved on this aspect
                 position_error_stage1 = np.linalg.norm(
                     self.position_task.compute_error(self.configuration)[:3]
                 )
@@ -347,12 +418,13 @@ class IKController:
                 if position_error_stage1 < 0.02:
                     break
 
-            # Helper variable
+            # ---------------------------------------------------------
+            # STAGE 2: complete position + orientation convergence.
+            # ---------------------------------------------------------
             converged = False
 
-            for _ in range(max_iterations):
+            for _ in range(pose_iterations):
 
-                # Solves the IK problem as before.
                 vel = mink.solve_ik(
                     configuration=self.configuration,
                     tasks=[self.eef_task, self.posture_task],
@@ -363,58 +435,54 @@ class IKController:
 
                 self.configuration.integrate_inplace(vel, dt)
 
-                # Compute the total error for the translation + rotation phase
                 error = self.eef_task.compute_error(self.configuration)
 
                 position_error = np.linalg.norm(error[:3])
                 rotation_error = np.linalg.norm(error[3:])
 
                 if position_error < pos_tolerance and rotation_error < rot_tolerance:
-                    # We can consider the problem as solved!
                     converged = True
-                    # Break out from the pos + rot IK problem loop
                     break
 
             if not converged:
-                # Store the failed seed with the smallest positional error.
+
                 if position_error < best_failed_position_error:
                     best_failed_seed = seed_index + 1
                     best_failed_position_error = position_error
                     best_failed_rotation_error = rotation_error
 
-                # Pass onto the next seed as we did not find a suitable solution!
                 continue
 
-            # If we found a solution we grab it.
+            # If we found a solution, retrieve it.
             solution = self.configuration.q.copy()
 
-            # We additionally make sure the solution fits the joints' limits
+            # Check that the solution respects the arm joint limits.
             lower_limits, upper_limits = self._get_arm_joint_limits()
             solution_arm_q = solution[arm_indices]
 
             if np.any(solution_arm_q < lower_limits) or np.any(solution_arm_q > upper_limits):
-                # If we found a faulty solution => We decline it and keep searching for a good configuration
                 continue
 
-            # Score the found solution
+            # Score the found solution.
             score, min_margin = self._score_solution(q_start, solution)
 
-            # We append to the solutions array some useful values we found.
             valid_solutions.append(
-                (score, solution, position_error, rotation_error, min_margin)
+                (
+                    score,
+                    solution,
+                    position_error,
+                    rotation_error,
+                    min_margin
+                )
             )
 
+        # No valid IK solution found.
         if len(valid_solutions) == 0:
-            # We did not find any solution...s
             return None
 
-        # ------------------------------------------------------------------
-        # Prefer accurate Cartesian solutions before applying the joint-space
-        # score. This prevents a solution close to the 5 mm tolerance from
-        # winning over much more accurate solutions only because its joint
-        # configuration is slightly more comfortable.
-        # ------------------------------------------------------------------
-        preferred_position_tolerance = 0.002  # 2 mm
+        # Prefer accurate Cartesian solutions before applying the
+        # joint-space score.
+        preferred_position_tolerance = 0.002 # 2 mm
 
         precise_solutions = [
             candidate
@@ -422,27 +490,25 @@ class IKController:
             if candidate[2] <= preferred_position_tolerance
         ]
 
-        # If at least one solution is within 2 mm, only compare those.
-        # Otherwise, keep all the valid solutions within the normal 5 mm
-        # IK tolerance.
         if len(precise_solutions) > 0:
             candidate_solutions = precise_solutions
         else:
             candidate_solutions = valid_solutions
 
-        # Choose the best candidate according to the existing joint-space score.
-        candidate_solutions.sort(key=lambda candidate: candidate[0])
+        # Choose the best remaining candidate according to the
+        # existing joint-space score.
+        candidate_solutions.sort(
+            key=lambda candidate: candidate[0]
+        )
 
-        # Grab the best overall solution.
         _, best_solution, _, _, _ = candidate_solutions[0]
 
         if best_solution is None:
             print("No valid IK solution... Robot will not move!")
             return None
 
-        robot_qpos_indices = self.get_arm_qpos_indices()
-
-        q_final = best_solution[robot_qpos_indices].copy()
+        # Return only the 6 arm joints.
+        q_final = best_solution[arm_indices].copy()
 
         return q_final
 

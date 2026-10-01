@@ -1,3 +1,5 @@
+import time
+
 import custom_env  # noqa: F401
 import custom_robot  # noqa: F401
 import mujoco
@@ -109,6 +111,9 @@ def pick_and_place_action(env: "SingleArmEnv", obj, pos: np.array, quat: np.arra
         - [1], rotations (qw, qx, qy, qz)
     """
 
+    print(f"Initial object position: {env.sim.data.body_xpos[env.sim.model.body_name2id(obj.root_body)]}")
+
+
     # Initialize movements controller.
     movements_ctrl = MovementController(env)
 
@@ -125,14 +130,25 @@ def pick_and_place_action(env: "SingleArmEnv", obj, pos: np.array, quat: np.arra
     
     # Verify the real Cartesian position after JOINT_POSITION execution
     # create_mink_target() adds safe_offset_gripper, so we must check the same EEF target here.
-    #expected_eef_pos = pos + np.asarray(settings.safe_offset_gripper, dtype=float)
-    #move_on = movements_ctrl.check_eef_pos(expected_eef_pos)
+    # expected_eef_pos = pos + np.asarray(settings.safe_offset_gripper, dtype=float)
+    # move_on = movements_ctrl.check_eef_pos(expected_eef_pos)
 
     # Close the gripper
     move_on = movements_ctrl.toggle_grab()
 
     # Start ascending
-    move_on = movements_ctrl.elevate_obj(pos, quat)
+    elevated_pos = movements_ctrl.elevate_obj(pos, quat)
+
+    # Now move to the center of the table
+    center_pos = np.array([0.0, 0.0, elevated_pos[2]], dtype=float)
+    print(f"Desired position: {center_pos} and rotation {quat}")
+    move_on = movements_ctrl.move_robot_to_position(center_pos, quat)
+
+
+    time.sleep(5)
+
+
+    print(f"Final object position: {env.sim.data.body_xpos[env.sim.model.body_name2id(obj.root_body)]}")
 
     # Loop to visualize results and not close the sim instantly
     for _ in range(100):
