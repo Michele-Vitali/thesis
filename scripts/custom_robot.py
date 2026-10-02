@@ -40,12 +40,11 @@ class PRob3Gripper(GripperModel):
         """
         Initial positions of the physical finger joints.
         """
-        return np.array([0.523599, 0.523599]) # Gripper initially partially open
-        #return np.array([0.0, 0.0]) # Gripper initially fully closed
+        return np.array([1.0472, 1.0472]) # Gripper initially fully open
 
     @property
     def speed(self):
-        return 0.0035
+        return 0.0025
 
     def format_action(self, action):
 
@@ -117,7 +116,7 @@ class PRob3(ManipulatorModel):
 
     @property
     def init_qpos(self):
-        return np.zeros(6)
+        return [0.0, -0.366, 0.8, 0.0, 1.137, 0.0]
 
 class PRob3SingleArm(SingleArm):
 
