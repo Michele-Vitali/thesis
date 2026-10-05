@@ -1,72 +1,86 @@
-import robosuite as suite
-from robosuite import load_controller_config
-import robosuite.macros as macros
-from robosuite.wrappers import DomainRandomizationWrapper
-import robosuite.models.objects as objects
-import numpy as np
+# Import our custom env and robot
+import custom_env  # noqa: F401
+import custom_robot  # noqa: F401
 
-# Import the custom robot and environment so they are initialized
-import custom_robot
-import custom_env
+# Import some libraries
+import mujoco
+import numpy as np
+import robosuite as suite
 
 # Import the settings file
 import settings
 
-# Import utilities files
-import movements
-import time
+# Import useful classes
+from lerobot_recorder import LeRobotRecorder
+from movements import OSCMovementController
+from robosuite import load_controller_config, macros
+from robosuite.environments.manipulation.single_arm_env import SingleArmEnv
+from robosuite.wrappers import DomainRandomizationWrapper
+
 
 def main():
-    # Create the CompositeController with OSC POSE and JOINT_POSITION modality
+    # Create the controller with OSC_POSE mode
     config = load_controller_config(default_controller="OSC_POSE")
 
-    # Menu
-    menu_loop = True
-    while menu_loop:
-        input_good = False
-        print("\n\nChoose the task you want to simulate: ")
-        print("1 - Pick and Place")
-        while not input_good:
-            choice = input("Choice: ")
-            try:
-                num_choice = int(choice)
-                if num_choice < 1 or num_choice > 1:
-                    raise ValueError
-                else:
-                    input_good = True
-            except:
-                print("Invalid choice... Retry.")
+    # Update the config with the OSC controller configurations from the settings file...
+    config.update(settings.osc_config)
 
+    recorder = LeRobotRecorder()
+
+    try:
         task_loop = True
         while task_loop:
-            match num_choice:
-                case 1:
-                    pick_and_place_task(config)
+            n_tasks = int(input("How many times do you want to simulate the OSC task? "))
+            results = []
+            for i in range(n_tasks):
+                success = pick_and_place_task(config=config, task_index=i, recorder=recorder)
 
-            choice = input("Want to repeat the task? (Y/N): ")
-            task_loop = True if choice.upper() == "Y" else False
+                results.append(success)
 
-        choice = input("Want to terminate? (Otherwise choose a task later...) (Y/N): ")
-        menu_loop = False if choice.upper() =="Y" else True
+            #successes = sum(results)
 
-def pick_and_place_task(config):
-    # PickAndPlace situation
+            print("=" * 60)
+            #print(f"OSC final report: {successes}/{n_tasks} successful tasks.")
+            print(f"LeRobot episodes currently saved: {recorder.saved_episodes}")
+            print("=" * 60)
+
+            choice = input("Want to repeat the tasks? (Y/N): ")
+            task_loop = choice.upper() == "Y"
+    finally:
+
+        # Absolutely necessary for LeRobot v3, as this closes the Parquet writers and writes metadata/statistics.
+        recorder.finalize()
+
+
+def create_randomized_env(config: dict) -> DomainRandomizationWrapper:
 
     # As the docs say, we use this so that entire geom groups are randomized as a whole
     macros.USING_INSTANCE_RANDOMIZATION = True
+
     # Create the base environment
     env = suite.make(
         env_name=settings.env_name,
         robots=settings.robot,
         gripper_types=settings.gripper_types,
-        has_renderer=True,
-        has_offscreen_renderer=False,
-        use_camera_obs=False,
-        control_freq=20, # Limits the robot to 20 actions/second
+        has_renderer=False, # On-screen renderer
+        has_offscreen_renderer=True, # Necessary for the dataset!
+        use_camera_obs=True, # Also for dataset...
+        camera_names=settings.dataset_camera_name,
+        camera_heights=settings.dataset_image_height,
+        camera_widths=settings.dataset_image_width,
+        camera_depths=False,
+        control_freq=settings.dataset_fps,
         controller_configs=config,
         hard_reset=False, # Avoids segfault on macos or glfw error on Linux (per docs...)
         horizon=1000, # So we are sure that all the pick and places terminate
+        reward_shaping=True, # So we enable RL success check
     )
+
+    robot_init_qpos = np.asarray(env.robots[0].init_qpos, dtype=float).copy()
+
+    robot_init_qpos[:6] = np.asarray(settings.starting_pose, dtype=float)
+
+    env.robots[0].init_qpos = (robot_init_qpos)
 
     # We use domain randomization to create a more robust dataset
     env = DomainRandomizationWrapper(
@@ -80,58 +94,148 @@ def pick_and_place_task(config):
     )
 
     env.reset()
-    env.render()
 
-    # For now we have just 1 cube!
-    for obj in env.objects:
-        obj_name = obj.root_body
-        obj_id = env.sim.model.body_name2id(obj_name)
-        # Grab the position
-        pos = env.sim.data.body_xpos[obj_id].copy()
-        # Grab the rotation (quaternion)                # Copy! Otherwise we get a reference to the original array and 
-        quat = env.sim.data.body_xquat[obj_id].copy()   # it will be modified by the env.step() function!
-        obj_pos_rot = (pos, quat)
-        n_faces = 4 if isinstance(obj, objects.BoxObject) else 100
-        pick_and_place_action(env, obj_pos_rot, n_faces)
+    offscreen_context = getattr(env.sim, "_render_context_offscreen", None)
 
-    env.close()
+    if offscreen_context is not None:
+        offscreen_context.vopt.flags[mujoco.mjtVisFlag.mjVIS_RANGEFINDER] = 0
 
-def pick_and_place_action(env, obj_pos_rot, n_faces=4):
-    """
-    Define the position over the cube, which is object_pos + 10cm on the z-axis
-    target_pos:
-        - [0], positions (x,y,z)
-        - [1], rotations (qx, qy, qz, qw)
-    """
-    obj_pos = obj_pos_rot[0]
-    obj_rot = obj_pos_rot[1]
+    return env
 
-    over_obj_pos = obj_pos + np.array([0, 0, 0.10])
+def pick_and_place_task(config: dict, task_index: int, recorder: LeRobotRecorder) -> bool:
 
-    # 1. Move over the target
-    movements.move_to_target(env, over_obj_pos, "Move over")
+    # Create the env
+    env = create_randomized_env(config)
 
-    # 2. Orientate the gripper as the cube
-    movements.yaw_rotation(env, obj_rot, "Rotate", n_faces)
+    try:
+        for obj in env.objects:
+            obj_name = obj.root_body
+            obj_id = env.sim.model.body_name2id(obj_name)
+            # Grab the position
+            pos = env.sim.data.body_xpos[obj_id].copy()
+            # Grab the rotation (quaternion)                # Copy! Otherwise we get a reference to the original array and 
+            quat = env.sim.data.body_xquat[obj_id].copy()   # it will be modified by the env.step() function!
 
-    # 2. Start the descent, we just reuse the same function...
-    #    but we ensure the gripper is initially open!
-    movements.move_to_target(env, obj_pos, "Descent")
+            # Test!
+            success = test_movements(env, obj, pos, quat)
+            
+            #success = pick_and_place_action(env, obj, pos, quat, task_index, recorder)
 
-    # 3. Grab the cube and elevate it!
-    movements.toggle_grab(env)
-    movements.move_to_target(env, over_obj_pos, "Elevate")
+            # If the action was successfull we save it...
+            if success:
+                recorder.save_episode()
+            else:
+                recorder.discard_episode()
+    except Exception:
+        # Never keep an interrupted / corrupted demonstration.
+        recorder.discard_episode()
+        raise
+    finally:
+        env.close()
 
-    # 4. Go in the middle, rotate, go down and drop!
-    over_final_pos = [0,0, over_obj_pos[2]]
-    movements.move_to_target(env, over_final_pos, "Move center")
+def test_movements(env: "SingleArmEnv", obj, pos: np.ndarray, quat: np.ndarray) -> bool:
 
-    # We align the cube with the system axes by putting the target as 
-    # a quaternion with w=1 (scalar value) and rotations around the axes at 0
-    movements.yaw_rotation(env, [1, 0, 0, 0], "Final rotation") 
-    drop_position = [0, 0, obj_pos[2]] # Keep the same z as the original (on table surface)
-    movements.move_to_target(env, drop_position, "Final descent")
-    movements.toggle_grab(env)
+    test_steps = 200
+    # Test gripper fully open... (Should be already like this at start)
+    action = np.zeros(env.action_dim)
+    print("Open")
+    for _ in range(test_steps):
+        action[-1] = 1.0
+        env.step(action)
+
+    # Test gripper fully closed...
+    print("Close")
+    for _ in range(test_steps):
+        action[-1] = -1.0
+        env.step(action)
+
+    # Re-open it...
+    print("Reopen")
+    for _ in range(test_steps):
+        action[-1] = 1.0
+        env.step(action)
+
+    # Let's check the hold...
+    print("Hold")
+    for _ in range(test_steps):
+        action[-1] = 0.0
+        env.step(action)
+
+
+def pick_and_place_action(env: "SingleArmEnv", obj, pos: np.ndarray, quat: np.ndarray, task_index: int, recorder: LeRobotRecorder) -> bool:
+
+    # Grab the object id for later
+    obj_id = env.sim.model.body_name2id(obj.root_body)
+
+    # Initialize the movement controller
+    movements_ctrl = OSCMovementController(env, tracked_body_name=obj.root_body, recorder=recorder)
+
+    # Note: We usually copy np.ndarray because otherwise numpy just references the memory location
+    # resulting in a change in the variable everywhere in the code
+
+    # Define the grasp position as the object position
+    grasp_pos = np.asarray(pos, dtype=float).copy()
+
+    # Define the position OVER the object
+    above_object_pos = grasp_pos.copy()
+    above_object_pos[2] = settings.ideal_z
+
+    # Position directly ABOVE the central drop point.
+    above_drop_pos = np.array([settings.drop_point[0], settings.drop_point[1], settings.ideal_z], dtype=float)
+
+    # Final drop height.
+    drop_pos = np.array([settings.drop_point[0], settings.drop_point[1], grasp_pos[2] + settings.drop_clearance], dtype=float)
+
+    # Move over the object.
+    done = movements_ctrl.move_robot_to_position(above_object_pos, quat)
+
+    if not done:
+        print("OSC failed while moving above the object.")
+        return False
+
+    # Descend to the object.
+    done = movements_ctrl.move_robot_to_position(grasp_pos, quat)
+
+    if not done:
+        print("OSC failed during grasp descent.")
+        return False
+
+    # Close the gripper.
+    movements_ctrl.toggle_grab()
+
+    # Elevate the object.
+    done = movements_ctrl.move_robot_to_position(above_object_pos, quat)
+
+    if not done:
+        print("OSC failed during vertical lift.")
+        return False
+
+    # Move OVER the drop point.
+    done = movements_ctrl.move_robot_to_position(above_drop_pos, quat)
+
+    if not done:
+        print("OSC failed during horizontal transport.")
+        return False
+
+    # Descend to drop position.
+    done = movements_ctrl.move_robot_to_position(drop_pos, quat)
+
+    if not done:
+        print("OSC failed during drop descent.")
+        return False
+
+    # Open the gripper.
+    movements_ctrl.toggle_grab()
+
+    final_object_pos = (env.sim.data.body_xpos[obj_id].copy())
+
+    center_error = np.linalg.norm(final_object_pos[:2] - np.asarray(settings.drop_point, dtype=float))
+
+    print(f"Final error between drop point ad actual position: {center_error: .5f}")
+
+    # Only demonstrations that actually complete the task are stored.
+    # We define the task completed and successfull if the object is within 3cm from the drop point.
+    return center_error < 0.03
 
 if __name__ == "__main__":
     main()
