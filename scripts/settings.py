@@ -69,3 +69,15 @@ dataset_task = "Pick up the cube and place it at the center of the table"
 
 gripper_q_min = -0.001
 gripper_q_max = 1.0472
+
+# Controller configurations
+osc_config = {
+    "impednace_mode": "fixed",
+    "kp": 150,
+    "damping_ratio": 1,
+    "control_delta": True,
+    "input_min": -1.0,
+    "input_max": 1.0,
+    "output_min": [-0.05, -0.05, -0.05, -0.5, -0.5, -0.5],
+    "output_max": [+0.05, +0.05, +0.05, +0.5, +0.5, +0.5]
+}

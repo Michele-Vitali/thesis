@@ -22,24 +22,8 @@ def main():
     # Create the controller with OSC_POSE mode
     config = load_controller_config(default_controller="OSC_POSE")
 
-    # Some OSC configurations...
-
-    # Fixed impedance OSC.
-    config["impedance_mode"] = "fixed"
-
-    config["kp"] = 150
-    config["damping_ratio"] = 1
-
-    # Cartesian actions are interpreted as deltas from the current EEF pose.
-    config["control_delta"] = True
-
-    # Explicit normalization of inputs/outputs
-    config["input_min"] = -1
-    config["input_max"] = +1
-
-    config["output_min"] = [-0.05, -0.05, -0.05, -0.5, -0.5, -0.5]
-
-    config["output_max"] = [+0.05, +0.05, +0.05, +0.5, +0.5, +0.5]
+    # Update the config with the OSC controller configurations from the settings file...
+    config.update(settings.osc_config)
 
     recorder = LeRobotRecorder()
 
@@ -132,7 +116,10 @@ def pick_and_place_task(config: dict, task_index: int, recorder: LeRobotRecorder
             # Grab the rotation (quaternion)                # Copy! Otherwise we get a reference to the original array and 
             quat = env.sim.data.body_xquat[obj_id].copy()   # it will be modified by the env.step() function!
 
-            success = pick_and_place_action(env, obj, pos, quat, task_index, recorder)
+            # Test!
+            success = test_movements(env, obj, pos, quat)
+            
+            #success = pick_and_place_action(env, obj, pos, quat, task_index, recorder)
 
             # If the action was successfull we save it...
             if success:
@@ -145,6 +132,34 @@ def pick_and_place_task(config: dict, task_index: int, recorder: LeRobotRecorder
         raise
     finally:
         env.close()
+
+def test_movements(env: "SingleArmEnv", obj, pos: np.ndarray, quat: np.ndarray) -> bool:
+
+    test_steps = 200
+    # Test gripper fully open... (Should be already like this at start)
+    action = np.zeros(env.action_dim)
+    print("Open")
+    for _ in range(test_steps):
+        action[-1] = 1.0
+        env.step(action)
+
+    # Test gripper fully closed...
+    print("Close")
+    for _ in range(test_steps):
+        action[-1] = -1.0
+        env.step(action)
+
+    # Re-open it...
+    print("Reopen")
+    for _ in range(test_steps):
+        action[-1] = 1.0
+        env.step(action)
+
+    # Let's check the hold...
+    print("Hold")
+    for _ in range(test_steps):
+        action[-1] = 0.0
+        env.step(action)
 
 
 def pick_and_place_action(env: "SingleArmEnv", obj, pos: np.ndarray, quat: np.ndarray, task_index: int, recorder: LeRobotRecorder) -> bool:
