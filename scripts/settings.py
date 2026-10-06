@@ -3,41 +3,31 @@ env_name = "CustomTask"
 robot = "PRob3"
 gripper_types = "PRob3Gripper"
 
+# Environment variables
+max_reachable_x = 0.55 # It is 60cm, but we take a margin and set it to 55cm
+min_distance_rob_tab = 0.5 # It is around 29cm, but we take a margin
+table_width = 0.80 # We make a bigger table than reachable, then define a suitable spawning algorithm!
 
 # Important variables
-safe_offset_gripper = [0.0, 0.0, 0.1]
+safe_offset_gripper = [0.0, 0.0, 0.115]
 
 # Via empirical tests, we found out that the maximum height our robot can elevate is approximately 35cm TOTAL (so the elevation is 35cm - object_height)!
 # BUT, to move the cube to the center, we found out that we can move the cube to a maximum height of 25cm (in reality 27cm, but we keep a safe margin from the actual limit!)
 # => We want to elevate our cube to this 25cm!
-ideal_z = 0.25
-elevation_step = 0.02 # 2 cm
+ideal_z = 0.10
 
 # Central drop point
 drop_point = [0.0, 0.0]
 drop_clearance = 0.01
 
-# Lower the original front camera without changing its orientation
-camera_lowering = 0.10 # 10 cm
-
-
-# Perturbation variables
-initial_radius = 0.01 # 1cm
-radius_step = 0.01
-max_radius = 0.05
-n_candidates = 8
-
-
-# Local IK preview variables
-preview_local_seeds = 2
-preview_seed_perturbation = 0.03
-preview_position_iterations = 30
-preview_pose_iterations = 120
-
+# Lower the original front camera without changing its orientation (the following values have been collected by testing)
+# camera_init_pos = [1.6, 0.0, 1.45]
+# camera_init_quat = [0.561, 0.431, 0.431, 0.561]
+camera_pos = [1.6, 0.0, 1.05]
+camera_quat = [0.561, 0.431, 0.431, 0.561]
 
 # Starting pose for the robot sim
-starting_pose = [0.0, -0.366, 0.800, 0.0, 1.137, 0.0]
-
+starting_pose = [0.0, -0.366, 0.800, 0.0, 1.137, 0.0] # Top-down grasp
 
 # Reward and penalty factors
 closeness = 0.1
@@ -47,6 +37,9 @@ placing = 0.5
 sudden_movements_penalty = 0.02
 z_target = 0.3
 
+# Tolerances
+position_tolerance = 0.003 # 3mm
+rotation_tolerance_deg = 1.0 # 1 degree
 
 # Other values
 n_objects = 1

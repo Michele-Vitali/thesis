@@ -3,6 +3,7 @@ import numpy as np
 import settings
 from robosuite.environments.manipulation.single_arm_env import SingleArmEnv
 from scipy.spatial.transform import Rotation as R
+import settings
 
 
 class OSCMovementController:
@@ -163,8 +164,8 @@ class OSCMovementController:
 
         return action
 
-    def move_eef_to_pose(self, target_pos: np.ndarray, target_rotation: R, max_steps: int = 400, position_tolerance: float = 0.005,
-        rotation_tolerance_deg: float = 1.0) -> bool:
+    def move_eef_to_pose(self, target_pos: np.ndarray, target_rotation: R, max_steps: int = 400, position_tolerance: float = settings.position_tolerance,
+        rotation_tolerance_deg: float = settings.rotation_tolerance_deg, record: bool = True) -> bool:
         """
         Closed-loop Cartesian motion using OSC_POSE.
         Every executed OSC action is optionally recorded as a LeRobot frame.
@@ -199,7 +200,7 @@ class OSCMovementController:
             # Grab the effective object's z...
             minimum_object_z = (self.env.sim.data.body_xpos[self.tracked_body_id][2])
 
-        for step in range(max_steps):
+        for _ in range(max_steps):
             # Grab the env's observation...
             observation = self.env._get_observations()
 
@@ -220,14 +221,14 @@ class OSCMovementController:
             # Check if we reached the target position and rotation...
             if position_error_norm < position_tolerance and rotation_error_deg < rotation_tolerance_deg:
                 # If yes we return as we finished our goal.
-                print(f"OSC target reached in {step} steps!\nPosition error: {position_error_norm * 1000:.2f} mm | Rotation error: {rotation_error_deg:.2f} deg")
+                #print(f"OSC target reached in {step} steps!\nPosition error: {position_error_norm * 1000:.2f} mm | Rotation error: {rotation_error_deg:.2f} deg")
                 return True
 
             # If we did not reach the target position/rotation, we compute the next action...
             action = self._build_osc_action(position_error, rotation_error)
 
             # Save observation_ and action_t for dataset population...
-            self._step(action=action, observation=observation, record=True)
+            self._step(action=action, observation=observation, record=record)
 
             if self.tracked_body_id is not None:
                 object_z = (self.env.sim.data.body_xpos[self.tracked_body_id][2])
@@ -248,13 +249,13 @@ class OSCMovementController:
         rotation_error_deg = np.degrees(delta_rotation.magnitude())
 
         # Debug prints...
-        print("OSC target NOT reached!")
-        print(f"Final position error: {np.linalg.norm(position_error) * 1000:.2f} mm")
-        print(f"Final rotation error: {rotation_error_deg:.2f} deg")
+        #print("OSC target NOT reached!")
+        #print(f"Final position error: {np.linalg.norm(position_error) * 1000:.2f} mm")
+        #print(f"Final rotation error: {rotation_error_deg:.2f} deg")
 
         return False
 
-    def move_robot_to_position(self, pos: np.ndarray, quat: np.ndarray, max_steps: int = 400) -> bool:
+    def move_robot_to_position(self, pos: np.ndarray, quat: np.ndarray, max_steps: int = 400, record: bool = True) -> bool:
         """
         Move the EEF to the Cartesian pose corresponding to the passed
         object/reference position.
@@ -270,7 +271,7 @@ class OSCMovementController:
         target_rotation = self._get_top_down_rotation(quat)
 
         # Actual movement
-        success = self.move_eef_to_pose(target_pos=target_eef_pos, target_rotation=target_rotation, max_steps=max_steps)
+        success = self.move_eef_to_pose(target_pos=target_eef_pos, target_rotation=target_rotation, max_steps=max_steps, record=record)
 
         return success
 
@@ -314,7 +315,7 @@ class OSCMovementController:
 
         return center_pos
 
-    def toggle_grab(self, min_steps: int = 70) -> bool:
+    def toggle_grab(self, min_steps: int = 70, record: bool = True) -> bool:
         """
         Toggle the high-level gripper command.
 
@@ -341,7 +342,7 @@ class OSCMovementController:
         # Execute the action for at least "min_steps" so we are sure the state is completely toggled
         for _ in range(min_steps):
             # Apply the action and save it in the dataset
-            self._step(action=action, record=True)
+            self._step(action=action, record=record)
 
         return True
 

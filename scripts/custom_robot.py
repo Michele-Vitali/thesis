@@ -116,7 +116,7 @@ class PRob3(ManipulatorModel):
 
     @property
     def init_qpos(self):
-        return [0.0, -0.366, 0.8, 0.0, 1.137, 0.0]
+        return np.zeros(6)
 
 class PRob3SingleArm(SingleArm):
 
