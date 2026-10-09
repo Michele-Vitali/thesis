@@ -54,13 +54,13 @@ class CustomTask(SingleArmEnv):
         table_height = 2*table_width
         self.mujoco_arena = TableArena(
             table_full_size=(table_width, table_height, 0.05),
-            table_offset=(0, 0, 0.2)
+            table_offset=(0, 0, 0.1)
         )
 
         self.mujoco_arena.set_origin([0.0, 0.0, 0.0])
 
         # The robot must be at LEAST around 30cm from the border of the table!
-        self.robots[0].robot_model.set_base_xpos([-settings.rob_x, 0.0, 0.0]) 
+        self.robots[0].robot_model.set_base_xpos(settings.robot_position) 
 
         # Lower the camera!
         self.mujoco_arena.set_camera(camera_name=settings.dataset_camera_name, pos=settings.camera_pos, quat=settings.camera_quat)
@@ -158,8 +158,9 @@ class CustomTask(SingleArmEnv):
             name = f"RNG_Object_{i}"
             kwargs = {
                 "name": name,
-                "size_min": [0.01, 0.01, 0.01],
-                "size_max": [0.035, 0.035, 0.035]
+                "size_min": [settings.object_half_size_min, settings.object_half_size_min, settings.object_half_size_min],
+                "size_max": [settings.object_half_size_max, settings.object_half_size_max, settings.object_half_size_max],
+                #"density": 250,
             }
 
             obj_instance = class_obj(**kwargs)

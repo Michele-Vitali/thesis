@@ -7,19 +7,39 @@ gripper_types = "PRob3Gripper"
 max_reachable_x = 0.55 # It is 60cm, but we take a margin and set it to 55cm
 rob_x = 0.45 # It is a minimum of 29cm, taking a margin of 1cm...
 table_width = 0.30 # We make a bigger table than reachable, then define a suitable spawning algorithm!
+robot_position = [-rob_x, 0.0, 0.0]
+
+# Object geometry
+object_half_size_min = 0.035
+object_half_size_max = 0.035
+
+max_object_height = 2.0 * object_half_size_max
 
 # Object spawning variables
 forbidden_spawning_pos = (0.0, 0.0) # As it is the drop point!
 forbidden_spawning_radius = 0.08
-radial_range = [0.35, 0.55] # Inner and outer radius of spawning circumferences
+radial_range = [0.35, 0.50] # Stable pre-waypoint working range
 
 # Important variables
 safe_offset_gripper = [0.0, 0.0, 0.115]
 
-# Via empirical tests, we found out that the maximum height our robot can elevate is approximately 35cm TOTAL (so the elevation is 35cm - object_height)!
-# BUT, to move the cube to the center, we found out that we can move the cube to a maximum height of 25cm (in reality 27cm, but we keep a safe margin from the actual limit!)
-# => We want to elevate our cube to this 25cm!
-ideal_z = 0.10
+# After some testing we found out that some ideal z values are:
+maximum_transport_z = 0.195
+transport_bottom_clearance = max_object_height
+initial_lift_clearance = 0.010
+pregrasp_top_clearance = 0.015
+
+# Integral controller implementation
+z_integral_gain = 0.60
+z_integral_limit = 0.025
+z_integal_deadband = 0.001
+z_integral_action_limit = 0.15
+
+# Workspace
+workspace_direct_lift_min_radius = 0.40
+workspace_direct_lift_max_radius = 0.50
+#maximum_distance_from_center = 0.50
+#workspace_correction_step = 0.02
 
 # Central drop point
 drop_point = [0.0, 0.0]
@@ -45,6 +65,7 @@ z_target = 0.3
 # Tolerances
 position_tolerance = 0.003 # 3mm
 rotation_tolerance_deg = 1.0 # 1 degree
+final_tolerance = 0.005
 
 # Other values
 n_objects = 1
@@ -77,5 +98,11 @@ osc_config = {
     "input_min": -1.0,
     "input_max": 1.0,
     "output_min": [-0.05, -0.05, -0.05, -0.5, -0.5, -0.5],
-    "output_max": [+0.05, +0.05, +0.05, +0.5, +0.5, +0.5]
+    "output_max": [+0.05, +0.05, +0.05, +0.5, +0.5, +0.5],
+    # P-Rob3 q5 joint-limit avoidance
+    "q5_index": 4,
+    "q5_avoidance_start": 1.94,
+    "q5_avoidance_full": 1.985,
+    "q5_avoidance_max_torque": 4.0,
+    "q5_avoidance_damping": 0.75,
 }

@@ -3,7 +3,6 @@ import numpy as np
 import settings
 from robosuite.environments.manipulation.single_arm_env import SingleArmEnv
 from scipy.spatial.transform import Rotation as R
-import settings
 
 
 class OSCMovementController:
@@ -83,7 +82,7 @@ class OSCMovementController:
 
         return result
 
-    def _get_top_down_rotation(self, object_quat: np.ndarray) -> R:
+    def _get_top_down_rotation(self, object_quat: np.ndarray = None) -> R:
         """
         Build exactly the same top-down grasp orientation convention
         currently used by the Mink controller.
@@ -94,36 +93,59 @@ class OSCMovementController:
         Only the object's yaw is preserved. Roll and pitch are discarded
         so that the gripper remains perpendicular to the table.
         """
+        if object_quat is not None:
+            # Convert the object quaternion to a np.ndarray
+            object_quat = np.asarray(object_quat, dtype=float)
 
-        # Convert the object quaternion to a np.ndarray
-        object_quat = np.asarray(object_quat, dtype=float)
+            # MuJoCo quaternion convention: [w, x, y, z]
+            object_rotation = R.from_quat(object_quat, scalar_first=True)
 
-        # MuJoCo quaternion convention: [w, x, y, z]
-        object_rotation = R.from_quat(object_quat, scalar_first=True)
-
-        # Convert the rotation to a rotation matrix
-        object_matrix = object_rotation.as_matrix()
+            # Convert the rotation to a rotation matrix
+            object_matrix = object_rotation.as_matrix()
+        else:
+            object_matrix = np.array([
+                [1.0, 0.0, 0.0],
+                [0.0 ,1.0, 0.0],
+                [0.0, 0.0, 1.0]
+                ])
 
         # Extract the object yaw...
         object_yaw = np.arctan2(object_matrix[1, 0], object_matrix[0, 0])
 
-        # And the convert that yaw to a rotation matrix with rotation only on that specific yaw!
-        cos_yaw = np.cos(object_yaw)
-        sin_yaw = np.sin(object_yaw)
+        _, current_rotation = self._get_eef_pose()
 
-        yaw_rotation = np.array([
-            [cos_yaw, -sin_yaw, 0.0],
-            [sin_yaw,  cos_yaw, 0.0],
-            [0.0,      0.0,     1.0],
-        ])
+        candidate_rotations = []
 
-        # Include in the final matrix the rotation for the top-down grasp as well
-        target_matrix = (yaw_rotation @ self.R_TOP_GRASP)
+        # The gripper is parallel => It has a 180° symmetry!
+        for candidate_yaw in (object_yaw, object_yaw + np.pi):
 
-        return R.from_matrix(target_matrix)
+            # And the convert that yaw to a rotation matrix with rotation only on that specific yaw!
+            cos_yaw = np.cos(candidate_yaw)
+            sin_yaw = np.sin(candidate_yaw)
 
-    def _build_osc_action(self, position_error: np.ndarray, rotation_error: np.ndarray, position_gain: float = 0.25,
-        rotation_gain: float = 0.03, max_position_action: float = 0.40, max_rotation_action: float = 0.40, ) -> np.ndarray:
+            yaw_rotation = np.array([
+                [cos_yaw, -sin_yaw, 0.0],
+                [sin_yaw,  cos_yaw, 0.0],
+                [0.0,      0.0,     1.0],
+            ])
+
+            # Compute the candidate needed rotation to achieve top-down
+            candidate_rotation = R.from_matrix(yaw_rotation @ self.R_TOP_GRASP)
+
+            # Compute the magnitude of the distance between the current rotation and the candidate rotation
+            rotation_distance = (candidate_rotation * current_rotation.inv()).magnitude()
+
+            # Add the rotation to the candidates
+            candidate_rotations.append((rotation_distance, candidate_rotation))
+
+        # Sort the candidates list by the first element of each candidate tuple (meaning sort by the distance magnitude)
+        candidate_rotations.sort(key=lambda candidate: candidate[0])
+
+        # Return the candidate rotation of the first sorted candidate!
+        return candidate_rotations[0][1]
+
+    def _build_osc_action(self, position_error: np.ndarray, rotation_error: np.ndarray, position_gain: float = 0.20,
+        rotation_gain: float = 0.10, max_position_action: float = 0.40, max_rotation_action: float = 0.40, ) -> np.ndarray:
         """
         Convert Cartesian position / orientation errors into normalized
         OSC_POSE actions.
@@ -165,7 +187,7 @@ class OSCMovementController:
         return action
 
     def move_eef_to_pose(self, target_pos: np.ndarray, target_rotation: R, max_steps: int = 400, position_tolerance: float = settings.position_tolerance,
-        rotation_tolerance_deg: float = settings.rotation_tolerance_deg, record: bool = True) -> bool:
+        rotation_tolerance_deg: float = settings.rotation_tolerance_deg, payload_compensation: bool = False, record: bool = True) -> bool:
         """
         Closed-loop Cartesian motion using OSC_POSE.
         Every executed OSC action is optionally recorded as a LeRobot frame.
@@ -193,12 +215,8 @@ class OSCMovementController:
         # Convert the target position to a np.ndarray and copy it.
         target_pos = np.asarray(target_pos, dtype=float).copy()
 
-        # Define the minimum z of the object...
-        minimum_object_z = np.inf
-
-        if self.tracked_body_id is not None:
-            # Grab the effective object's z...
-            minimum_object_z = (self.env.sim.data.body_xpos[self.tracked_body_id][2])
+        dt = 1.0 /float(settings.dataset_fps)
+        integral_z = 0.0
 
         for step in range(max_steps):
             # Grab the env's observation...
@@ -209,6 +227,12 @@ class OSCMovementController:
 
             # Compute the current position error and its euclidean norm.
             position_error = (target_pos - current_pos)
+
+            z_error = float(position_error[2])
+
+            if abs(z_error) > settings.z_integal_deadband:
+                integral_z = float(np.clip(integral_z, -settings.z_integral_limit, +settings.z_integral_limit))
+
             position_error_norm = np.linalg.norm(position_error)
 
             # Compute the needed delta rotation to get closer to the goal rotation... 
@@ -227,12 +251,16 @@ class OSCMovementController:
             # If we did not reach the target position/rotation, we compute the next action...
             action = self._build_osc_action(position_error, rotation_error)
 
+            if payload_compensation:
+                # Integral Z action
+                integral_action_z = settings.z_integral_gain * integral_z / self.OSC_POSITION_OUTPUT_MAX[2]
+                integral_action_z = float(np.clip(integral_action_z, -settings.z_integral_action_limit, +settings.z_integral_action_limit))
+
+                action[2] += integral_action_z
+                action[2] = float(np.clip(action[2], 0.40, +0.40))
+
             # Save observation_ and action_t for dataset population...
             self._step(action=action, observation=observation, record=record)
-
-            if self.tracked_body_id is not None:
-                object_z = (self.env.sim.data.body_xpos[self.tracked_body_id][2])
-                minimum_object_z = min(minimum_object_z, object_z)
 
         # If we arrive here it means we did not reach the target in max_steps => We are sure to have failed...
 
@@ -249,44 +277,55 @@ class OSCMovementController:
         rotation_error_deg = np.degrees(delta_rotation.magnitude())
 
         # Debug prints...
-        print("OSC target NOT reached!")
-        print(f"Final position: {current_pos}, Desired position: {target_pos}")
-        print(f"Final position error: {np.linalg.norm(position_error) * 1000:.2f} mm")
-        print(f"Final rotation error: {rotation_error_deg:.2f} deg")
-        print(f"Joint positions: {self.env.robots[0]._joint_positions}")
+        with np.printoptions(suppress=True):
+            print("OSC target NOT reached!")
+            print(f"Final position: {current_pos}, Desired position: {target_pos}")
+            print(f"Final position error: {np.linalg.norm(position_error) * 1000:.2f} mm")
+            print(f"Final rotation error: {rotation_error_deg:.2f} deg")
+
+        
+        joint_positions = self.env.robots[0]._joint_positions
+        joint_limits = [2.96, 1.91, 2.0, 2.95, 2.0, 2.96]
+
+        with np.printoptions(suppress=True):
+            print(f"Joint positions: {joint_positions}")
+        margin = 0.01
+        for i, joint_pos in enumerate(joint_positions):
+            real_joint_index = i+1
+            if joint_pos < -joint_limits[i] + margin or joint_pos > joint_limits[i] - margin:
+                print(f"Joint [{real_joint_index}]: Reached its limit! Limit: {joint_limits[i]}, Joint Position: {joint_positions[i]}")
 
         position_ok = np.linalg.norm(position_error) < position_tolerance
         rotation_ok = rotation_error_deg < rotation_tolerance_deg
 
-        print(f"Position OK: {position_ok} (tol={position_tolerance * 1000:.2f} mm)")
-        print(f"Rotation OK: {rotation_ok} (tol={rotation_tolerance_deg:.2f} deg)")
+        #print(f"Position OK: {position_ok} (tol={position_tolerance * 1000:.2f} mm)")
+        #print(f"Rotation OK: {rotation_ok} (tol={rotation_tolerance_deg:.2f} deg)")
+        
 
         return False
-
-    def move_robot_to_position(self, pos: np.ndarray, quat: np.ndarray, max_steps: int = 400, record: bool = True) -> bool:
+    
+    def move_robot_to_position(self, pos: np.ndarray, quat: np.ndarray = None, max_steps: int = 400, position_tolerance: float = None, payload_compensation: bool = False, record: bool = True) -> bool:
         """
-        Move the EEF to the Cartesian pose corresponding to the passed
-        object/reference position.
+        Move the EEF directly to the Cartesian pose corresponding to the
+        passed object / reference position.
         """
 
-        # Ensure the position is a np.ndarray and copy it...
         pos = np.asarray(pos, dtype=float).copy()
 
-        # Compute the target position and rotation our eef should reach.
-        # Note: Remember that the actual eef_site is settings.safe_offset_gripper cm from the tip of the gripper!
-        target_eef_pos = (pos + np.asarray(settings.safe_offset_gripper, dtype=float))
+        if position_tolerance is None:
+            position_tolerance = settings.position_tolerance
+
+        target_eef_pos = pos + np.asarray(settings.safe_offset_gripper, dtype=float)
 
         target_rotation = self._get_top_down_rotation(quat)
 
-        # Actual movement
-        success = self.move_eef_to_pose(target_pos=target_eef_pos, target_rotation=target_rotation, max_steps=max_steps, record=record)
+        return self.move_eef_to_pose(target_pos=target_eef_pos, target_rotation=target_rotation, max_steps=max_steps, position_tolerance=position_tolerance, payload_compensation=payload_compensation, record=record)
 
-        return success
-
+    """
     def elevate_obj(self, pos: np.ndarray, quat: np.ndarray, max_height: float = settings.ideal_z + settings.safe_offset_gripper[2]) -> np.ndarray | None:
-        """
+        
         Raise the object/reference point to max_height using OSC_POSE.
-        """
+        
 
         # Ensure the position is a np.ndarray and copy it...
         target_pos = np.asarray(pos, dtype=float).copy()
@@ -302,6 +341,7 @@ class OSCMovementController:
             return None
 
         return target_pos
+    """
 
     def move_to_center(self, current_pos: np.ndarray, quat: np.ndarray) -> np.ndarray | None:
         """
@@ -323,7 +363,7 @@ class OSCMovementController:
 
         return center_pos
 
-    def toggle_grab(self, min_steps: int = 70, record: bool = True) -> bool:
+    def toggle_grab(self, max_steps: int = 50, settle_steps: int = 4, record: bool = True) -> bool:
         """
         Toggle the high-level gripper command.
 
@@ -335,22 +375,36 @@ class OSCMovementController:
         Cartesian goal while the gripper opens / closes.
         """
 
-        # Get the current gripper state
-        current_state = self.gripper_state
+        # Invert the current gripper state!
+        self.gripper_state = -self.gripper_state
 
-        # Invert it!
-        self.gripper_state = -current_state
+        target_state = float(self.gripper_state)
 
         # Initialize a "blank" action
         action = np.zeros(self.env.action_dim, dtype=float)
 
         # Set the new grip state
-        action[6] = self.gripper_state
+        action[6] = target_state
 
-        # Execute the action for at least "min_steps" so we are sure the state is completely toggled
-        for _ in range(min_steps):
-            # Apply the action and save it in the dataset
-            self._step(action=action, record=record)
+        # Execute the action for at max "max_steps" until we are sure the state is completely toggled
+        reached = False
+        for _ in range(max_steps):
+            observation = self.env._get_observations()
+
+            self._step(action=action, observation=observation, record=record)
+            current_command = np.asarray(self.env.robots[0].gripper.current_action, dtype=float).reshape(-1)
+
+            if current_command.size > 0 and abs(float(current_command[0]) - target_state) < 0.02:
+                reached = True
+                break
+
+        # Execute an hold action to give time to the fingers to settle.
+        hold_action = np.zeros(self.env.action_dim, dtype=float)
+        for _ in range(settle_steps):
+            self._step(action=hold_action, record=record)
+
+        if not reached:
+            print("Griiper did not fully toggle!")
 
         return True
 
