@@ -1,8 +1,8 @@
 import random
 
-import mujoco
 import numpy as np
 import settings
+from radial_sampler import RadialRandomSampler
 from robosuite.environments.base import register_env
 from robosuite.environments.manipulation.single_arm_env import SingleArmEnv
 from robosuite.models import objects
@@ -11,10 +11,7 @@ from robosuite.models.tasks import ManipulationTask
 
 # UniformRandomSampler places objects randomly within a given range
 # We can also give a sampler per object with the SequentialCompositeSampler (future?)
-from robosuite.utils.placement_samplers import (
-    SequentialCompositeSampler,
-    UniformRandomSampler,
-)
+from robosuite.utils.placement_samplers import SequentialCompositeSampler
 
 
 @register_env
@@ -54,15 +51,16 @@ class CustomTask(SingleArmEnv):
 
         # 1. Table
         table_width = settings.table_width
+        table_height = 2*table_width
         self.mujoco_arena = TableArena(
-            table_full_size=(table_width, table_width, 0.05),
+            table_full_size=(table_width, table_height, 0.05),
             table_offset=(0, 0, 0.2)
         )
 
         self.mujoco_arena.set_origin([0.0, 0.0, 0.0])
 
         # The robot must be at LEAST around 30cm from the border of the table!
-        self.robots[0].robot_model.set_base_xpos([- settings.min_distance_rob_tab, 0.0, 0.0]) 
+        self.robots[0].robot_model.set_base_xpos([-settings.rob_x, 0.0, 0.0]) 
 
         # Lower the camera!
         self.mujoco_arena.set_camera(camera_name=settings.dataset_camera_name, pos=settings.camera_pos, quat=settings.camera_quat)
@@ -136,21 +134,17 @@ class CustomTask(SingleArmEnv):
         return ["LeftSampler", "RightSampler", "UpSampler", "BottomSampler"]
         """
 
-        # We found out that the object should be placed in a circular section of inner radius 30cm and outer radius 60cm!
-        # To make sure our object can be picked we take a margin because of the object size! => We put 35cm and 55cm!
-        inner_radius = 0.35
-        outer_radius = 0.55
-        X_MIN, Y_MIN = np.cos(inner_radius), np.sin(outer_radius)
-        X_MAX, Y_MAX = np.cos(outer_radius), np.sin(outer_radius)
-        print(f"Minimum: {X_MIN}, {Y_MIN}")
-        print(f"Maximum: {X_MAX}, {Y_MAX}")
+        table_half_width = settings.table_width / 2
+        table_bounds = (-table_half_width, table_half_width, -table_half_width, table_half_width)
 
-        self.sampler.append_sampler(UniformRandomSampler(
-            name="SafeSampler", mujoco_objects=None, x_range=[X_MIN, X_MAX], y_range=[Y_MIN, Y_MAX], rotation=[-np.pi, np.pi],
-            reference_pos=self.mujoco_arena.table_top_abs, ensure_object_boundary_in_range=True, ensure_valid_placement=True
+        self.sampler.append_sampler(RadialRandomSampler(
+            name="RadialSampler", mujoco_objects=None, radial_range=settings.radial_range, rotation=[-np.pi, np.pi],
+            reference_pos=np.array([-settings.rob_x, 0.0, self.mujoco_arena.table_top_abs[2]]),
+            table_bounds=table_bounds, forbidden_pos=settings.forbidden_spawning_pos, forbidden_radius=settings.forbidden_spawning_radius, 
+            ensure_object_boundary_in_range=True, ensure_valid_placement=True
         ))
 
-        return ["SafeSampler"]
+        return ["RadialSampler"]
 
     def _create_objects(self) -> None:
         """

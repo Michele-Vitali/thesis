@@ -123,7 +123,7 @@ class OSCMovementController:
         return R.from_matrix(target_matrix)
 
     def _build_osc_action(self, position_error: np.ndarray, rotation_error: np.ndarray, position_gain: float = 0.25,
-        rotation_gain: float = 0.30, max_position_action: float = 0.40, max_rotation_action: float = 0.40, ) -> np.ndarray:
+        rotation_gain: float = 0.03, max_position_action: float = 0.40, max_rotation_action: float = 0.40, ) -> np.ndarray:
         """
         Convert Cartesian position / orientation errors into normalized
         OSC_POSE actions.
@@ -138,7 +138,7 @@ class OSCMovementController:
         We intentionally limit the normalized commands to +/- 0.40:
 
             translation -> maximum +/- 0.02 m per action
-            rotation    -> maximum +/- 0.20 rad per action
+            rotation    -> maximum +/- 0.05 rad per action
 
         The proportional gains also make the commanded movement progressively
         smaller as the EEF approaches the target, reducing overshoot.
@@ -200,7 +200,7 @@ class OSCMovementController:
             # Grab the effective object's z...
             minimum_object_z = (self.env.sim.data.body_xpos[self.tracked_body_id][2])
 
-        for _ in range(max_steps):
+        for step in range(max_steps):
             # Grab the env's observation...
             observation = self.env._get_observations()
 
@@ -221,7 +221,7 @@ class OSCMovementController:
             # Check if we reached the target position and rotation...
             if position_error_norm < position_tolerance and rotation_error_deg < rotation_tolerance_deg:
                 # If yes we return as we finished our goal.
-                #print(f"OSC target reached in {step} steps!\nPosition error: {position_error_norm * 1000:.2f} mm | Rotation error: {rotation_error_deg:.2f} deg")
+                print(f"OSC target reached in {step} steps!\nPosition error: {position_error_norm * 1000:.2f} mm | Rotation error: {rotation_error_deg:.2f} deg")
                 return True
 
             # If we did not reach the target position/rotation, we compute the next action...
@@ -249,9 +249,17 @@ class OSCMovementController:
         rotation_error_deg = np.degrees(delta_rotation.magnitude())
 
         # Debug prints...
-        #print("OSC target NOT reached!")
-        #print(f"Final position error: {np.linalg.norm(position_error) * 1000:.2f} mm")
-        #print(f"Final rotation error: {rotation_error_deg:.2f} deg")
+        print("OSC target NOT reached!")
+        print(f"Final position: {current_pos}, Desired position: {target_pos}")
+        print(f"Final position error: {np.linalg.norm(position_error) * 1000:.2f} mm")
+        print(f"Final rotation error: {rotation_error_deg:.2f} deg")
+        print(f"Joint positions: {self.env.robots[0]._joint_positions}")
+
+        position_ok = np.linalg.norm(position_error) < position_tolerance
+        rotation_ok = rotation_error_deg < rotation_tolerance_deg
+
+        print(f"Position OK: {position_ok} (tol={position_tolerance * 1000:.2f} mm)")
+        print(f"Rotation OK: {rotation_ok} (tol={rotation_tolerance_deg:.2f} deg)")
 
         return False
 

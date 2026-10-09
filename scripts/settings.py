@@ -5,8 +5,13 @@ gripper_types = "PRob3Gripper"
 
 # Environment variables
 max_reachable_x = 0.55 # It is 60cm, but we take a margin and set it to 55cm
-min_distance_rob_tab = 0.5 # It is around 29cm, but we take a margin
-table_width = 0.80 # We make a bigger table than reachable, then define a suitable spawning algorithm!
+rob_x = 0.45 # It is a minimum of 29cm, taking a margin of 1cm...
+table_width = 0.30 # We make a bigger table than reachable, then define a suitable spawning algorithm!
+
+# Object spawning variables
+forbidden_spawning_pos = (0.0, 0.0) # As it is the drop point!
+forbidden_spawning_radius = 0.08
+radial_range = [0.35, 0.55] # Inner and outer radius of spawning circumferences
 
 # Important variables
 safe_offset_gripper = [0.0, 0.0, 0.115]
@@ -65,7 +70,7 @@ gripper_q_max = 1.0472
 
 # Controller configurations
 osc_config = {
-    "impednace_mode": "fixed",
+    "impedance_mode": "fixed",
     "kp": 150,
     "damping_ratio": 1,
     "control_delta": True,
