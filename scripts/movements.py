@@ -107,23 +107,40 @@ class OSCMovementController:
         # Extract the object yaw...
         object_yaw = np.arctan2(object_matrix[1, 0], object_matrix[0, 0])
 
-        # And the convert that yaw to a rotation matrix with rotation only on that specific yaw!
-        cos_yaw = np.cos(object_yaw)
-        sin_yaw = np.sin(object_yaw)
+        _, current_rotation = self._get_eef_pose()
 
-        yaw_rotation = np.array([
-            [cos_yaw, -sin_yaw, 0.0],
-            [sin_yaw,  cos_yaw, 0.0],
-            [0.0,      0.0,     1.0],
-        ])
+        candidate_rotations = []
 
-        # Include in the final matrix the rotation for the top-down grasp as well
-        target_matrix = (yaw_rotation @ self.R_TOP_GRASP)
+        # The gripper is parallel => It has a 180° symmetry!
+        for candidate_yaw in (object_yaw, object_yaw + np.pi):
 
-        return R.from_matrix(target_matrix)
+            # And the convert that yaw to a rotation matrix with rotation only on that specific yaw!
+            cos_yaw = np.cos(candidate_yaw)
+            sin_yaw = np.sin(candidate_yaw)
 
-    def _build_osc_action(self, position_error: np.ndarray, rotation_error: np.ndarray, position_gain: float = 0.25,
-        rotation_gain: float = 0.03, max_position_action: float = 0.40, max_rotation_action: float = 0.40, ) -> np.ndarray:
+            yaw_rotation = np.array([
+                [cos_yaw, -sin_yaw, 0.0],
+                [sin_yaw,  cos_yaw, 0.0],
+                [0.0,      0.0,     1.0],
+            ])
+
+            # Compute the candidate needed rotation to achieve top-down
+            candidate_rotation = R.from_matrix(yaw_rotation @ self.R_TOP_GRASP)
+
+            # Compute the magnitude of the distance between the current rotation and the candidate rotation
+            rotation_distance = (candidate_rotation * current_rotation.inv()).magnitude()
+
+            # Add the rotation to the candidates
+            candidate_rotations.append((rotation_distance, candidate_rotation))
+
+        # Sort the candidates list by the first element of each candidate tuple (meaning sort by the distance magnitude)
+        candidate_rotations.sort(key=lambda candidate: candidate[0])
+
+        # Return the candidate rotation of the first sorted candidate!
+        return candidate_rotations[0][1]
+
+    def _build_osc_action(self, position_error: np.ndarray, rotation_error: np.ndarray, position_gain: float = 0.20,
+        rotation_gain: float = 0.10, max_position_action: float = 0.40, max_rotation_action: float = 0.40, ) -> np.ndarray:
         """
         Convert Cartesian position / orientation errors into normalized
         OSC_POSE actions.
@@ -253,7 +270,16 @@ class OSCMovementController:
         print(f"Final position: {current_pos}, Desired position: {target_pos}")
         print(f"Final position error: {np.linalg.norm(position_error) * 1000:.2f} mm")
         print(f"Final rotation error: {rotation_error_deg:.2f} deg")
-        print(f"Joint positions: {self.env.robots[0]._joint_positions}")
+
+        joint_positions = self.env.robots[0]._joint_positions
+        joint_limits = [2.96, 1.91, 2.0, 2.95, 2.0, 2.96]
+
+        print(f"Joint positions: {joint_positions}")
+        margin = 0.01
+        for i, joint_pos in enumerate(joint_positions):
+            real_joint_index = i+1
+            if joint_pos < -joint_limits[i] + margin or joint_pos > joint_limits[i] - margin:
+                print(f"Joint [{real_joint_index}]: Reached its limit! Limit: {joint_limits[i]}, Joint Position: {joint_positions[i]}")
 
         position_ok = np.linalg.norm(position_error) < position_tolerance
         rotation_ok = rotation_error_deg < rotation_tolerance_deg
@@ -262,31 +288,243 @@ class OSCMovementController:
         print(f"Rotation OK: {rotation_ok} (tol={rotation_tolerance_deg:.2f} deg)")
 
         return False
-
-    def move_robot_to_position(self, pos: np.ndarray, quat: np.ndarray, max_steps: int = 400, record: bool = True) -> bool:
+    
+    def _move_robot_to_position_direct(self, pos: np.ndarray, target_rotation: R, max_steps: int = 400, position_tolerance: float = None, record: bool = True) -> bool:
         """
-        Move the EEF to the Cartesian pose corresponding to the passed
-        object/reference position.
+        Execute one direct OSC_POSE Cartesian movement.
+
+        No waypoint planning is performed here.
         """
 
-        # Ensure the position is a np.ndarray and copy it...
         pos = np.asarray(pos, dtype=float).copy()
 
-        # Compute the target position and rotation our eef should reach.
-        # Note: Remember that the actual eef_site is settings.safe_offset_gripper cm from the tip of the gripper!
-        target_eef_pos = (pos + np.asarray(settings.safe_offset_gripper, dtype=float))
+        if position_tolerance is None:
+            position_tolerance = settings.position_tolerance
 
+        target_eef_pos = pos + np.asarray(settings.safe_offset_gripper, dtype=float)
+
+        return self.move_eef_to_pose(target_pos=target_eef_pos, target_rotation=target_rotation, max_steps=max_steps, position_tolerance=position_tolerance, record=record)
+
+    def move_robot_to_position(self, pos: np.ndarray, quat: np.ndarray, max_steps: int = 400, position_tolerance: float = None, record: bool = True, use_waypoints: bool = True) -> bool:
+        """
+        Move toward a Cartesian reference target using OSC_POSE.
+
+        By default an adaptive waypoint planner examines the movement and
+        automatically introduces intermediate targets when useful.
+
+        This keeps path-planning logic inside the movement controller rather
+        than spreading workspace-specific conditions throughout main.py.
+
+        Args:
+            pos:
+                Final object / Cartesian reference position.
+
+            quat:
+                Object quaternion used to define top-down grasp orientation.
+
+            max_steps:
+                Maximum OSC steps PER waypoint.
+
+            position_tolerance:
+                Optional movement-specific position tolerance.
+
+            record:
+                Whether actions should be recorded.
+
+            use_waypoints:
+                If False, execute a single direct OSC movement.
+
+        Returns:
+            bool:
+                True if the complete path reaches the final target.
+        """
+
+        pos = np.asarray(pos, dtype=float).copy()
+
+        if position_tolerance is None:
+            position_tolerance = settings.position_tolerance
+
+        # Every waypoint uses the same final grasp orientation so the robot
+        # can settle into a valid top-down configuration before reaching
+        # difficult workspace regions.
         target_rotation = self._get_top_down_rotation(quat)
 
-        # Actual movement
-        success = self.move_eef_to_pose(target_pos=target_eef_pos, target_rotation=target_rotation, max_steps=max_steps, record=record)
+        if not use_waypoints:
 
-        return success
+            return self._move_robot_to_position_direct(pos=pos, target_rotation=target_rotation, max_steps=max_steps, position_tolerance=position_tolerance, record=record)
 
+        waypoints = self._plan_cartesian_waypoints(target_pos=pos)
+
+        if len(waypoints) > 1:
+
+            print(f"[PATH] Using {len(waypoints)} Cartesian waypoints.")
+
+            for index, waypoint in enumerate(waypoints, start=1):
+                radius = self._get_robot_radius(waypoint)
+
+                print(
+                    f"[PATH] {index}/{len(waypoints)} "
+                    f"pos={np.round(waypoint, 4)} "
+                    f"radius={radius:.3f} m"
+                )
+
+        for waypoint_index, waypoint in enumerate(waypoints):
+
+            is_final_waypoint = waypoint_index == len(waypoints) - 1
+
+            # Intermediate waypoints do not need the same millimetric
+            # precision as the final requested pose.
+            if is_final_waypoint:
+                waypoint_tolerance = position_tolerance
+            else:
+                waypoint_tolerance = max(position_tolerance, 0.006)
+
+            success = self._move_robot_to_position_direct(pos=waypoint, target_rotation=target_rotation, max_steps=max_steps, position_tolerance=waypoint_tolerance, record=record)
+
+            if not success:
+
+                print(
+                    f"[PATH] Failed at waypoint "
+                    f"{waypoint_index + 1}/{len(waypoints)}."
+                )
+
+                return False
+
+        return True
+
+    def _get_current_reference_position(self) -> np.ndarray:
+        """
+        Return the current Cartesian reference position corresponding to
+        the convention used by move_robot_to_position().
+
+        move_robot_to_position(reference_pos) internally generates:
+
+            EEF target = reference_pos + safe_offset_gripper
+
+        Therefore here we perform the inverse operation.
+        """
+
+        observation = self.env._get_observations()
+
+        current_eef_pos, _ = self._get_eef_pose(observation)
+
+        offset = np.asarray(settings.safe_offset_gripper, dtype=float)
+
+        return current_eef_pos - offset
+
+    def _get_robot_radius(self, position: np.ndarray) -> float:
+        """
+        Compute XY distance between a Cartesian reference position and the
+        P-Rob3 base.
+        """
+
+        position = np.asarray(position, dtype=float)
+
+        robot_xy = np.array([-settings.rob_x, 0.0], dtype=float)
+
+        return float(np.linalg.norm(position[:2] - robot_xy))
+
+    def _make_radial_waypoint(self, target_pos: np.ndarray, desired_radius: float) -> np.ndarray:
+        """
+        Create a waypoint lying on the same radial direction as target_pos,
+        but at desired_radius from the robot base.
+
+        Z is kept equal to the target Z.
+        """
+
+        target_pos = np.asarray(target_pos, dtype=float).copy()
+
+        robot_xy = np.array([-settings.rob_x, 0.0], dtype=float)
+
+        direction = (target_pos[:2] - robot_xy)
+
+        radius = np.linalg.norm(direction)
+
+        if radius < 1e-8:
+            return target_pos
+
+        direction /= radius
+
+        waypoint = target_pos.copy()
+
+        waypoint[:2] = (robot_xy + direction * desired_radius)
+
+        return waypoint
+
+    def _plan_cartesian_waypoints(self, target_pos: np.ndarray) -> list[np.ndarray]:
+        """
+        Build a small set of meaningful Cartesian waypoints.
+        The planner only introduces a waypoint when there is a concrete
+        geometric reason to do so:
+
+        1. When entering the outer workspace from the inner workspace,
+        first move to a comfortable radius while already assuming the
+        target Z.
+
+        2. When carrying an object and performing a meaningful lateral
+        movement, first lift the object slightly before moving toward
+        the final target.
+
+        The final requested target is always the last waypoint.
+        """
+
+        target_pos = np.asarray(target_pos, dtype=float).copy()
+
+        current_pos = self._get_current_reference_position()
+
+        waypoints = []
+
+        current_radius = self._get_robot_radius(current_pos)
+
+        target_radius = self._get_robot_radius(target_pos)
+
+        lateral_distance = np.linalg.norm(target_pos[:2] - current_pos[:2])
+
+        carrying_object = self.gripper_state < 0.0
+
+        working_pos = current_pos.copy()
+
+        if carrying_object and lateral_distance > settings.waypoint_min_lateral_move:
+
+            clearance_pos = working_pos.copy()
+
+            # Raise the object only slightly while we are still in the
+            # original grasp configuration.
+            # Never exceed the final requested Z.
+            clearance_pos[2] = min(target_pos[2], working_pos[2] + settings.waypoint_grasp_clearance)
+
+            # Add the waypoint only if there is actually a meaningful lift.
+            if clearance_pos[2] > working_pos[2] + 0.005:
+
+                waypoints.append(clearance_pos.copy())
+
+                working_pos = clearance_pos.copy()
+
+        entering_outer_workspace = target_radius > settings.waypoint_outer_threshold and current_radius < settings.waypoint_outer_threshold and lateral_distance > settings.waypoint_min_lateral_move
+
+        if entering_outer_workspace:
+
+            radial_waypoint = self._make_radial_waypoint(target_pos=target_pos, desired_radius=settings.waypoint_comfort_radius)
+
+            radial_waypoint[2] = target_pos[2]
+
+            if np.linalg.norm(radial_waypoint - working_pos) > 0.01:
+
+                waypoints.append(radial_waypoint.copy())
+
+                working_pos = radial_waypoint.copy()
+
+        # Avoid adding an exact duplicate.
+        if len(waypoints) == 0 or np.linalg.norm(waypoints[-1] - target_pos) > 1e-6:
+            waypoints.append(target_pos.copy())
+
+        return waypoints
+
+    """
     def elevate_obj(self, pos: np.ndarray, quat: np.ndarray, max_height: float = settings.ideal_z + settings.safe_offset_gripper[2]) -> np.ndarray | None:
-        """
+        
         Raise the object/reference point to max_height using OSC_POSE.
-        """
+        
 
         # Ensure the position is a np.ndarray and copy it...
         target_pos = np.asarray(pos, dtype=float).copy()
@@ -302,6 +540,7 @@ class OSCMovementController:
             return None
 
         return target_pos
+    """
 
     def move_to_center(self, current_pos: np.ndarray, quat: np.ndarray) -> np.ndarray | None:
         """
@@ -323,7 +562,7 @@ class OSCMovementController:
 
         return center_pos
 
-    def toggle_grab(self, min_steps: int = 70, record: bool = True) -> bool:
+    def toggle_grab(self, max_steps: int = 50, settle_steps: int = 4, record: bool = True) -> bool:
         """
         Toggle the high-level gripper command.
 
@@ -335,22 +574,36 @@ class OSCMovementController:
         Cartesian goal while the gripper opens / closes.
         """
 
-        # Get the current gripper state
-        current_state = self.gripper_state
+        # Invert the current gripper state!
+        self.gripper_state = -self.gripper_state
 
-        # Invert it!
-        self.gripper_state = -current_state
+        target_state = float(self.gripper_state)
 
         # Initialize a "blank" action
         action = np.zeros(self.env.action_dim, dtype=float)
 
         # Set the new grip state
-        action[6] = self.gripper_state
+        action[6] = target_state
 
-        # Execute the action for at least "min_steps" so we are sure the state is completely toggled
-        for _ in range(min_steps):
-            # Apply the action and save it in the dataset
-            self._step(action=action, record=record)
+        # Execute the action for at max "max_steps" until we are sure the state is completely toggled
+        reached = False
+        for _ in range(max_steps):
+            observation = self.env._get_observations()
+
+            self._step(action=action, observation=observation, record=record)
+            current_command = np.asarray(self.env.robots[0].gripper.current_action, dtype=float).reshape(-1)
+
+            if current_command.size > 0 and abs(float(current_command[0]) - target_state) < 0.02:
+                reached = True
+                break
+
+        # Execute an hold action to give time to the fingers to settle.
+        hold_action = np.zeros(self.env.action_dim, dtype=float)
+        for _ in range(settle_steps):
+            self._step(action=hold_action, record=record)
+
+        if not reached:
+            print("Griiper did not fully toggle!")
 
         return True
 

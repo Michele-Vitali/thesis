@@ -134,8 +134,9 @@ class CustomTask(SingleArmEnv):
         return ["LeftSampler", "RightSampler", "UpSampler", "BottomSampler"]
         """
 
-        table_half_width = settings.table_width / 2
-        table_bounds = (-table_half_width, table_half_width, -table_half_width, table_half_width)
+        table_half_x = settings.table_width / 2.0
+        table_half_y = settings.table_width
+        table_bounds = (-table_half_x, table_half_x, -table_half_y, table_half_y)
 
         self.sampler.append_sampler(RadialRandomSampler(
             name="RadialSampler", mujoco_objects=None, radial_range=settings.radial_range, rotation=[-np.pi, np.pi],
@@ -158,7 +159,7 @@ class CustomTask(SingleArmEnv):
             name = f"RNG_Object_{i}"
             kwargs = {
                 "name": name,
-                "size_min": [0.01, 0.01, 0.01],
+                "size_min": [0.035, 0.035, 0.035],
                 "size_max": [0.035, 0.035, 0.035]
             }
 

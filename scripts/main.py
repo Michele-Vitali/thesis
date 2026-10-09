@@ -9,6 +9,7 @@ import robosuite as suite
 
 # Import the settings file
 import settings
+from custom_osc import install_prob3_custom_osc
 
 # Import useful classes
 from lerobot_recorder import LeRobotRecorder
@@ -19,6 +20,9 @@ from robosuite.wrappers import DomainRandomizationWrapper
 
 
 def main():
+    # Load our custom OSC_POSE controller!
+    install_prob3_custom_osc()
+
     # Create the controller with OSC_POSE mode
     config = load_controller_config(default_controller="OSC_POSE")
 
@@ -151,12 +155,20 @@ def pick_and_place_action(env: "SingleArmEnv", obj, pos: np.ndarray, quat: np.nd
     # Define the grasp position as the object position
     grasp_pos = np.asarray(pos, dtype=float).copy()
 
+    # Define the height from the TABLE and not the cube (otherwise bigger cubes would go higher!)
+    table_z = float(env.mujoco_arena.table_top_abs[2])
+    object_half_height = max(grasp_pos[2] - table_z, 0.0)
+
     # Define the position OVER the object
     above_object_pos = grasp_pos.copy()
-    above_object_pos[2] += settings.ideal_z
+    above_object_pos[2] += object_half_height + settings.pregrasp_top_clearance
+
+    # Define the transport position
+    transport_pos = grasp_pos.copy()
+    transport_pos[2] = np.clip(table_z + object_half_height + 0.025, 0.24, 0.25)
 
     # Position directly ABOVE the central drop point.
-    above_drop_pos = np.array([settings.drop_point[0], settings.drop_point[1], above_object_pos[2]], dtype=float)
+    above_drop_pos = np.array([settings.drop_point[0], settings.drop_point[1], transport_pos[2]], dtype=float)
 
     # Final drop height.
     drop_pos = np.array([settings.drop_point[0], settings.drop_point[1], grasp_pos[2] + settings.drop_clearance], dtype=float)
@@ -178,22 +190,15 @@ def pick_and_place_action(env: "SingleArmEnv", obj, pos: np.ndarray, quat: np.nd
     # Close the gripper.
     movements_ctrl.toggle_grab(record=record)
 
-    # Elevate the object.
-    done = movements_ctrl.move_robot_to_position(above_object_pos, quat, record=record)
-
-    if not done:
-        print("OSC failed during vertical lift.")
-        return False
-
-    # Move OVER the drop point.
+    # Transport the object
     done = movements_ctrl.move_robot_to_position(above_drop_pos, quat, record=record)
 
     if not done:
-        print("OSC failed during horizontal transport.")
+        print("OSC failed during transport.")
         return False
 
     # Descend to drop position.
-    done = movements_ctrl.move_robot_to_position(drop_pos, quat, record=record)
+    done = movements_ctrl.move_robot_to_position(drop_pos, quat, position_tolerance=settings.drop_position_tolerance, record=record)
 
     if not done:
         print("OSC failed during drop descent.")
@@ -209,8 +214,8 @@ def pick_and_place_action(env: "SingleArmEnv", obj, pos: np.ndarray, quat: np.nd
     print(f"Final error between drop point ad actual position: {center_error: .5f}m")
 
     # Only demonstrations that actually complete the task are stored.
-    # We define the task completed and successfull if the object is within 3mm from the drop point.
-    return center_error < settings.position_tolerance
+    # We define the task completed and successfull if the object is within 5mm from the drop point.
+    return center_error < settings.final_tolerance
 
 if __name__ == "__main__":
     main()

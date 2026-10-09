@@ -44,7 +44,7 @@ class PRob3Gripper(GripperModel):
 
     @property
     def speed(self):
-        return 0.0025
+        return 0.05
 
     def format_action(self, action):
 
