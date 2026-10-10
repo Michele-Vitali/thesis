@@ -21,7 +21,7 @@ from robosuite.wrappers import DomainRandomizationWrapper
 
 def main():
     # Load our custom OSC_POSE controller!
-    #install_prob3_custom_osc()
+    install_prob3_custom_osc()
 
     # Create the controller with OSC_POSE mode
     config = load_controller_config(default_controller="OSC_POSE")
@@ -32,18 +32,23 @@ def main():
     recorder = LeRobotRecorder()
     record = False
 
+    # Create the env
+    env = create_randomized_env(config)
+
     try:
         task_loop = True
         while task_loop:
             n_tasks = int(input("How many times do you want to simulate the OSC task? "))
             successes = 0
             for i in range(n_tasks):
-                success = pick_and_place_task(config=config, task_index=i, record=record, recorder=recorder)
+                success = pick_and_place_task(env, task_index=i, record=record, recorder=recorder)
                 string = "YES" if success else "NO"
                 print(f"Success? {string}")
 
                 if success:
                     successes += 1
+
+                env.reset()
 
             print("=" * 60)
             print(f"OSC final report: {successes}/{n_tasks} successful tasks.")
@@ -53,7 +58,8 @@ def main():
             choice = input("Want to repeat the tasks? (Y/N): ")
             task_loop = choice.upper() == "Y"
     finally:
-
+        if env is not None:
+            env.close()
         # Absolutely necessary for LeRobot v3, as this closes the Parquet writers and writes metadata/statistics.
         recorder.finalize()
 
@@ -68,7 +74,7 @@ def create_randomized_env(config: dict) -> DomainRandomizationWrapper:
         env_name=settings.env_name,
         robots=settings.robot,
         gripper_types=settings.gripper_types,
-        has_renderer=True, # On-screen renderer
+        has_renderer=settings.render_on_screen, # On-screen renderer
         has_offscreen_renderer=True, # Necessary for the dataset!
         use_camera_obs=True, # Also for dataset...
         camera_names=settings.dataset_camera_name,
@@ -108,14 +114,12 @@ def create_randomized_env(config: dict) -> DomainRandomizationWrapper:
 
     return env
 
-def pick_and_place_task(config: dict, task_index: int, recorder: LeRobotRecorder, record: bool = True) -> bool:
-
-    # Create the env
-    env = create_randomized_env(config)
+def pick_and_place_task(env, task_index: int, recorder: LeRobotRecorder, record: bool = True) -> bool:
 
     success = False
 
     try:
+        env.reset()
         for obj in env.objects:
             obj_name = obj.root_body
             obj_id = env.sim.model.body_name2id(obj_name)
@@ -136,8 +140,6 @@ def pick_and_place_task(config: dict, task_index: int, recorder: LeRobotRecorder
         # Never keep an interrupted / corrupted demonstration.
         recorder.discard_episode()
         raise
-    finally:
-        env.close()
 
     return success
 
@@ -179,10 +181,13 @@ def pick_and_place_action(env: "SingleArmEnv", obj, pos: np.ndarray, quat: np.nd
 
     # Position directly ABOVE the central drop point.
     above_drop_pos = np.array([settings.drop_point[0], settings.drop_point[1], transport_z], dtype=float)
-    print(f"Position above drop: {above_drop_pos}")
 
     # Final drop height.
     drop_pos = np.array([settings.drop_point[0], settings.drop_point[1], grasp_pos[2] + settings.drop_clearance], dtype=float)
+
+    # Post-grasp tolerances
+    post_grasp_pos_tolerance = settings.position_tolerance#settings.transport_position_tolerance
+    post_grasp_rot_tolerance = settings.rotation_tolerance_deg#settings.transport_rotation_tolerance
 
     # Move over the object.
     done = movements_ctrl.move_robot_to_position(above_object_pos, quat, record=record)
@@ -192,7 +197,7 @@ def pick_and_place_action(env: "SingleArmEnv", obj, pos: np.ndarray, quat: np.nd
         return False
 
     # Descend to the object.
-    done = movements_ctrl.move_robot_to_position(grasp_pos, quat, record=record)
+    done = movements_ctrl.move_robot_to_position(grasp_pos, quat, payload_compensation=True, record=record)
 
     if not done:
         print("OSC failed during grasp descent.")
@@ -201,43 +206,60 @@ def pick_and_place_action(env: "SingleArmEnv", obj, pos: np.ndarray, quat: np.nd
     # Close the gripper.
     movements_ctrl.toggle_grab(record=record)
 
+    # Change the controller kp and damping ratio to compensate block inertia...
+    set_osc_gains(env, kp=settings.grasp_kp, damping_ratio=settings.grasp_damping)
+
     # Lift the object vertically to the transport height.
-    done = movements_ctrl.move_robot_to_position(transport_pos, quat, payload_compensation=False, record=record)
+    done = movements_ctrl.move_robot_to_position(transport_pos, quat, payload_compensation=True, position_tolerance=post_grasp_pos_tolerance, rotation_tolerance_deg=post_grasp_rot_tolerance, record=record)
 
     if not done:
         print("OSC failed during vertical lift.")
         return False
     
     # Move diagonally above the central drop point.
-    done = movements_ctrl.move_robot_to_position(above_drop_pos, record=record)
+    done = movements_ctrl.move_robot_to_position(above_drop_pos, payload_compensation=True, record=record)
 
     if not done:
         print("OSC failed during transport.")
         return False
 
-    # Align the cube!
-    neutral_quat = [1, 0, 0, 0]
-    done = movements_ctrl.move_robot_to_position(above_drop_pos, neutral_quat, record=record)
-            
     # Descend to drop position.
-    done = movements_ctrl.move_robot_to_position(drop_pos, record=record)
+    done = movements_ctrl.move_robot_to_position(drop_pos, payload_compensation=False, slow_descent=True, record=record)
 
     if not done:
         print("OSC failed during drop descent.")
         return False
-
     # Open the gripper.
     movements_ctrl.toggle_grab(record=record)
 
+    # Reset controller configuration...
+    set_osc_gains(env, kp=settings.free_kp, damping_ratio=settings.free_damping)
+
     final_object_pos = (env.sim.data.body_xpos[obj_id].copy())
-
     center_error = np.linalg.norm(final_object_pos[:2] - np.asarray(settings.drop_point, dtype=float))
-
     print(f"Final error between drop point ad actual position: {center_error: .5f}m")
 
     # Only demonstrations that actually complete the task are stored.
     # We define the task completed and successfull if the object is within 5mm from the drop point.
     return center_error < settings.final_tolerance
+
+def set_osc_gains(env, kp: np.ndarray, damping_ratio: np.ndarray) -> None:
+
+    # Grab the controller
+    robot = env.robots[0]
+    osc = robot.controller
+
+    if kp.ndim == 0:
+        kp = np.full(6, float(kp))
+
+    if damping_ratio.ndim == 0:
+        damping_ratio = np.full(6, float(damping_ratio))
+
+    osc.kp = kp
+    osc.kd = 2.0 * np.sqrt(kp) * damping_ratio
+
+    print(f"OSC kp: {osc.kp}")
+    print(f"OSC kd: {osc.kd}")
 
 if __name__ == "__main__":
     main()
