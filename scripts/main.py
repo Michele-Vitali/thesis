@@ -57,6 +57,11 @@ def main():
 
             choice = input("Want to repeat the tasks? (Y/N): ")
             task_loop = choice.upper() == "Y"
+    except KeyboardInterrupt:
+        print("\n")
+        print("="*60)
+        print("Simulation killed by user...")  
+        print("="*60)      
     finally:
         if env is not None:
             env.close()
@@ -186,8 +191,8 @@ def pick_and_place_action(env: "SingleArmEnv", obj, pos: np.ndarray, quat: np.nd
     drop_pos = np.array([settings.drop_point[0], settings.drop_point[1], grasp_pos[2] + settings.drop_clearance], dtype=float)
 
     # Post-grasp tolerances
-    post_grasp_pos_tolerance = settings.position_tolerance#settings.transport_position_tolerance
-    post_grasp_rot_tolerance = settings.rotation_tolerance_deg#settings.transport_rotation_tolerance
+    post_grasp_pos_tolerance = settings.transport_position_tolerance
+    post_grasp_rot_tolerance = settings.transport_rotation_tolerance
 
     # Move over the object.
     done = movements_ctrl.move_robot_to_position(above_object_pos, quat, record=record)
@@ -197,7 +202,7 @@ def pick_and_place_action(env: "SingleArmEnv", obj, pos: np.ndarray, quat: np.nd
         return False
 
     # Descend to the object.
-    done = movements_ctrl.move_robot_to_position(grasp_pos, quat, payload_compensation=True, record=record)
+    done = movements_ctrl.move_robot_to_position(grasp_pos, quat, payload_compensation=False, record=record)
 
     if not done:
         print("OSC failed during grasp descent.")
@@ -224,7 +229,7 @@ def pick_and_place_action(env: "SingleArmEnv", obj, pos: np.ndarray, quat: np.nd
         return False
 
     # Descend to drop position.
-    done = movements_ctrl.move_robot_to_position(drop_pos, payload_compensation=False, slow_descent=True, record=record)
+    done = movements_ctrl.move_robot_to_position(drop_pos, payload_compensation=False, record=record)
 
     if not done:
         print("OSC failed during drop descent.")

@@ -6,42 +6,6 @@ robot = "PRob3"
 gripper_types = "PRob3Gripper"
 render_on_screen = True
 
-# Adaptive motion.
-position_far_threshold = 0.03
-position_mid_threshold = 0.01
-
-position_gain_far = np.array([0.45, 0.45, 0.45])
-position_gain_mid = np.array([0.30, 0.30, 0.30])
-position_gain_near = np.array([0.20, 0.20, 0.20])
-
-position_action_far = 0.65
-position_action_mid = 0.50
-position_action_near = 0.40
-
-rotation_far_threshold_deg = 10.0
-rotation_mid_threshold_deg = 3.0
-
-rotation_gain_far = 0.20
-rotation_gain_mid = 0.14
-rotation_gain_near = 0.10
-
-rotation_action_far = 0.60
-rotation_action_mid = 0.50
-rotation_action_near = 0.40
-
-# Integral controller implementation
-xyz_integral_gain = np.array([0.06, 0.06, 0.36])
-xyz_integral_limit = np.array([0.012, 0.012, 0.025])
-xyz_integral_deadband = np.array([0.00075, 0.00075, 0.00100])
-xyz_integral_action_limit = np.array([0.035, 0.035, 0.090])
-
-# Derivative gains
-xyz_derivative_gain = np.array([0.0, 0.0, 0.0])
-xyz_derivative_action_limit = np.array([0.03, 0.03, 0.03])
-
-xyz_derivative_filter_alpha = 0.20
-xyz_pid_q5_freeze_threshold = 1.97
-
 # Environment variables
 max_reachable_x = 0.55 # It is 60cm, but we take a margin and set it to 55cm
 rob_x = 0.45 # It is a minimum of 29cm, taking a margin of 1cm...
@@ -62,17 +26,17 @@ radial_range = [0.54, 0.55] # Stable pre-waypoint working range
 # Important variables
 safe_offset_gripper = [0.0, 0.0, 0.115]
 
+# Integral Z payload compensation
+z_integral_gain = 0.36
+z_integral_limit = 0.025
+z_integral_deadband = 0.001
+z_integral_action_limit = 0.09
+
 # After some testing we found out that some ideal z values are:
 maximum_transport_z = 0.195
 transport_bottom_clearance = max_object_height
 initial_lift_clearance = 0.010
 pregrasp_top_clearance = 0.015
-
-# Workspace
-workspace_direct_lift_min_radius = 0.40
-workspace_direct_lift_max_radius = 0.50
-#maximum_distance_from_center = 0.50
-#workspace_correction_step = 0.02
 
 # Central drop point
 drop_point = [0.0, 0.0]
@@ -144,14 +108,8 @@ osc_config = {
     "output_max": np.array([+0.05, +0.05, +0.05, +0.5, +0.5, +0.5]),
     # P-Rob3 q5 joint-limit avoidance
     "q5_index": 4,
-    "q5_avoidance_start": 1.96,
+    "q5_avoidance_start": 1.94,
     "q5_avoidance_full": 1.985,
     "q5_avoidance_max_torque": 4.0,
     "q5_avoidance_damping": 0.75,
-#    "q5_orientation_relax_start": 1.94,
-#    "q5_orientation_relax_full": 1.985,
-#    "q5_orientation_min_scale": 0.40,
-#    "q5_escape_enter": 1.97,
-#    "q5_escape_exit": 1.91,
-#    "q5_escape_orientation_scale": 0.05,
 }

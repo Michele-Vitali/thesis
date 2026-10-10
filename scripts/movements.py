@@ -142,9 +142,10 @@ class OSCMovementController:
         candidate_rotations.sort(key=lambda candidate: candidate[0])
 
         # Return the candidate rotation of the first sorted candidate!
-        return candidate_rotations[1][1]
+        return candidate_rotations[0][1]
 
-    def _build_osc_action(self, position_error: np.ndarray, rotation_error: np.ndarray, integral_error: np.ndarray = None, derivative_error: np.ndarray = None, use_xyz_pid: bool = False) -> np.ndarray:
+    def _build_osc_action(self, position_error: np.ndarray, rotation_error: np.ndarray, position_gain: float = 0.20, 
+            rotation_gain: float = 0.10, max_position_action: float = 0.40, max_rotation_action: float = 0.40) -> np.ndarray:
         """
         Convert Cartesian position / orientation errors into normalized
         OSC_POSE actions.
@@ -168,56 +169,9 @@ class OSCMovementController:
         # Initialized a "blank" action
         action = np.zeros(self.env.action_dim, dtype=float)
 
-        position_error = np.asarray(position_error, dtype=float)
-        rotation_error = np.asarray(rotation_error, dtype=float)
+        normalized_position = position_gain * position_error / self.OSC_POSITION_OUTPUT_MAX
 
-        position_error_norm = float(np.linalg.norm(position_error))
-
-        if position_error_norm > settings.position_far_threshold:
-            position_gain = settings.position_gain_far
-            max_position_action = settings.position_action_far
-        elif position_error_norm > settings.position_mid_threshold:
-            position_gain = settings.position_gain_mid
-            max_position_action = settings.position_action_mid
-        else:
-            position_gain = settings.position_gain_near
-            max_position_action = settings.position_action_near
-
-        proportional_action = position_gain * position_error / self.OSC_POSITION_OUTPUT_MAX
-        translation_action = proportional_action.copy()
-
-        if use_xyz_pid:
-            if integral_error is None:
-                integral_error = np.zeros(3, dtype=float)
-
-            if derivative_error is None:
-                derivative_error = np.zeros(3, dtype=float)
-
-            integral_action = settings.xyz_integral_gain * integral_error / self.OSC_POSITION_OUTPUT_MAX
-            integral_action = np.clip(integral_action, -settings.xyz_integral_action_limit, +settings.xyz_integral_action_limit)
-
-            integral_action[2] = max(0.0, float(integral_action[2]))
-
-            derivative_action = settings.xyz_derivative_gain * derivative_error / self.OSC_POSITION_OUTPUT_MAX
-            derivative_action = np.clip(derivative_action, -settings.xyz_derivative_action_limit, +settings.xyz_derivative_action_limit)
-
-            translation_action += integral_action + derivative_action
-
-        action[0:3] = np.clip(translation_action, -max_position_action, +max_position_action)
-
-        rotation_error_deg = float(np.degrees(np.linalg.norm(rotation_error)))
-
-        if rotation_error_deg > settings.rotation_far_threshold_deg:
-            rotation_gain = settings.rotation_gain_far
-            max_rotation_action = settings.rotation_action_far
-
-        elif rotation_error_deg > settings.rotation_mid_threshold_deg:
-            rotation_gain = settings.rotation_gain_mid
-            max_rotation_action = settings.rotation_action_mid
-
-        else:
-            rotation_gain = settings.rotation_gain_near
-            max_rotation_action = settings.rotation_action_near
+        action[0:3] = np.clip(normalized_position, -max_position_action, +max_position_action)
 
         normalized_rotation = rotation_gain * rotation_error / self.OSC_ROTATION_OUTPUT_MAX
 
@@ -228,403 +182,128 @@ class OSCMovementController:
 
         return action
 
-    def move_eef_to_pose(
-    self,
-    target_pos: np.ndarray,
-    target_rotation: R,
-    max_steps: int = 400,
-    position_tolerance: float = settings.position_tolerance,
-    rotation_tolerance_deg: float = settings.rotation_tolerance_deg,
-    payload_compensation: bool = False,
-    slow_descent: bool = False,
-    record: bool = True,
-) -> bool:
+    def move_eef_to_pose(self, target_pos: np.ndarray, target_rotation: R, max_steps: int = 400, position_tolerance: float = settings.position_tolerance,
+        rotation_tolerance_deg: float = settings.rotation_tolerance_deg, payload_compensation: bool = False, record: bool = True) -> bool:
         """
         Closed-loop Cartesian motion using OSC_POSE.
+        Every executed OSC action is optionally recorded as a LeRobot frame.
 
-        When payload_compensation=True, a full XYZ Cartesian PID correction
-        is enabled.
+        Args:
+            target_pos:
+                Desired EEF world position.
 
-        X / Y integral:
-            signed.
+            target_rotation:
+                Desired EEF world orientation.
 
-        Z integral:
-            positive-only, because it compensates payload gravity.
+            max_steps:
+                Maximum number of controller actions.
 
-        XY integral accumulation is frozen while q5 is near its upper
-        joint limit, preventing integral wind-up against a kinematic
-        constraint.
+            position_tolerance:
+                Allowed Cartesian position error in meters.
+
+            rotation_tolerance_deg:
+                Allowed orientation error in degrees.
+
+        Returns:
+            bool: True if the desired pose was reached.
         """
 
-        target_pos = np.asarray(
-            target_pos,
-            dtype=float,
-        ).copy()
+        # Convert the target position to a np.ndarray and copy it.
+        target_pos = np.asarray(target_pos, dtype=float).copy()
 
-        dt = (
-            1.0
-            / float(
-                settings.dataset_fps
-            )
-        )
-
-        # ================================================================
-        # XYZ PID STATE
-        # ================================================================
-
-        integral_error = np.zeros(
-            3,
-            dtype=float,
-        )
-
-        previous_position_error = None
-
-        filtered_derivative = np.zeros(
-            3,
-            dtype=float,
-        )
+        dt = 1.0 /float(settings.dataset_fps)
+        integral_z = 0.0
 
         for step in range(max_steps):
+            # Grab the env's observation...
+            observation = self.env._get_observations()
 
-            observation = (
-                self.env._get_observations()
-            )
+            # Grab the current position and rotation of our eef.
+            current_pos, current_rotation = self._get_eef_pose(observation)
 
-            current_pos, current_rotation = (
-                self._get_eef_pose(
-                    observation
-                )
-            )
+            # Compute the current position error and its euclidean norm.
+            position_error = (target_pos - current_pos)
 
-            # ================================================================
-            # POSITION ERROR
-            # ================================================================
+            z_error = float(position_error[2])
 
-            position_error = (
-                target_pos
-                - current_pos
-            )
+            if abs(z_error) > settings.z_integral_deadband:
+                integral_z = float(np.clip(integral_z, -settings.z_integral_limit, +settings.z_integral_limit))
 
-            position_error_norm = float(
-                np.linalg.norm(
-                    position_error
-                )
-            )
+            position_error_norm = np.linalg.norm(position_error)
 
-            # ================================================================
-            # ROTATION ERROR
-            # ================================================================
+            # Compute the needed delta rotation to get closer to the goal rotation... 
+            delta_rotation = (target_rotation * current_rotation.inv())
 
-            delta_rotation = (
-                target_rotation
-                * current_rotation.inv()
-            )
+            # As for the position we compute the current rotation error and its norm in degrees (for better readability)
+            rotation_error = (delta_rotation.as_rotvec())
+            rotation_error_deg = np.degrees(np.linalg.norm(rotation_error))
 
-            rotation_error = (
-                delta_rotation.as_rotvec()
-            )
-
-            rotation_error_deg = float(
-                np.degrees(
-                    np.linalg.norm(
-                        rotation_error
-                    )
-                )
-            )
-
-            # ================================================================
-            # SUCCESS
-            # ================================================================
-
-            if (
-                position_error_norm
-                < position_tolerance
-                and
-                rotation_error_deg
-                < rotation_tolerance_deg
-            ):
-
-                print(
-                    f"OSC target reached in {step} steps!\n"
-                    f"Position error: "
-                    f"{position_error_norm * 1000:.2f} mm | "
-                    f"Rotation error: "
-                    f"{rotation_error_deg:.2f} deg"
-                )
-
+            # Check if we reached the target position and rotation...
+            if position_error_norm < position_tolerance and rotation_error_deg < rotation_tolerance_deg:
+                # If yes we return as we finished our goal.
+                print(f"OSC target reached in {step} steps!\nPosition error: {position_error_norm * 1000:.2f} mm | Rotation error: {rotation_error_deg:.2f} deg")
                 return True
 
-            # ================================================================
-            # XYZ PID
-            # ================================================================
+            # If we did not reach the target position/rotation, we compute the next action...
+            action = self._build_osc_action(position_error, rotation_error)
 
             if payload_compensation:
+                if abs(z_error) > settings.z_integral_deadband:
+                    integral_z += z_error * dt
+                    integral_z = float(np.clip(integral_z, -settings.z_integral_limit, +settings.z_integral_limit))
+                # Integral Z action
+                integral_action_z = settings.z_integral_gain * integral_z / self.OSC_POSITION_OUTPUT_MAX[2]
+                integral_action_z = float(np.clip(integral_action_z, -settings.z_integral_action_limit, +settings.z_integral_action_limit))
 
-                # ------------------------------------------------------------
-                # Check q5.
-                # ------------------------------------------------------------
+                action[2] += integral_action_z
+                action[2] = float(np.clip(action[2], 0.0, +0.40))
 
-                joint_positions = (
-                    self.env.robots[0]._joint_positions
-                )
+            # Save observation_ and action_t for dataset population...
+            self._step(action=action, observation=observation, record=record)
 
-                q5 = float(
-                    joint_positions[4]
-                )
+        # If we arrive here it means we did not reach the target in max_steps => We are sure to have failed...
 
-                freeze_xy_integral = (
-                    q5
-                    >= settings.xyz_pid_q5_freeze_threshold
-                )
+        # Grab the actual observation...
+        observation = (self.env._get_observations())
 
-                # ------------------------------------------------------------
-                # Integral.
-                # ------------------------------------------------------------
+        # And current position and rotation...
+        current_pos, current_rotation = self._get_eef_pose(observation)
 
-                for axis in range(3):
+        # Also compute last position and rotation errors
+        position_error = (target_pos - current_pos)
 
-                    # Prevent XY wind-up while q5 is saturated.
-                    if (
-                        axis < 2
-                        and
-                        freeze_xy_integral
-                    ):
-                        continue
+        delta_rotation = (target_rotation * current_rotation.inv())
+        rotation_error_deg = np.degrees(delta_rotation.magnitude())
 
-                    axis_error = float(
-                        position_error[axis]
-                    )
+        # Debug prints...
+        with np.printoptions(suppress=True):
+            print("OSC target NOT reached!")
+            print(f"Final position: {current_pos}, Desired position: {target_pos}")
+            print(f"Final position error: {np.linalg.norm(position_error) * 1000:.2f} mm")
+            print(f"Final rotation error: {rotation_error_deg:.2f} deg")
 
-                    if (
-                        abs(axis_error)
-                        <= settings.xyz_integral_deadband[axis]
-                    ):
+        
+        joint_positions = self.env.robots[0]._joint_positions
+        joint_limits = [2.96, 1.91, 2.0, 2.95, 2.0, 2.96]
 
-                        integral_error[axis] *= 0.95
-                        continue
-
-                    if integral_error[axis] != 0.0 and np.sign(axis_error) != np.sign(integral_error[axis]):
-                        integral_error[axis] *= 0.80
-                    
-                    integral_error[axis] += axis_error * dt
-
-                # Signed X integral.
-                integral_error[0] = float(
-                    np.clip(
-                        integral_error[0],
-                        -settings.xyz_integral_limit[0],
-                        +settings.xyz_integral_limit[0],
-                    )
-                )
-
-                # Signed Y integral.
-                integral_error[1] = float(
-                    np.clip(
-                        integral_error[1],
-                        -settings.xyz_integral_limit[1],
-                        +settings.xyz_integral_limit[1],
-                    )
-                )
-
-                # Positive-only Z integral.
-                #
-                # Negative Z error can discharge accumulated compensation,
-                # but the integral itself can never become negative.
-                integral_error[2] = float(
-                    np.clip(
-                        integral_error[2],
-                        0.0,
-                        settings.xyz_integral_limit[2],
-                    )
-                )
-
-                # ------------------------------------------------------------
-                # Derivative.
-                # ------------------------------------------------------------
-
-                if previous_position_error is None:
-
-                    raw_derivative = np.zeros(
-                        3,
-                        dtype=float,
-                    )
-
-                else:
-
-                    raw_derivative = (
-                        position_error
-                        - previous_position_error
-                    ) / dt
-
-                alpha = float(
-                    settings.xyz_derivative_filter_alpha
-                )
-
-                filtered_derivative = (
-                    alpha
-                    * raw_derivative
-                    +
-                    (1.0 - alpha)
-                    * filtered_derivative
-                )
-
-            # ================================================================
-            # BUILD ACTION
-            # ================================================================
-
-            action = self._build_osc_action(
-                position_error=position_error,
-                rotation_error=rotation_error,
-                integral_error=integral_error,
-                derivative_error=filtered_derivative,
-                use_xyz_pid=payload_compensation,
-            )
-
-            # ================================================================
-            # SLOW FINAL DESCENT
-            # ================================================================
-
-            if slow_descent:
-
-                # Strongly limit only downward Z motion.
-                action[2] = float(
-                    np.clip(
-                        action[2],
-                        -0.10,
-                        +0.20,
-                    )
-                )
-
-            # ================================================================
-            # EXECUTE
-            # ================================================================
-
-            self._step(
-                action=action,
-                observation=observation,
-                record=record,
-            )
-
-            previous_position_error = (
-                position_error.copy()
-            )
-
-        # ================================================================
-        # FAILURE REPORT
-        # ================================================================
-
-        observation = (
-            self.env._get_observations()
-        )
-
-        current_pos, current_rotation = (
-            self._get_eef_pose(
-                observation
-            )
-        )
-
-        position_error = (
-            target_pos
-            - current_pos
-        )
-
-        delta_rotation = (
-            target_rotation
-            * current_rotation.inv()
-        )
-
-        rotation_error_deg = float(
-            np.degrees(
-                delta_rotation.magnitude()
-            )
-        )
-
-        with np.printoptions(
-            suppress=True
-        ):
-
-            print(
-                "OSC target NOT reached!"
-            )
-
-            print(
-                f"Final position: "
-                f"{current_pos}, "
-                f"Desired position: "
-                f"{target_pos}"
-            )
-
-            print(
-                f"Final XYZ error [mm]: "
-                f"{position_error * 1000}"
-            )
-
-            print(
-                f"Final position error: "
-                f"{np.linalg.norm(position_error) * 1000:.2f} mm"
-            )
-
-            print(
-                f"Final rotation error: "
-                f"{rotation_error_deg:.2f} deg"
-            )
-
-            print(
-                f"PID integral state: "
-                f"{integral_error}"
-            )
-
-        joint_positions = (
-            self.env.robots[0]._joint_positions
-        )
-
-        joint_limits = [
-            2.96,
-            1.91,
-            2.0,
-            2.95,
-            2.0,
-            2.96,
-        ]
-
-        with np.printoptions(
-            suppress=True
-        ):
-
-            print(
-                f"Joint positions: "
-                f"{joint_positions}"
-            )
-
+        with np.printoptions(suppress=True):
+            print(f"Joint positions: {joint_positions}")
         margin = 0.01
+        for i, joint_pos in enumerate(joint_positions):
+            real_joint_index = i+1
+            if joint_pos < -joint_limits[i] + margin or joint_pos > joint_limits[i] - margin:
+                print(f"Joint [{real_joint_index}]: Reached its limit! Limit: {joint_limits[i]}, Joint Position: {joint_positions[i]}")
 
-        for i, joint_pos in enumerate(
-            joint_positions
-        ):
+        position_ok = np.linalg.norm(position_error) < position_tolerance
+        rotation_ok = rotation_error_deg < rotation_tolerance_deg
 
-            real_joint_index = (
-                i + 1
-            )
-
-            if (
-                joint_pos
-                < -joint_limits[i] + margin
-                or
-                joint_pos
-                > joint_limits[i] - margin
-            ):
-
-                print(
-                    f"Joint [{real_joint_index}]: "
-                    f"Reached its limit! "
-                    f"Limit: {joint_limits[i]}, "
-                    f"Joint Position: "
-                    f"{joint_positions[i]}"
-                )
+        #print(f"Position OK: {position_ok} (tol={position_tolerance * 1000:.2f} mm)")
+        #print(f"Rotation OK: {rotation_ok} (tol={rotation_tolerance_deg:.2f} deg)")
+        
 
         return False
     
-    def move_robot_to_position(self, pos: np.ndarray, quat: np.ndarray = None, max_steps: int = 400, position_tolerance: float = settings.position_tolerance, rotation_tolerance_deg: float = settings.rotation_tolerance_deg, payload_compensation: bool = False, slow_descent: bool = False, record: bool = True) -> bool:
+    def move_robot_to_position(self, pos: np.ndarray, quat: np.ndarray = None, max_steps: int = 400, position_tolerance: float = settings.position_tolerance, rotation_tolerance_deg: float = settings.rotation_tolerance_deg, payload_compensation: bool = False, record: bool = True) -> bool:
         """
         Move the EEF directly to the Cartesian pose corresponding to the
         passed object / reference position.
@@ -639,7 +318,7 @@ class OSCMovementController:
 
         target_rotation = self._get_top_down_rotation(quat)
 
-        return self.move_eef_to_pose(target_pos=target_eef_pos, target_rotation=target_rotation, max_steps=max_steps, position_tolerance=position_tolerance, rotation_tolerance_deg=rotation_tolerance_deg, payload_compensation=payload_compensation, slow_descent=slow_descent, record=record)
+        return self.move_eef_to_pose(target_pos=target_eef_pos, target_rotation=target_rotation, max_steps=max_steps, position_tolerance=position_tolerance, rotation_tolerance_deg=rotation_tolerance_deg, payload_compensation=payload_compensation, record=record)
 
     """
     def elevate_obj(self, pos: np.ndarray, quat: np.ndarray, max_height: float = settings.ideal_z + settings.safe_offset_gripper[2]) -> np.ndarray | None:
