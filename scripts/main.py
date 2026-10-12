@@ -12,7 +12,8 @@ import settings
 from custom_osc import install_prob3_custom_osc
 
 # Import useful classes
-from lerobot_recorder import LeRobotRecorder
+#from lerobot_recorder import LeRobotRecorder
+from hdf5_recorder import HDF5Recorder
 from movements import OSCMovementController
 from robosuite import load_controller_config, macros
 from robosuite.environments.manipulation.single_arm_env import SingleArmEnv
@@ -29,19 +30,33 @@ def main():
     # Update the config with the OSC controller configurations from the settings file...
     config.update(settings.osc_config)
 
-    recorder = LeRobotRecorder()
+    #recorder = LeRobotRecorder()
+    recorder = HDF5Recorder()
+
     record = False
 
     # Create the env
     env = create_randomized_env(config)
+
+    osc = env.robots[0].controller
+
+    print("Position interpolator:", osc.interpolator_pos)
+    print("Orientation interpolator:", osc.interpolator_ori)
+
+    if osc.interpolator_pos is not None:
+        print("Position interpolator order:", osc.interpolator_pos.order)
 
     try:
         task_loop = True
         while task_loop:
             n_tasks = int(input("How many times do you want to simulate the OSC task? "))
             successes = 0
+            errors = []
             for i in range(n_tasks):
-                success = pick_and_place_task(env, task_index=i, record=record, recorder=recorder)
+                print(f"[Task - {i+1}]")
+                error = pick_and_place_task(env, task_index=i, record=record, recorder=recorder)
+                errors.append(error)
+                success = error <= settings.final_tolerance
                 string = "YES" if success else "NO"
                 print(f"Success? {string}")
 
@@ -54,6 +69,8 @@ def main():
             print(f"OSC final report: {successes}/{n_tasks} successful tasks.")
             print(f"LeRobot episodes currently saved: {recorder.saved_episodes}")
             print("=" * 60)
+            errors = np.array(errors)
+            print(f"Average final error from the drop point: {np.mean(errors): 0.5f}")
 
             choice = input("Want to repeat the tasks? (Y/N): ")
             task_loop = choice.upper() == "Y"
@@ -119,7 +136,7 @@ def create_randomized_env(config: dict) -> DomainRandomizationWrapper:
 
     return env
 
-def pick_and_place_task(env, task_index: int, recorder: LeRobotRecorder, record: bool = True) -> bool:
+def pick_and_place_task(env, task_index: int, recorder: HDF5Recorder, record: bool = True) -> float:
 
     success = False
 
@@ -133,11 +150,10 @@ def pick_and_place_task(env, task_index: int, recorder: LeRobotRecorder, record:
             # Grab the rotation (quaternion)                # Copy! Otherwise we get a reference to the original array and 
             quat = env.sim.data.body_xquat[obj_id].copy()   # it will be modified by the env.step() function!
             
-            success = pick_and_place_action(env, obj, pos, quat, task_index, recorder, record=record)
-            #success = test(env, obj, pos, quat, task_index, recorder, record=record)
+            error = pick_and_place_action(env, obj, pos, quat, task_index, recorder, record=record)
 
             # If the action was successfull we save it...
-            if success:
+            if error <= settings.final_tolerance:
                 recorder.save_episode()
             else:
                 recorder.discard_episode()
@@ -146,18 +162,9 @@ def pick_and_place_task(env, task_index: int, recorder: LeRobotRecorder, record:
         recorder.discard_episode()
         raise
 
-    return success
+    return error
 
-def test(env, obj, pos, quat, task_index, recorder, record=True):
-
-    movements_ctrl  =OSCMovementController(env, tracked_body_name=obj.root_body, recorder=recorder)
-    test_pos = np.array([0.0, 0.0, 0.30])
-    done = movements_ctrl.move_robot_to_position(test_pos, record=record)
-
-    return done
-
-
-def pick_and_place_action(env: "SingleArmEnv", obj, pos: np.ndarray, quat: np.ndarray, task_index: int, recorder: LeRobotRecorder, record: bool = True) -> bool:
+def pick_and_place_action(env: "SingleArmEnv", obj, pos: np.ndarray, quat: np.ndarray, task_index: int, recorder: HDF5Recorder, record: bool = True) -> float:
 
     # Grab the object id for later
     obj_id = env.sim.model.body_name2id(obj.root_body)
@@ -246,7 +253,7 @@ def pick_and_place_action(env: "SingleArmEnv", obj, pos: np.ndarray, quat: np.nd
 
     # Only demonstrations that actually complete the task are stored.
     # We define the task completed and successfull if the object is within 5mm from the drop point.
-    return center_error < settings.final_tolerance
+    return center_error
 
 def set_osc_gains(env, kp: np.ndarray, damping_ratio: np.ndarray) -> None:
 
@@ -262,9 +269,6 @@ def set_osc_gains(env, kp: np.ndarray, damping_ratio: np.ndarray) -> None:
 
     osc.kp = kp
     osc.kd = 2.0 * np.sqrt(kp) * damping_ratio
-
-    print(f"OSC kp: {osc.kp}")
-    print(f"OSC kd: {osc.kd}")
 
 if __name__ == "__main__":
     main()

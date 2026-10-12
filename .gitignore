@@ -1,5 +1,110 @@
-# Virtual environments
-venv/
-env/
+# ================================================================
+# PYTHON
+# ================================================================
+
 __pycache__/
-scripts/data/
+*.py[cod]
+*$py.class
+
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+
+# ================================================================
+# VIRTUAL ENVIRONMENTS
+# ================================================================
+
+/venv/
+/openvla_env/
+
+.env
+.env.*
+
+
+# ================================================================
+# IDE / EDITOR
+# ================================================================
+
+.vscode/
+.idea/
+
+*.swp
+*.swo
+*~
+
+
+# ================================================================
+# OS
+# ================================================================
+
+.DS_Store
+Thumbs.db
+
+
+# ================================================================
+# GENERATED DATASETS
+# ================================================================
+
+# New intended structure
+/data/raw/
+/data/rlds/
+
+# Old / temporary recorder location
+/scripts/data/
+
+# Dataset formats, in case they appear elsewhere
+*.hdf5
+*.h5
+*.tfrecord
+*.tfrecord-*
+*.parquet
+
+
+# ================================================================
+# OPENVLA / HUGGING FACE CACHE
+# ================================================================
+
+/cache/
+
+# Downloaded model weights
+*.safetensors
+*.ckpt
+*.pth
+*.pt
+
+
+# ================================================================
+# TRAINING OUTPUTS
+# ================================================================
+
+/runs/
+/adapters/
+/preflight/
+
+wandb/
+**/wandb/
+
+checkpoints/
+**/checkpoints/
+
+
+# ================================================================
+# LOGS / TEMPORARY OUTPUT
+# ================================================================
+
+*.log
+logs/
+tmp/
+temp/
+
+
+# ================================================================
+# EXTERNAL THIRD-PARTY REPOSITORIES
+# ================================================================
+
+# Official OpenVLA clone.
+# Keep our integration code in integrations/openvla/ instead.
+/tools/openvla/

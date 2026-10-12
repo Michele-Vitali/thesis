@@ -13,7 +13,7 @@ table_width = 0.30 # We make a bigger table than reachable, then define a suitab
 robot_position = np.array([-rob_x, 0.0, 0.0])
 
 # Object geometry
-object_half_size_min = 0.035
+object_half_size_min = 0.010
 object_half_size_max = 0.035
 
 max_object_height = 2.0 * object_half_size_max
@@ -21,7 +21,7 @@ max_object_height = 2.0 * object_half_size_max
 # Object spawning variables
 forbidden_spawning_pos = (0.0, 0.0) # As it is the drop point!
 forbidden_spawning_radius = 0.08
-radial_range = [0.54, 0.55] # Stable pre-waypoint working range
+radial_range = [0.35, 0.55] # Stable pre-waypoint working range
 
 # Important variables
 safe_offset_gripper = [0.0, 0.0, 0.115]
@@ -98,6 +98,8 @@ grasp_damping = np.array([1.15, 1.15, 1.30, 1.0, 1.0, 1.0])
 
 
 osc_config = {
+    "interpolation": "linear",
+    "ramp_ratio": 1.0,
     "impedance_mode": "fixed",
     "kp": free_kp,
     "damping_ratio": free_damping,

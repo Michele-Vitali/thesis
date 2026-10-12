@@ -241,7 +241,7 @@ class OSCMovementController:
             # Check if we reached the target position and rotation...
             if position_error_norm < position_tolerance and rotation_error_deg < rotation_tolerance_deg:
                 # If yes we return as we finished our goal.
-                print(f"OSC target reached in {step} steps!\nPosition error: {position_error_norm * 1000:.2f} mm | Rotation error: {rotation_error_deg:.2f} deg")
+                #print(f"OSC target reached in {step} steps!\nPosition error: {position_error_norm * 1000:.2f} mm | Rotation error: {rotation_error_deg:.2f} deg")
                 return True
 
             # If we did not reach the target position/rotation, we compute the next action...
@@ -276,23 +276,23 @@ class OSCMovementController:
         rotation_error_deg = np.degrees(delta_rotation.magnitude())
 
         # Debug prints...
-        with np.printoptions(suppress=True):
-            print("OSC target NOT reached!")
-            print(f"Final position: {current_pos}, Desired position: {target_pos}")
-            print(f"Final position error: {np.linalg.norm(position_error) * 1000:.2f} mm")
-            print(f"Final rotation error: {rotation_error_deg:.2f} deg")
+        #with np.printoptions(suppress=True):
+            #print("OSC target NOT reached!")
+            #print(f"Final position: {current_pos}, Desired position: {target_pos}")
+            #print(f"Final position error: {np.linalg.norm(position_error) * 1000:.2f} mm")
+            #print(f"Final rotation error: {rotation_error_deg:.2f} deg")
 
         
         joint_positions = self.env.robots[0]._joint_positions
         joint_limits = [2.96, 1.91, 2.0, 2.95, 2.0, 2.96]
 
-        with np.printoptions(suppress=True):
-            print(f"Joint positions: {joint_positions}")
-        margin = 0.01
-        for i, joint_pos in enumerate(joint_positions):
-            real_joint_index = i+1
-            if joint_pos < -joint_limits[i] + margin or joint_pos > joint_limits[i] - margin:
-                print(f"Joint [{real_joint_index}]: Reached its limit! Limit: {joint_limits[i]}, Joint Position: {joint_positions[i]}")
+        #with np.printoptions(suppress=True):
+            #print(f"Joint positions: {joint_positions}")
+        #margin = 0.01
+        #for i, joint_pos in enumerate(joint_positions):
+            #real_joint_index = i+1
+            #if joint_pos < -joint_limits[i] + margin or joint_pos > joint_limits[i] - margin:
+                #print(f"Joint [{real_joint_index}]: Reached its limit! Limit: {joint_limits[i]}, Joint Position: {joint_positions[i]}")
 
         position_ok = np.linalg.norm(position_error) < position_tolerance
         rotation_ok = rotation_error_deg < rotation_tolerance_deg
@@ -403,7 +403,7 @@ class OSCMovementController:
             self._step(action=hold_action, record=record)
 
         if not reached:
-            print("Griiper did not fully toggle!")
+            print("Gripper did not fully toggle!")
 
         return True
 
