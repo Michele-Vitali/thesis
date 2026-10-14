@@ -54,12 +54,13 @@ class CustomTask(SingleArmEnv):
         table_height = 2*table_width
         self.mujoco_arena = TableArena(
             table_full_size=(table_width, table_height, 0.05),
-            table_offset=(0, 0, 0.1)
+            table_offset=(0, 0, settings.table_height)
         )
 
+        # Set the origin of the arena in the origin of the world.
         self.mujoco_arena.set_origin([0.0, 0.0, 0.0])
 
-        # The robot must be at LEAST around 30cm from the border of the table!
+        # The robot must be at some distance from the table, so they do not appear merged!
         self.robots[0].robot_model.set_base_xpos(settings.robot_position) 
 
         # Lower the camera!
@@ -69,12 +70,10 @@ class CustomTask(SingleArmEnv):
         self._create_objects()
 
         # 3. Sampler for placing objects
-        samplers_names = self._define_sampler()
-        random.SystemRandom().shuffle(samplers_names) # Randomize the order of the samplers for each reset
+        sampler_name = self._define_sampler()
 
-        for id, obj in enumerate(self.objects):
-            target_sampler = samplers_names[id % len(samplers_names)]
-            self.sampler.add_objects_to_sampler(sampler_name=target_sampler, mujoco_objects=obj)
+        for obj in self.objects:
+            self.sampler.add_objects_to_sampler(sampler_name=sampler_name, mujoco_objects=obj)
 
         # 4. Robot + Arena + Object
         self.model = ManipulationTask(
@@ -85,72 +84,30 @@ class CustomTask(SingleArmEnv):
 
     def _define_sampler(self) -> list[str]:
         """
-        Defines the sampler used for deciding the placement of newly spawned objects.
-        In particular a SequentialCompositeSample has been used to combine multiple UniformRandomSampler(s)
-        for defining a particular spawning area.
+        Defines the sampler used for deciding the placement of newly spawned objects. In particular a custom RadialSampler has been used to spawn the objects in an annulus (or radial area).
 
         Returns:
-            sampler, samplers_names[] (SequentialCompositeSampler, np.ndarray): The created SequentialCompositeSampler
-                and the names of the samplers used for defining the spawning area. 
+            str: The name of the sampler.
         """
 
-        self.sampler = SequentialCompositeSampler(name="Sampler")
-
-        """
-        # Define the spawnable surface without the central square
-        # which is the area of release
-        X_MIN, X_MAX = -0.32, -0.08
-        Y_MIN, Y_MAX = -0.16, +0.16
-
-        #CX_MIN, CX_MAX = -0.05, +0.05
-        #CY_MIN, CY_MAX = -0.05, +0.05
-
-
-        # Now we define the 4 separate spawnable areas (left, right, bottom, up)
-        # 1. Left
-        self.sampler.append_sampler(UniformRandomSampler(
-            name="LeftSampler", mujoco_objects=None, x_range=[X_MIN, X_MAX], y_range=[Y_MIN, CY_MIN], rotation=[-np.pi, np.pi], 
-            reference_pos=self.mujoco_arena.table_top_abs,ensure_object_boundary_in_range=True, ensure_valid_placement=True
-        ))
-
-        # 2. Right
-        self.sampler.append_sampler(UniformRandomSampler(
-            name="RightSampler", mujoco_objects=None, x_range=[X_MIN, X_MAX], y_range=[CY_MAX, Y_MAX], rotation=[-np.pi, np.pi],
-            reference_pos=self.mujoco_arena.table_top_abs,ensure_object_boundary_in_range=True, ensure_valid_placement=True
-        ))
-
-        # 3. Up
-        self.sampler.append_sampler(UniformRandomSampler(
-            name="UpSampler", mujoco_objects=None, x_range=[CX_MAX, X_MAX], y_range=[CY_MIN, CY_MAX], rotation=[-np.pi, np.pi],
-            reference_pos=self.mujoco_arena.table_top_abs,ensure_object_boundary_in_range=True, ensure_valid_placement=True
-        ))
-
-        # 4. Bottom
-        self.sampler.append_sampler(UniformRandomSampler(
-            name="BottomSampler", mujoco_objects=None, x_range=[X_MIN, CX_MIN], y_range=[CY_MIN, CY_MAX], rotation=[-np.pi, np.pi],
-            reference_pos=self.mujoco_arena.table_top_abs,ensure_object_boundary_in_range=True, ensure_valid_placement=True
-        ))
-
-        return ["LeftSampler", "RightSampler", "UpSampler", "BottomSampler"]
-        """
-
+        # Some computations for the custom RadialSampler...
         table_half_width = settings.table_width / 2
         table_bounds = (-table_half_width, table_half_width, -table_half_width, table_half_width)
 
-        self.sampler.append_sampler(RadialRandomSampler(
+        self.sampler = RadialRandomSampler(
             name="RadialSampler", mujoco_objects=None, radial_range=settings.radial_range, rotation=[-np.pi, np.pi],
             reference_pos=np.array([-settings.rob_x, 0.0, self.mujoco_arena.table_top_abs[2]]),
             table_bounds=table_bounds, forbidden_pos=settings.forbidden_spawning_pos, forbidden_radius=settings.forbidden_spawning_radius, 
             ensure_object_boundary_in_range=True, ensure_valid_placement=True
-        ))
+        )
 
         return ["RadialSampler"]
 
     def _create_objects(self) -> None:
         """
-        This function randomly picks n_objects (defined in settings.py) by the list of possible objects defined.
-        in the environment, then create them one by one and adds them to the objects list of the environment.
+        This function randomly picks n_objects (defined in settings.py) by the list of possible objects defined in the environment, then creates them one by one and adds them to the objects list of the environment.
         """
+
         chosen_objects = random.SystemRandom().sample(self.available_objects, settings.n_objects)
         self.objects = []
 
@@ -160,7 +117,6 @@ class CustomTask(SingleArmEnv):
                 "name": name,
                 "size_min": [settings.object_half_size_min, settings.object_half_size_min, settings.object_half_size_min],
                 "size_max": [settings.object_half_size_max, settings.object_half_size_max, settings.object_half_size_max],
-                #"density": 250,
             }
 
             obj_instance = class_obj(**kwargs)
@@ -174,6 +130,10 @@ class CustomTask(SingleArmEnv):
 
         # For every reset we re-create the object and compute a random positioning
         self._place_objects()
+
+    """
+    THE REWARD AND CHEKC_SUCESS FUNCTIONS ARE USELESS IN OUR CASE, BUT I HAD ALREADY IMPLEMENTED THEM...
+    """
 
     def reward(self, action):
 
@@ -260,7 +220,10 @@ class CustomTask(SingleArmEnv):
         """
         This function positions the objects in the environment by using the defined env.sampler.
         """
+
+        # Sample the new position
         new_pos = self.sampler.sample()
+
         """
         sample() returns a dict shaped like this:
             - Key, the object name (e.g. "Cube")
@@ -270,6 +233,7 @@ class CustomTask(SingleArmEnv):
                         - The next 4 (qw, qx, qy, qz) is the quaternion which defines the random rotation of the object
                         - The last 1 is the object instance 
         """
+        
         for obj_pos, obj_quat, obj in new_pos.values():
             # Update the object position by changing its "free joint"'s state.
             self.sim.data.set_joint_qpos(obj.joints[0], np.concatenate([np.array(obj_pos), np.array(obj_quat)]))

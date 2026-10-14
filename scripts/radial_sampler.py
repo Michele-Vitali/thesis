@@ -4,9 +4,25 @@ from robosuite.utils.placement_samplers import UniformRandomSampler
 
 
 class RadialRandomSampler(UniformRandomSampler):
-    def __init__(self, name, mujoco_objects=None, radial_range=settings.radial_range, angle_range=(-np.pi, np.pi),
-        table_bounds=None, forbidden_pos=None, forbidden_radius=0.0, rotation=None, rotation_axis="z",
+    def __init__(self, name, mujoco_objects=None, radial_range=settings.radial_range, angle_range=(-np.pi, np.pi), table_bounds=None, forbidden_pos=None, forbidden_radius=0.0, rotation=None, rotation_axis="z",
         ensure_object_boundary_in_range=True, ensure_valid_placement=True, reference_pos=(0, 0, 0), z_offset=0.0):
+        """Initializes a RadialRandomSampler.
+
+        Args:
+            name (str): The name given to the sampler.
+            mujoco_objects (list, optional): A list containing the existing objects. Defaults to None.
+            radial_range (list, optional): A list where the first element indicates the smaller radius and the second element indicates the larger radius that our objects should be spawned within. Defaults to settings.radial_range.
+            angle_range (list, optional): A list where the first element indicates the lowest rotation and the second element indicates the highest rotation that our objects should be spawned with. Defaults to [-np.pi, np.pi].
+            table_bounds (_type_, optional): _description_. Defaults to None.
+            forbidden_pos (_type_, optional): _description_. Defaults to None.
+            forbidden_radius (float, optional): _description_. Defaults to 0.0.
+            rotation (_type_, optional): _description_. Defaults to None.
+            rotation_axis (str, optional): _description_. Defaults to "z".
+            ensure_object_boundary_in_range (bool, optional): _description_. Defaults to True.
+            ensure_valid_placement (bool, optional): _description_. Defaults to True.
+            reference_pos (tuple, optional): _description_. Defaults to (0, 0, 0).
+            z_offset (float, optional): _description_. Defaults to 0.0.
+        """
 
         self.radial_range = radial_range
         self.angle_range = angle_range

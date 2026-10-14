@@ -1,0 +1,13 @@
+{
+  "created_utc": "2026-10-14T11:33:47.080796+00:00",
+  "moves": [
+    {
+      "from": "scripts/export_lerobot_to_rlds_raw.py",
+      "to": "archive/legacy/export_lerobot_to_rlds_raw.py"
+    },
+    {
+      "from": "structure.txt",
+      "to": "docs/structure_original.txt"
+    }
+  ]
+}

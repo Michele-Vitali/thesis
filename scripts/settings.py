@@ -4,13 +4,15 @@ import numpy as np
 env_name = "CustomTask"
 robot = "PRob3"
 gripper_types = "PRob3Gripper"
-render_on_screen = True    # Set to false for faster simulations
+render_on_screen = False    # Set to false for faster simulations
+record = True
 
 # Environment variables
 max_reachable_x = 0.55 # It is 60cm, but we take a margin and set it to 55cm
 rob_x = 0.45 # It is a minimum of 29cm, taking a margin of 1cm...
 table_width = 0.30 # We make a bigger table than reachable, then define a suitable spawning algorithm!
 robot_position = np.array([-rob_x, 0.0, 0.0])
+table_height = 0.1
 
 # Object geometry
 object_half_size_min = 0.010
@@ -25,6 +27,12 @@ radial_range = [0.35, 0.55] # Stable pre-waypoint working range
 
 # Important variables
 safe_offset_gripper = [0.0, 0.0, 0.115]
+
+# OSC actions variables
+position_gain = 0.24
+rotation_gain = 0.12
+max_position_action = 0.40
+max_rotation_action = 0.40
 
 # Integral Z payload compensation
 z_integral_gain = 0.36

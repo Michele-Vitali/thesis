@@ -1,0 +1,9 @@
+{
+  "created_utc": "2026-10-14T14:15:00.102902+00:00",
+  "moved_raw": true,
+  "archived_legacy": false,
+  "old_raw": "/home/vlabot/Scrivania/thesis/scripts/data",
+  "new_raw": "/home/vlabot/Scrivania/thesis/data/raw/episodes",
+  "legacy": "/home/vlabot/Scrivania/thesis/rlds_dataset_builder",
+  "legacy_archive": "/home/vlabot/Scrivania/thesis/archive/legacy/rlds_dataset_builder_old"
+}
