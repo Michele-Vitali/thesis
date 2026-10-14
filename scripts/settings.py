@@ -4,7 +4,7 @@ import numpy as np
 env_name = "CustomTask"
 robot = "PRob3"
 gripper_types = "PRob3Gripper"
-render_on_screen = True
+render_on_screen = True    # Set to false for faster simulations
 
 # Environment variables
 max_reachable_x = 0.55 # It is 60cm, but we take a margin and set it to 55cm
@@ -83,7 +83,7 @@ dataset_image_height = 256
 
 dataset_use_videos = False
 
-dataset_task = "Pick up the cube and place it at the center of the table"
+dataset_task = "Pick up the cube and place it straight at the center of the table"
 
 gripper_q_min = -0.001
 gripper_q_max = 1.0472

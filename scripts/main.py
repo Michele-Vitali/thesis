@@ -33,44 +33,39 @@ def main():
     #recorder = LeRobotRecorder()
     recorder = HDF5Recorder()
 
-    record = False
+    record = True
 
     # Create the env
     env = create_randomized_env(config)
-
-    osc = env.robots[0].controller
-
-    print("Position interpolator:", osc.interpolator_pos)
-    print("Orientation interpolator:", osc.interpolator_ori)
-
-    if osc.interpolator_pos is not None:
-        print("Position interpolator order:", osc.interpolator_pos.order)
 
     try:
         task_loop = True
         while task_loop:
             n_tasks = int(input("How many times do you want to simulate the OSC task? "))
             successes = 0
-            errors = []
+            results = []
             for i in range(n_tasks):
                 print(f"[Task - {i+1}]")
-                error = pick_and_place_task(env, task_index=i, record=record, recorder=recorder)
-                errors.append(error)
-                success = error <= settings.final_tolerance
+                error, steps = pick_and_place_task(env, task_index=i, record=record, recorder=recorder)
+                results.append((error, steps))
+                if error is not None:
+                    success = error <= settings.final_tolerance 
+                else:
+                    success = False
                 string = "YES" if success else "NO"
                 print(f"Success? {string}")
 
                 if success:
                     successes += 1
 
-                env.reset()
-
             print("=" * 60)
             print(f"OSC final report: {successes}/{n_tasks} successful tasks.")
-            print(f"LeRobot episodes currently saved: {recorder.saved_episodes}")
+            print(f"Dataset episodes currently saved: {recorder.saved_episodes}")
             print("=" * 60)
-            errors = np.array(errors)
-            print(f"Average final error from the drop point: {np.mean(errors): 0.5f}")
+            np_results = np.array(results)
+            averages = np.mean(np_results, axis=0)
+            print(f"Average final error from the drop point: {averages[0]: 0.5f}")
+            print(f"Average number of steps per episode: {averages[1]: 0.5f}")
 
             choice = input("Want to repeat the tasks? (Y/N): ")
             task_loop = choice.upper() == "Y"
@@ -136,9 +131,7 @@ def create_randomized_env(config: dict) -> DomainRandomizationWrapper:
 
     return env
 
-def pick_and_place_task(env, task_index: int, recorder: HDF5Recorder, record: bool = True) -> float:
-
-    success = False
+def pick_and_place_task(env, task_index: int, recorder: HDF5Recorder, record: bool = True) -> tuple[float, int]:
 
     try:
         env.reset()
@@ -150,10 +143,10 @@ def pick_and_place_task(env, task_index: int, recorder: HDF5Recorder, record: bo
             # Grab the rotation (quaternion)                # Copy! Otherwise we get a reference to the original array and 
             quat = env.sim.data.body_xquat[obj_id].copy()   # it will be modified by the env.step() function!
             
-            error = pick_and_place_action(env, obj, pos, quat, task_index, recorder, record=record)
+            error, steps = pick_and_place_action(env, obj, pos, quat, task_index, recorder, record=record)
 
             # If the action was successfull we save it...
-            if error <= settings.final_tolerance:
+            if error is not None and error <= settings.final_tolerance:
                 recorder.save_episode()
             else:
                 recorder.discard_episode()
@@ -162,9 +155,9 @@ def pick_and_place_task(env, task_index: int, recorder: HDF5Recorder, record: bo
         recorder.discard_episode()
         raise
 
-    return error
+    return (error, steps)
 
-def pick_and_place_action(env: "SingleArmEnv", obj, pos: np.ndarray, quat: np.ndarray, task_index: int, recorder: HDF5Recorder, record: bool = True) -> float:
+def pick_and_place_action(env: "SingleArmEnv", obj, pos: np.ndarray, quat: np.ndarray, task_index: int, recorder: HDF5Recorder, record: bool = True) -> tuple[float, int]:
 
     # Grab the object id for later
     obj_id = env.sim.model.body_name2id(obj.root_body)
@@ -201,19 +194,24 @@ def pick_and_place_action(env: "SingleArmEnv", obj, pos: np.ndarray, quat: np.nd
     post_grasp_pos_tolerance = settings.transport_position_tolerance
     post_grasp_rot_tolerance = settings.transport_rotation_tolerance
 
+    # Total steps for debug
+    total_steps = 0
+
     # Move over the object.
-    done = movements_ctrl.move_robot_to_position(above_object_pos, quat, record=record)
+    done, steps = movements_ctrl.move_robot_to_position(above_object_pos, quat, record=record)
+    total_steps += steps
 
     if not done:
         print("OSC failed while moving above the object.")
-        return False
+        return (None, total_steps)
 
     # Descend to the object.
-    done = movements_ctrl.move_robot_to_position(grasp_pos, quat, payload_compensation=False, record=record)
+    done, steps = movements_ctrl.move_robot_to_position(grasp_pos, quat, payload_compensation=False, record=record)
+    total_steps += steps
 
     if not done:
         print("OSC failed during grasp descent.")
-        return False
+        return (None, total_steps)
 
     # Close the gripper.
     movements_ctrl.toggle_grab(record=record)
@@ -222,25 +220,36 @@ def pick_and_place_action(env: "SingleArmEnv", obj, pos: np.ndarray, quat: np.nd
     set_osc_gains(env, kp=settings.grasp_kp, damping_ratio=settings.grasp_damping)
 
     # Lift the object vertically to the transport height.
-    done = movements_ctrl.move_robot_to_position(transport_pos, quat, payload_compensation=True, position_tolerance=post_grasp_pos_tolerance, rotation_tolerance_deg=post_grasp_rot_tolerance, record=record)
+    done, steps = movements_ctrl.move_robot_to_position(transport_pos, quat, payload_compensation=True, position_tolerance=post_grasp_pos_tolerance, rotation_tolerance_deg=post_grasp_rot_tolerance, record=record)
+    total_steps += steps
 
     if not done:
         print("OSC failed during vertical lift.")
-        return False
+        return (None, total_steps)
     
     # Move diagonally above the central drop point.
-    done = movements_ctrl.move_robot_to_position(above_drop_pos, payload_compensation=True, record=record)
+    done, steps = movements_ctrl.move_robot_to_position(above_drop_pos, quat, payload_compensation=True, record=record)
+    total_steps += steps
 
     if not done:
         print("OSC failed during transport.")
-        return False
+        return (None, total_steps)
+
+    # Now just align the cube!
+    done, steps = movements_ctrl.move_robot_to_position(above_drop_pos, payload_compensation=True, record=record)
+    total_steps += steps
+
+    if not done:
+        print("OSC failed during alignment.")
+        return (None, total_steps)
 
     # Descend to drop position.
-    done = movements_ctrl.move_robot_to_position(drop_pos, payload_compensation=False, record=record)
+    done, steps = movements_ctrl.move_robot_to_position(drop_pos, payload_compensation=False, record=record)
+    total_steps += steps
 
     if not done:
         print("OSC failed during drop descent.")
-        return False
+        return (None, total_steps)
     # Open the gripper.
     movements_ctrl.toggle_grab(record=record)
 
@@ -253,7 +262,7 @@ def pick_and_place_action(env: "SingleArmEnv", obj, pos: np.ndarray, quat: np.nd
 
     # Only demonstrations that actually complete the task are stored.
     # We define the task completed and successfull if the object is within 5mm from the drop point.
-    return center_error
+    return (center_error, total_steps)
 
 def set_osc_gains(env, kp: np.ndarray, damping_ratio: np.ndarray) -> None:
 

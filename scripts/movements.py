@@ -183,7 +183,7 @@ class OSCMovementController:
         return action
 
     def move_eef_to_pose(self, target_pos: np.ndarray, target_rotation: R, max_steps: int = 400, position_tolerance: float = settings.position_tolerance,
-        rotation_tolerance_deg: float = settings.rotation_tolerance_deg, payload_compensation: bool = False, record: bool = True) -> bool:
+        rotation_tolerance_deg: float = settings.rotation_tolerance_deg, payload_compensation: bool = False, record: bool = True) -> tuple[bool, int]:
         """
         Closed-loop Cartesian motion using OSC_POSE.
         Every executed OSC action is optionally recorded as a LeRobot frame.
@@ -242,7 +242,7 @@ class OSCMovementController:
             if position_error_norm < position_tolerance and rotation_error_deg < rotation_tolerance_deg:
                 # If yes we return as we finished our goal.
                 #print(f"OSC target reached in {step} steps!\nPosition error: {position_error_norm * 1000:.2f} mm | Rotation error: {rotation_error_deg:.2f} deg")
-                return True
+                return (True, step)
 
             # If we did not reach the target position/rotation, we compute the next action...
             action = self._build_osc_action(position_error, rotation_error)
@@ -256,7 +256,7 @@ class OSCMovementController:
                 integral_action_z = float(np.clip(integral_action_z, -settings.z_integral_action_limit, +settings.z_integral_action_limit))
 
                 action[2] += integral_action_z
-                action[2] = float(np.clip(action[2], 0.0, +0.40))
+                action[2] = float(np.clip(action[2], -0.40, +0.40))
 
             # Save observation_ and action_t for dataset population...
             self._step(action=action, observation=observation, record=record)
@@ -301,9 +301,9 @@ class OSCMovementController:
         #print(f"Rotation OK: {rotation_ok} (tol={rotation_tolerance_deg:.2f} deg)")
         
 
-        return False
+        return (False, step)
     
-    def move_robot_to_position(self, pos: np.ndarray, quat: np.ndarray = None, max_steps: int = 400, position_tolerance: float = settings.position_tolerance, rotation_tolerance_deg: float = settings.rotation_tolerance_deg, payload_compensation: bool = False, record: bool = True) -> bool:
+    def move_robot_to_position(self, pos: np.ndarray, quat: np.ndarray = None, max_steps: int = 400, position_tolerance: float = settings.position_tolerance, rotation_tolerance_deg: float = settings.rotation_tolerance_deg, payload_compensation: bool = False, record: bool = True) -> tuple[bool, int]:
         """
         Move the EEF directly to the Cartesian pose corresponding to the
         passed object / reference position.
