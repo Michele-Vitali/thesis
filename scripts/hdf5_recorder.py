@@ -43,42 +43,34 @@ class HDF5Recorder:
     """
 
     def __init__(self):
-        script_directory = Path(__file__).resolve().parent
-
-        data_directory = script_directory / settings.dataset_root
-
-        data_directory.mkdir(parents=True, exist_ok=True)
-
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-
+        # The recorder is intentionally LAZY: no directory or HDF5 file
+        # is created until the first SUCCESSFUL episode is saved.
+        self.root_directory = Path(settings.dataset_root).expanduser().resolve()
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
         self.run_name = f"{settings.dataset_name}_{timestamp}"
-
-        self.root = data_directory / self.run_name
-
-        self.root.mkdir(parents=True, exist_ok=True)
-
+        self.root = self.root_directory / self.run_name
         self.hdf5_path = self.root / "demo.hdf5"
 
-        self.file = h5py.File(self.hdf5_path, "w")
-
-        self.data_group = self.file.create_group("data")
-
-        # Dataset-level metadata.
-        self.data_group.attrs["robot"] = settings.robot
-
-        self.data_group.attrs["env"] = settings.env_name
-
-        self.data_group.attrs["fps"] = settings.dataset_fps
-
-        self.data_group.attrs["task"] = settings.dataset_task
-
-        self.data_group.attrs["camera"] = settings.dataset_camera_name
-
-        self._clear_episode_buffer()
-
+        self.file = None
+        self.data_group = None
         self.saved_episodes = 0
         self.total_saved_frames = 0
+        self._clear_episode_buffer()
 
+    def _open_on_first_save(self):
+        """Initialize on-disk storage only when there is data worth saving."""
+        if self.file is not None:
+            return
+
+        # Do not silently overwrite another run (e.g. process restarted).
+        self.root.mkdir(parents=True, exist_ok=False)
+        self.file = h5py.File(self.hdf5_path, "x")
+        self.data_group = self.file.create_group("data")
+        self.data_group.attrs["robot"] = settings.robot
+        self.data_group.attrs["env"] = settings.env_name
+        self.data_group.attrs["fps"] = settings.dataset_fps
+        self.data_group.attrs["task"] = settings.dataset_task
+        self.data_group.attrs["camera"] = settings.dataset_camera_name
         print(f"HDF5 dataset: {self.hdf5_path}")
 
     def _clear_episode_buffer(self):
@@ -267,6 +259,8 @@ class HDF5Recorder:
             print("Episode contains no frames, nothing will be saved.")
             return
 
+        self._open_on_first_save()
+
         episode_name = f"demo_{self.saved_episodes}"
 
         episode_group = self.data_group.create_group(episode_name)
@@ -336,6 +330,8 @@ class HDF5Recorder:
         """
 
         if self.file is None:
+            # No successful episode was saved: nothing was ever created.
+            self._clear_episode_buffer()
             return
 
         self.file.flush()
@@ -349,3 +345,28 @@ class HDF5Recorder:
         print("=" * 60)
 
         self.file = None
+
+class NullRecorder:
+    """No-op recorder used when settings.record is False.
+
+    This object has the same public methods used by main.py, but it never
+    touches the filesystem. It also avoids conditional branches in task loops.
+    """
+
+    def __init__(self):
+        self.saved_episodes = 0
+        self.total_saved_frames = 0
+        self.hdf5_path = None
+        self.root = None
+
+    def record_frame(self, *args, **kwargs):
+        pass
+
+    def save_episode(self):
+        pass
+
+    def discard_episode(self):
+        pass
+
+    def finalize(self):
+        pass

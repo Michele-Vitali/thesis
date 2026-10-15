@@ -10,10 +10,10 @@ import robosuite as suite
 # Import the settings file
 import settings
 from custom_osc import install_prob3_custom_osc
+from hdf5_recorder import HDF5Recorder, NullRecorder
 
 # Import useful classes
-#from lerobot_recorder import LeRobotRecorder
-from hdf5_recorder import HDF5Recorder
+from homing import prepare_episode
 from movements import OSCMovementController
 from robosuite import load_controller_config, macros
 from robosuite.environments.manipulation.single_arm_env import SingleArmEnv
@@ -24,18 +24,19 @@ def main():
     # Load our custom OSC_POSE controller!
     install_prob3_custom_osc()
 
-    # Create the controller with OSC_POSE mode
-    config = load_controller_config(default_controller="OSC_POSE")
+    # Load the controllers
+    joint_config = load_controller_config(default_controller="JOINT_POSITION")
+    osc_config = load_controller_config(default_controller="OSC_POSE")
 
     # Update the config with the OSC controller configurations from the settings file...
-    config.update(settings.osc_config)
+    osc_config.update(settings.osc_config)
 
     # Initialize the HDF5 recorder and set the recording to the value in the settings file
-    recorder = HDF5Recorder()
-    record = settings.record
+    record = bool(settings.record)
+    recorder = HDF5Recorder() if record else NullRecorder()
 
     # Create the env
-    env = create_randomized_env(config)
+    env = create_randomized_env(joint_config)
 
     try:
         task_loop = True
@@ -50,7 +51,7 @@ def main():
 
             # Loop to ensure we get N successes (and not N simulations, as failures should not be included or the model will learn on bad episodes...)
             while successes < n_tasks:
-
+                prepare_episode(env, joint_config, osc_config)
                 (error, steps) = execute_task(successes, env, recorder, record)
                 success = check_task_success(error)
 
@@ -106,7 +107,7 @@ def check_task_success(error_norm: float) -> bool:
         # If the passed error_norm was not valid, the task gets tagged as unsuccessfull
         success = False
 
-    print(f"The task was a: {"SUCCESS" if success else "FAIL"}")
+    print(f"The task was a: {'SUCCESS' if success else 'FAIL'}")
 
     return success
 
@@ -152,7 +153,7 @@ def print_final_report(n_successes: int, n_total_tasks: int, recorder: HDF5Recor
     print(f"Average number of steps per episode: {averages[1]: 0.5f}")
 
 
-def create_randomized_env(config: dict) -> DomainRandomizationWrapper:
+def create_randomized_env(config: dict | None) -> DomainRandomizationWrapper:
     """This function creates and initializes the simulation environment with the configurations chosen in the 'settings' file.
         In particular we also use a DomainRandomizationWrapper which wraps our robosuite environment and applies the Domain Randomization features to it.
 
@@ -185,10 +186,12 @@ def create_randomized_env(config: dict) -> DomainRandomizationWrapper:
         reward_shaping=True, # Not useful in our case but had implemented it anyway...
     )
 
+    """
     # Place the robot in the intial pose defined in the settings file (empirically and theoretically found!)
     robot_init_qpos = np.asarray(env.robots[0].init_qpos, dtype=float).copy()
     robot_init_qpos[:6] = np.asarray(settings.starting_pose, dtype=float)
     env.robots[0].init_qpos = (robot_init_qpos)
+    """
 
     # We use domain randomization to create a more robust dataset
     env = DomainRandomizationWrapper(
@@ -225,7 +228,7 @@ def pick_and_place_task(env: "SingleArmEnv", recorder: HDF5Recorder, record: boo
 
     try:
         # This avoids the "first recorder frame is not randomized" error...
-        env.reset()
+        #env.reset()
         env.sim.forward()
         try:
             # We force the update of the env
@@ -281,7 +284,7 @@ def pick_and_place_action(env: "SingleArmEnv", obj, pos: np.ndarray, quat: np.nd
     obj_id = env.sim.model.body_name2id(obj.root_body)
 
     # Initialize the movement controller
-    movements_ctrl = OSCMovementController(env, tracked_body_name=obj.root_body, recorder=recorder)
+    movements_ctrl = OSCMovementController(env, recorder=recorder)
 
     # Note: We usually copy np.ndarray because otherwise numpy just references the memory location
     # resulting in a change in the variable everywhere in the code

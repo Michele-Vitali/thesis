@@ -1,11 +1,12 @@
+from pathlib import Path
 import numpy as np
 
 # Setup values
 env_name = "CustomTask"
 robot = "PRob3"
 gripper_types = "PRob3Gripper"
-render_on_screen = False    # Set to false for faster simulations
-record = True
+render_on_screen = True    # Set to false for faster simulations
+record = False
 
 # Environment variables
 max_reachable_x = 0.55 # It is 60cm, but we take a margin and set it to 55cm
@@ -78,7 +79,7 @@ final_tolerance = 0.005
 n_objects = 1
 
 # LeRobot dataset
-dataset_root = "data"
+dataset_root = str(Path(__file__).resolve().parents[1] / "hdf5_data")
 dataset_name = "prob3_pick_place"
 
 dataset_fps = 20
@@ -106,6 +107,7 @@ grasp_damping = np.array([1.15, 1.15, 1.30, 1.0, 1.0, 1.0])
 
 
 osc_config = {
+    "type": "OSC_POSE",
     "interpolation": "linear",
     "ramp_ratio": 1.0,
     "impedance_mode": "fixed",

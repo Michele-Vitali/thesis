@@ -69,11 +69,11 @@ class CustomTask(SingleArmEnv):
         # 2. Spawn and place some objects...
         self._create_objects()
 
-        # 3. Sampler for placing objects
-        sampler_name = self._define_sampler()
+        # 3. Sampler for placing objects.
+        _ = self._define_sampler()
 
-        for obj in self.objects:
-            self.sampler.add_objects_to_sampler(sampler_name=sampler_name, mujoco_objects=obj)
+        # Add the objects to the sampler.
+        self.sampler.add_objects(self.objects)
 
         # 4. Robot + Arena + Object
         self.model = ManipulationTask(

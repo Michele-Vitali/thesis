@@ -6,7 +6,7 @@ Must live beside `prepare_prob3_splits.py` and `build_dataset.py` inside:
 
 Usage from thesis root (openvla_env active):
   python integrations/openvla/prepare_prob3_training.py --publish
-  python integrations/openvla/prepare_prob3_training.py --source scripts/data/RUN/demo.hdf5 --publish
+  python integrations/openvla/prepare_prob3_training.py --source hdf5_data/RUN/demo.hdf5 --publish
 
 The source HDF5 files are never changed or duplicated. The split HDF5 files
 contain HDF5 EXTERNAL LINKS to original episode groups, so never move/delete
@@ -27,9 +27,9 @@ from prepare_prob3_splits import inventory_episodes, locate_hdf5_files, make_man
 
 
 def find_latest_run(project_root: Path) -> Path:
-    candidates = sorted((project_root / "scripts" / "data").glob("prob3_pick_place_*/demo.hdf5"))
+    candidates = sorted((project_root / "hdf5_data").glob("prob3_pick_place_*/demo.hdf5"))
     if not candidates:
-        raise FileNotFoundError("Nessun HDF5 in scripts/data/prob3_pick_place_*/demo.hdf5")
+        raise FileNotFoundError("Nessun HDF5 in hdf5_data/prob3_pick_place_*/demo.hdf5")
     return candidates[-1]
 
 
@@ -90,7 +90,7 @@ def main() -> int:
         inventory, seed=args.seed, test_size=args.test_size,
         val_size=args.val_size, folds=args.folds,
     )
-    output_root = args.output_root or (thesis / "data" / "splits")
+    output_root = args.output_root or (thesis / "rlds_data" / "splits")
     output_root = (output_root if output_root.is_absolute() else thesis / output_root).resolve()
     destination = output_root / f"prob3_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}_seed{args.seed}"
     destination.mkdir(parents=True, exist_ok=False)

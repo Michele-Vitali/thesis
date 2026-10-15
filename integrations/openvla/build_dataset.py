@@ -28,7 +28,7 @@ def find_source(root: Path, source: str | None, all_runs: bool) -> Path:
     if source is not None and all_runs:
         raise ValueError("Usa --source oppure --all, non entrambi.")
 
-    raw_dir = root / "scripts" / "data"
+    raw_dir = root / "hdf5_data"
     if source is not None:
         path = Path(source).expanduser()
         if not path.is_absolute():
@@ -178,8 +178,8 @@ def verify_rlds(dataset_dir: Path, source_inventory: dict[tuple[str, str], int])
 
 def publish_dataset(root: Path, staged_dataset: Path) -> tuple[Path, Path | None]:
     """Promote only a validated dataset; move any existing version into an archive."""
-    active = root / "data" / "rlds" / "prob3_pick_place"
-    archive_root = root / "data" / "rlds_archive"
+    active = root / "rlds_data" / "rlds" / "prob3_pick_place"
+    archive_root = root / "rlds_data" / "rlds_archive"
     active.parent.mkdir(parents=True, exist_ok=True)
     archive_root.mkdir(parents=True, exist_ok=True)
     old_backup = None
@@ -205,7 +205,7 @@ def main() -> int:
     )
     sources = parser.add_mutually_exclusive_group()
     sources.add_argument("--source", help="HDF5 specifico o directory con demo.hdf5; default: run più recente.")
-    sources.add_argument("--all", action="store_true", help="Combina tutti i demo.hdf5 di scripts/data/.")
+    sources.add_argument("--all", action="store_true", help="Combina tutti i demo.hdf5 di hdf5_data/.")
     parser.add_argument("--publish", action="store_true", help="Attiva il dataset per OpenVLA; fa backup del precedente.")
     parser.add_argument("--dry-run", action="store_true", help="Mostra le operazioni senza convertire o spostare dati.")
     args = parser.parse_args()
@@ -216,7 +216,7 @@ def main() -> int:
         raise FileNotFoundError(f"Builder mancante: {builder_dir}")
 
     source = find_source(root, args.source, args.all)
-    staged_root = root / "data" / "rlds_builds" / (
+    staged_root = root / "rlds_data" / "rlds_builds" / (
         datetime.now().strftime("%Y%m%d_%H%M%S_%f") + "_" + uuid.uuid4().hex[:6]
     )
     staged_dataset = staged_root / "prob3_pick_place" / "1.0.0"

@@ -6,7 +6,7 @@ Store the resulting manifest with your experiment for reproducibility.
 
 Usage (run from thesis root):
     python integrations/openvla/prepare_prob3_splits.py \
-        --source scripts/data/ --output data/splits/prob3_splits_seed42.json \
+        --source hdf5_data/ --output data/splits/prob3_splits_seed42.json \
         --seed 42 --test-size 30 --val-size 30 --folds 5
 """
 from __future__ import annotations

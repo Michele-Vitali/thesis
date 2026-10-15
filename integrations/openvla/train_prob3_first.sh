@@ -17,7 +17,7 @@ exec "$ROOT/openvla_env/bin/torchrun" \
     --nproc-per-node 2 \
     "$ROOT/integrations/openvla/finetune_prob3.py" \
     --vla_path openvla/openvla-7b \
-    --data_root_dir "$ROOT/data/rlds" \
+    --data_root_dir "$ROOT/rlds_data/rlds" \
     --dataset_name prob3_pick_place \
     --run_root_dir "$ROOT/runs/openvla" \
     --adapter_tmp_dir "$ROOT/adapters/openvla" \

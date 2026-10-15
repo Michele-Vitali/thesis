@@ -108,3 +108,5 @@ temp/
 # Official OpenVLA clone.
 # Keep our integration code in integrations/openvla/ instead.
 /tools/openvla/
+/hdf5_data/
+/rlds_data/
