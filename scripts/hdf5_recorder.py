@@ -141,43 +141,19 @@ class HDF5Recorder:
         return np.asarray(gripper_qpos, dtype=np.float32).reshape(-1)
 
     def _convert_action_for_openvla(self, action: np.ndarray) -> np.ndarray:
-        """
-        Convert P-Rob3 action to the representation used for OpenVLA.
-
-        Input gripper semantics:
-
-            -1 = close
-             0 = hold
-            +1 = open
-
-        OpenVLA representation:
-
-             0 = closed
-             1 = open
-
-        The first six OSC dimensions remain exactly unchanged.
-        """
 
         action = np.asarray(action, dtype=np.float32).reshape(-1)
 
         if action.shape != (7,):
             raise ValueError(f"Expected action shape (7,), got {action.shape}.")
 
-        openvla_action = action.copy()
+        if not np.all(np.isfinite(action)):
+            raise ValueError("Action contains invalid values!")
 
-        gripper_command = float(action[6])
+        if not 0.0 <= action[-1] <= 1.0:
+            raise ValueError(f"Invalid gripper target: {action[-1]}")
 
-        if gripper_command > 0.0:
-            self.gripper_target = 1.0
-        elif gripper_command < 0.0:
-            self.gripper_target = 0.0
-
-        # command == 0:
-        # keep the previous target.
-
-        openvla_action[6] = self.gripper_target
-
-        return openvla_action
+        return action.copy()
 
     def record_frame(self, env, action: np.ndarray, observation: dict = None):
         """

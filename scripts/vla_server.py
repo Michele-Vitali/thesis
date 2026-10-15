@@ -6,30 +6,12 @@ deploy.py
 Provide a lightweight server/client implementation for deploying OpenVLA models (through the HF AutoClass API) over a
 REST API. This script implements *just* the server, with specific dependencies and instructions below.
 
-Note that for the *client*, usage just requires numpy/json-numpy, and requests; example usage below!
-
 Dependencies:
     => Server (runs OpenVLA model on GPU): `pip install uvicorn fastapi json-numpy`
-    => Client: `pip install requests json-numpy`
-
-Client (Standalone) Usage (assuming a server running on 0.0.0.0:8000):
-
-```
-import requests
-import json_numpy
-json_numpy.patch()
-import numpy as np
-
-action = requests.post(
-    "http://0.0.0.0:8000/act",
-    json={"image": np.zeros((256, 256, 3), dtype=np.uint8), "instruction": "do something"}
-).json()
-
-Note that if your server is not accessible on the open web, you can use ngrok, or forward ports to your client via ssh:
-    => `ssh -L 8000:localhost:8000 ssh USER@<SERVER_IP>`
 """
 
 import os.path
+import settings
 
 # ruff: noqa: E402
 import json_numpy
@@ -119,7 +101,7 @@ class OpenVLAServer:
             )
             return "error"
 
-    def run(self, host: str = "0.0.0.0", port: int = 8000) -> None:
+    def run(self, host: str = settings.server_url, port: int = settings.port) -> None:
         self.app = FastAPI()
         self.app.post("/act")(self.predict_action)
         uvicorn.run(self.app, host=host, port=port)
@@ -131,8 +113,8 @@ class DeployConfig:
     openvla_path: Union[str, Path] = "openvla/openvla-7b"               # HF Hub Path (or path to local run directory)
 
     # Server Configuration
-    host: str = "127.0.0.1"                                             # Host IP Address
-    port: int = 8000                                                    # Host Port
+    host: str = settings.server_url                                     # Host IP Address
+    port: int = settings.port                                           # Host Port
 
     # fmt: on
 

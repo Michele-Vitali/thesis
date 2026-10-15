@@ -1,69 +1,9 @@
 import copy
-import math
 
 import numpy as np
-
 import settings
-from switch_controller import switch_arm_controller
 from robosuite.environments.manipulation.single_arm_env import SingleArmEnv
-
-
-def _read_joint_state(env: "SingleArmEnv"):
-    """Read current arm joint positions and velocities.
-    
-    Args:
-        env (SingleArmEnv): The simulation environment.
-    
-    Returns:
-        (np.ndarray, np.ndarray): A tuple where the first array are the joint's positions and the second array are the joint's velocities. 
-    """
-
-    # Grab the robot instance.
-    robot = env.robots[0]
-
-    # Grab the joint's positions and velocities.
-    qpos = np.asarray(env.sim.data.qpos[robot._ref_joint_pos_indexes], dtype=float).copy()
-    qvel = np.asarray(env.sim.data.qvel[robot._ref_joint_vel_indexes], dtype=float).copy()
-
-    return (qpos, qvel)
-
-
-def _joint_delta_to_action(controller, delta: np.ndarray):
-    """
-    Convert a desired joint displacement (radians) into a normalized action for robosuite JOINT_POSITION.
-
-    Args:
-        controller: The current controller.
-        delta (np.ndarray): The delta from which we should compute the corresponding action.
-    
-    Returns:
-        np.ndarray: The action array.
-    """
-
-    # Ensure the delta format is correct.
-    delta = np.asarray(delta, dtype=float)
-    n = delta.size
-
-    # Define the controller's input/output minimum/maximum actions.
-    input_min = np.broadcast_to(np.asarray(controller.input_min, dtype=float), (n,))
-    input_max = np.broadcast_to(np.asarray(controller.input_max, dtype=float), (n,))
-    output_min = np.broadcast_to(np.asarray(controller.output_min, dtype=float), (n,))
-    output_max = np.broadcast_to(np.asarray(controller.output_max, dtype=float), (n,))
-
-    # Compute the range of output.
-    output_span = output_max - output_min
-
-    # Check if the range is valid.
-    if np.any(output_span <= 0):
-        raise ValueError("Invalid JOINT_POSITION output limits.")
-
-    # Invert the action scaling performed by robosuite.
-    action = (delta - output_min) / output_span * (input_max - input_min) + input_min
-
-    return np.clip(action, input_min, input_max)
-
-
-import numpy as np
+from switch_controller import switch_arm_controller
 
 
 def move_to_home(env: "SingleArmEnv", home_qpos: np.ndarray = settings.starting_pose, tolerance: float = 0.02, max_steps: float = 500):
@@ -103,8 +43,8 @@ def move_to_home(env: "SingleArmEnv", home_qpos: np.ndarray = settings.starting_
 
         action_joints = input_min + ((np.clip(error, output_min, output_max) - output_min) / (output_max - output_min)) * (input_max - input_min)
 
-        # Last dimension controls the gripper: 0 = HOLD
-        action = np.concatenate([action_joints, [0.0]])
+        # Last dimension controls the gripper: 1.0 = Fully open
+        action = np.concatenate([action_joints, [1.0]])
 
         _, _, done, _ = env.step(action)
         env.render()
@@ -115,13 +55,12 @@ def move_to_home(env: "SingleArmEnv", home_qpos: np.ndarray = settings.starting_
     raise RuntimeError("Failed to reach HOME!")
 
 def prepare_episode(env: "SingleArmEnv", joint_config: dict | None = None, osc_config : dict | None = None):
-    """
-    Prepare a new simulation episode.
+    """Prepares the simulation environment for a new episode.
 
-    1. Reset using JOINT_POSITION.
-    2. Move from REST to HOME.
-    3. Switch to the original custom OSC_POSE.
-    4. Return the initial observation for the task.
+    Args:
+        env (SingleArmEnv): The simulation environment.
+        joint_config (dict, optional): The JOINT_POSITION controller configuration dict. Defaults to None.
+        osc_config (dict, optional): The OSC_POSE controller configuration dict. Defaults to None.
     """
 
     # Grab the robot's instance.

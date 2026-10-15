@@ -335,7 +335,7 @@ def pick_and_place_action(env: "SingleArmEnv", obj, pos: np.ndarray, quat: np.nd
         return (None, total_steps)
 
     # Close the gripper.
-    movements_ctrl.toggle_grab(record=record)
+    movements_ctrl.set_gripper(target=0.0, record=record)
 
     # Change the controller kp and damping ratio to compensate object's inertia...
     set_osc_gains(env, kp=settings.grasp_kp, damping_ratio=settings.grasp_damping)
@@ -374,7 +374,7 @@ def pick_and_place_action(env: "SingleArmEnv", obj, pos: np.ndarray, quat: np.nd
         return (None, total_steps)
     
     # Open the gripper.
-    movements_ctrl.toggle_grab(record=record)
+    movements_ctrl.set_gripper(target=1.0, record=record)
 
     # Reset controller configuration...
     set_osc_gains(env, kp=settings.free_kp, damping_ratio=settings.free_damping)

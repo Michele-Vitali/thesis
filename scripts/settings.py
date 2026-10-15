@@ -125,3 +125,9 @@ osc_config = {
     "q5_avoidance_max_torque": 4.0,
     "q5_avoidance_damping": 0.75,
 }
+
+# OpenVLA Client/Server configurations
+server_url = "http://127.0.0.1"
+port = 8000
+unnorm_key = ""
+timeout = 120 # 120 s = 2 mins

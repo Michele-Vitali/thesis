@@ -200,8 +200,8 @@ class OSCMovementController:
 
         action[3:6] = np.clip(normalized_rotation, -max_rotation_action, +max_rotation_action)
 
-        # Hold the current gripper position while moving the arm.
-        action[6] = 0.0
+        # Hold the current gripper state.
+        action[6] = self.gripper_state
 
         return action
 
@@ -415,3 +415,45 @@ class OSCMovementController:
             print("Gripper did not fully toggle!")
 
         return True
+
+    def set_gripper(self, target: float, max_steps: int = 50, tolerance: float = 0.02, record: bool = False) -> bool:
+
+
+        if not 0.0 <= target <= 1.0:
+            raise ValueError(f"Invalid gripper target! Must be in [0, 1], got {target}")
+
+        # Grab the robot's instance.
+        robot = self.env.robots[0]
+
+        # Remember the target for next OSC movements.
+        self.gripper_state = float(target)
+
+        # Initialize empty action and set the gripper state to the desired one.
+        action = np.zeros(self.env.action_dim, dtype=float)
+        action[-1] = self.gripper_state
+
+        # Read the physical actuator limits.
+        actuator_idx = robot._ref_joint_gripper_actuator_indexes[0]
+        lower, upper = self.env.sim.model.actuator_ctrlrange[actuator_idx]
+
+        # Convert normalized target to physical joint target.
+        target_qpos = lower + target * (upper - lower)
+
+        # Read the first physical gripper joint.
+        joint_idx = robot._ref_gripper_joint_pos_indexes[0]
+
+        for _ in range(max_steps):
+            # Grab the current observation.
+            observation = self.env._get_observations()
+
+            # Execute the step and eventually record it.
+            self._step(action=action, observation=observation, record=record)
+
+            # Read the actual joint position.
+            current_qpos = float(self.env.sim.data.qpos[joint_idx])
+
+            # Stop if the physical target has been reached.
+            if abs(current_qpos - target_qpos) < tolerance:
+                return True
+
+        return False

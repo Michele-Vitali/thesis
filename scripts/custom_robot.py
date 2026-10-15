@@ -59,11 +59,10 @@ class PRob3Gripper(GripperModel):
     def format_action(self, action: np.ndarray):
         """Formats the passed gripper action in the convention:
             - +1 = Fully open
-            - -1 = Fully closed
-            - 0 = Hold the current position
+            - 0 = Fully closed
             
         Args:
-            action (np.ndarray): The passed gripper action
+            action (np.ndarray): The passed gripper action.
 
         Returns:
             np.ndarray: the formatted action.
@@ -73,12 +72,29 @@ class PRob3Gripper(GripperModel):
         action = np.asarray(action, dtype=float).reshape(-1)
 
         # If an action longer than 1 was passed we have an error!
-        assert len(action) == 1
+        if action.size != 1:
+            raise ValueError(f"Expected a 1D gripper target, got {action.size}")
 
         # Clip the action value between -1.0 and 1.0
-        self.current_action = np.clip(self.current_action + self.speed * np.sign(action), -1.0, 1.0)
+        if not np.all(np.isfinite(action)):
+            raise ValueError("Invalid gripper target!")
 
-        return self.current_action
+        # Clip the target in the desired range
+        target = np.clip(action, 0.0, 1.0)
+
+        desired_action = 2.0 * target - 1.0
+
+        max_delta = self.speed
+
+        current = np.asarray(self.current_action, dtype=float).reshape(-1)
+
+        delta = desired_action - current
+        delta = np.clip(delta, -max_delta, max_delta)
+
+        # Internal conversion required by robosuite 1.4...
+        self.current_action = np.clip(current + delta, -1.0, 1.0)
+
+        return self.current_action.copy()
 
 GRIPPER_MAPPING["PRob3Gripper"] = PRob3Gripper
 
@@ -171,6 +187,16 @@ class PRob3SingleArm(SingleArm):
             # P-Grip starts completely open
             self.gripper.current_action = np.array([1.0])
     
+    @property
+    def action_limits(self):
+        # Grab the define control limits.
+        low, high = self.controller.control_limits
 
+        # If the robot has a mounted gripper, then return the control limits as np.ndarray
+        if self.has_gripper:
+            low = np.concatenate([np.asarray(low, dtype=float), np.array([0.0])])
+            high = np.concatenate([np.asarray(high, dtype=float), np.array([1.0])])
+
+        return np.asarray(low), np.asarray(high)
 
 ROBOT_CLASS_MAPPING["PRob3"] = PRob3SingleArm
