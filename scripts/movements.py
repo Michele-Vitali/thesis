@@ -361,7 +361,7 @@ class OSCMovementController:
         # Return the tuple that we receive from the move_eef_to_pose function!
         return self.move_eef_to_pose(target_pos=target_eef_pos, target_rotation=target_rotation, max_steps=max_steps, position_tolerance=position_tolerance, rotation_tolerance_deg=rotation_tolerance_deg, payload_compensation=payload_compensation, record=record)
 
-    def toggle_grab(self, max_steps: int = 50, settle_steps: int = 4, record: bool = True) -> bool:
+    '''def toggle_grab(self, max_steps: int = 50, settle_steps: int = 4, record: bool = True) -> bool:
         """
         Toggles the current gripper's state. If the action was holding the current pose, we keep holding it!
 
@@ -380,7 +380,7 @@ class OSCMovementController:
         """
 
         # Invert the current gripper state!
-        self.gripper_state = -self.gripper_state
+        self.gripper_state = 1.0 - self.gripper_state
         target_state = float(self.gripper_state)
 
         # Initialize a "blank" action
@@ -415,7 +415,8 @@ class OSCMovementController:
             print("Gripper did not fully toggle!")
 
         return True
-
+    '''
+        
     def set_gripper(self, target: float, max_steps: int = 50, tolerance: float = 0.02, record: bool = False) -> bool:
 
 

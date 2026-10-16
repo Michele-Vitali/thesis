@@ -1,12 +1,17 @@
+import time
+
+import custom_env
+import custom_robot
+import mujoco
+import numpy as np
 import robosuite as suite
 import settings
 from custom_osc import install_prob3_custom_osc
-from robosuite.controllers import load_controller_config
-from vla_client import OpenVLAClient
 from homing import prepare_episode
-import time
+from robosuite.controllers import load_controller_config
 from robosuite.environments.manipulation.single_arm_env import SingleArmEnv
-import numpy as np
+from vla_client import OpenVLAClient
+
 
 def main():
 
@@ -38,11 +43,17 @@ def main():
             reward_shaping=True, # Not useful in our case but had implemented it anyway...
         )
 
+    # 3.1 Remove rangefinders visualization...
+    context = getattr(env.sim, "_render_context_offscreen", None)
+
+    if context is not None:
+        context.vopt.flags[mujoco.mjtVisFlag.mjVIS_RANGEFINDER] = 0
+
     # 4. Instantiate the OpenVLAClient.
     client = OpenVLAClient(
         server_url = settings.server_url,
         unnorm_key=settings.unnorm_key,
-        timeout=settings.timeout,
+        timeout=settings.server_timeout,
     )
 
     results = []
@@ -75,7 +86,6 @@ def main():
         if env.robots[0].action_dim != 7:
             raise RuntimeError(f"Expected robot action_dim = 7, got {env.robots[0].action_dim}")
 
-        grip_adapter = None
         t0 = time.monotonic()
 
         error, total_steps = execute_task(env, observation, client)
@@ -124,9 +134,8 @@ def execute_task(env: "SingleArmEnv", obs: dict, client: OpenVLAClient, max_step
 
     # Counter and flag variables
     total_steps = 0
-    success = False
 
-    for step in range(max_steps):
+    for _ in range(max_steps):
         # Prepare the image in the correct expected format.
         image = prepare_rgb(obs)
 
@@ -134,14 +143,11 @@ def execute_task(env: "SingleArmEnv", obs: dict, client: OpenVLAClient, max_step
         prediction = client.predict(image, settings.dataset_task)
 
         # We must adapt the output (e.g. the gripper action as we use different conventions...)
-        action = adapt_action(prediction, step, env, obs)
-
-        # Debug prints
-        if step % 20 == 0:
-            print(f"Step {step}.\nPrediction: {np.array2string(prediction, precision=3)}.\nActual action: {np.array2string(action, precision=3)}")
+        action = adapt_action(prediction)
 
         # Execute the action
         obs, _, _, _ = env.step(action)
+        env.render()
         total_steps += 1
 
         # Check for success...
@@ -157,7 +163,6 @@ def execute_task(env: "SingleArmEnv", obs: dict, client: OpenVLAClient, max_step
                 break
 
     return (error, total_steps)
-
 
 def prepare_rgb(obs: dict):
 

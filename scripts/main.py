@@ -52,6 +52,7 @@ def main():
             # Loop to ensure we get N successes (and not N simulations, as failures should not be included or the model will learn on bad episodes...)
             while successes < n_tasks:
                 prepare_episode(env, joint_config, osc_config)
+                configure_task(env)
                 (error, steps) = execute_task(successes, env, recorder, record)
                 success = check_task_success(error)
 
@@ -152,6 +153,26 @@ def print_final_report(n_successes: int, n_total_tasks: int, recorder: HDF5Recor
     print(f"Average final error from the drop point: {averages[0]: 0.5f}")
     print(f"Average number of steps per episode: {averages[1]: 0.5f}")
 
+def configure_task(env: "SingleArmEnv"):
+    """    
+    Prepares the task for the simulation.
+
+    Args:
+        env (SingleArmEnv): The simulation environment.
+    """
+
+    # Grab the model instance.
+    model = env.sim.model
+
+    # Modify the camera FOV
+    camera_id = model.camera_name2id(settings.dataset_camera_name)
+    model.cam_fovy[camera_id] = 70.0
+
+    # Enable shadows
+    model.light_castshadow[0] = 1
+    model.light_active[0] = 1
+
+    env.sim.forward()
 
 def create_randomized_env(config: dict | None) -> DomainRandomizationWrapper:
     """This function creates and initializes the simulation environment with the configurations chosen in the 'settings' file.
@@ -182,7 +203,7 @@ def create_randomized_env(config: dict | None) -> DomainRandomizationWrapper:
         control_freq=settings.dataset_fps,
         controller_configs=config,
         hard_reset=False, # Avoids segfault on macos or glfw error on Linux (per docs...)
-        horizon=1000, # So we are sure that all the pick and places terminate
+        horizon=1500, # So we are sure that all the pick and places terminate
         reward_shaping=True, # Not useful in our case but had implemented it anyway...
     )
 
@@ -198,15 +219,30 @@ def create_randomized_env(config: dict | None) -> DomainRandomizationWrapper:
         env,
         randomize_color=True,
         randomize_lighting=True,
-        randomize_camera=True,
+        randomize_camera=False,
         randomize_dynamics=False, # Seems useful but for the first trainings we avoid using this...
         randomize_on_reset=True, # SO the arena gets re-randomized every time we reset the env
         randomize_every_n_steps=0, # Randomization must not happen during the episode
+        lighting_randomization_args={
+        "light_names": None,
+        "randomize_position": True,
+        "randomize_direction": True,
+        "randomize_ambient": True,
+        "randomize_diffuse": True,
+        "randomize_specular": True,
+        "randomize_active": False,
+        "position_perturbation_size": 0.05,
+        "direction_perturbation_size": 0.15,
+        "ambient_perturbation_size": 0.05,
+        "diffuse_perturbation_size": 0.10,
+        "specular_perturbation_size": 0.03,
+    },
     )
 
     env.reset()
+    configure_task(env)
 
-    # Useful code to avoid some rendering issues...
+    # Disable the rangefinders rays...
     offscreen_context = getattr(env.sim, "_render_context_offscreen", None)
 
     if offscreen_context is not None:
@@ -295,6 +331,7 @@ def pick_and_place_action(env: "SingleArmEnv", obj, pos: np.ndarray, quat: np.nd
     # Define the height from the TABLE and not the cube (otherwise bigger cubes would go higher!)
     table_z = float(env.mujoco_arena.table_top_abs[2])
     object_half_height = max(grasp_pos[2] - table_z, 0.0)
+    initial_cube_z = float(grasp_pos[2])
 
     # Define the position OVER the object
     above_object_pos = grasp_pos.copy()
@@ -319,14 +356,16 @@ def pick_and_place_action(env: "SingleArmEnv", obj, pos: np.ndarray, quat: np.nd
     total_steps = 0
 
     # Move over the object.
+    recorder.phase = "approach"
     done, steps = movements_ctrl.move_robot_to_position(above_object_pos, quat, record=record)
     total_steps += steps
 
     if not done:
-        print("OSC failed while moving above the object.")
+        print("OSC failed during approach.")
         return (None, total_steps)
 
     # Descend to the object.
+    recorder.phase = "descend"
     done, steps = movements_ctrl.move_robot_to_position(grasp_pos, quat, record=record)
     total_steps += steps
 
@@ -334,22 +373,39 @@ def pick_and_place_action(env: "SingleArmEnv", obj, pos: np.ndarray, quat: np.nd
         print("OSC failed during grasp descent.")
         return (None, total_steps)
 
+    # Capture actual open finger positions before grasping the cube.
+    finger_indices = env.robots[0]._ref_gripper_joint_pos_indexes
+    open_qpos = np.asarray(env.sim.data.qpos[finger_indices], dtype=float).copy()
+
     # Close the gripper.
+    recorder.phase = "grasp"
     movements_ctrl.set_gripper(target=0.0, record=record)
+    closed_qpos = np.asarray(env.sim.data.qpos[finger_indices], dtype=float).copy()
+
+    if not np.all(open_qpos - closed_qpos >= 0.10):
+        print("[INVALID] Gripper did not sufficiently close: open={open_qpos} closed={closed_qpos}")
+        return (None, total_steps)
 
     # Change the controller kp and damping ratio to compensate object's inertia...
     set_osc_gains(env, kp=settings.grasp_kp, damping_ratio=settings.grasp_damping)
 
     # Lift the object vertically to the transport height.
     # Note: We use payload compensation and some tolerances to achieve higher precision in some particular movements
+    recorder.phase = "lift"
     done, steps = movements_ctrl.move_robot_to_position(transport_pos, quat, payload_compensation=True, position_tolerance=post_grasp_pos_tolerance, rotation_tolerance_deg=post_grasp_rot_tolerance, record=record)
     total_steps += steps
 
     if not done:
         print("OSC failed during vertical lift.")
         return (None, total_steps)
+
+    lifted_cube_z = float(env.sim.data.body_xpos[obj_id][2])
+    if lifted_cube_z - initial_cube_z < 0.025:
+        print(f"[INVALID] Cube did not lift with gripper: delta_z={(lifted_cube_z - initial_cube_z)*1000:.1f} mm")
+        return (None, total_steps)
     
     # Move diagonally above the central drop point.
+    recorder.phase = "transport"
     done, steps = movements_ctrl.move_robot_to_position(above_drop_pos, quat, payload_compensation=True, record=record)
     total_steps += steps
 
@@ -358,6 +414,7 @@ def pick_and_place_action(env: "SingleArmEnv", obj, pos: np.ndarray, quat: np.nd
         return (None, total_steps)
 
     # Now just align the cube!
+    recorder.phase = "align"
     done, steps = movements_ctrl.move_robot_to_position(above_drop_pos, payload_compensation=True, record=record)
     total_steps += steps
 
@@ -366,6 +423,7 @@ def pick_and_place_action(env: "SingleArmEnv", obj, pos: np.ndarray, quat: np.nd
         return (None, total_steps)
 
     # Descend to drop position.
+    recorder.phase = "lower"
     done, steps = movements_ctrl.move_robot_to_position(drop_pos, payload_compensation=False, record=record)
     total_steps += steps
 
@@ -374,6 +432,7 @@ def pick_and_place_action(env: "SingleArmEnv", obj, pos: np.ndarray, quat: np.nd
         return (None, total_steps)
     
     # Open the gripper.
+    recorder.phase = "release"
     movements_ctrl.set_gripper(target=1.0, record=record)
 
     # Reset controller configuration...
@@ -382,9 +441,18 @@ def pick_and_place_action(env: "SingleArmEnv", obj, pos: np.ndarray, quat: np.nd
     # Some debug/report code...
     final_object_pos = (env.sim.data.body_xpos[obj_id].copy())
     center_error = np.linalg.norm(final_object_pos[:2] - np.asarray(settings.drop_point, dtype=float))
+    z_error = abs(float(final_object_pos[2] - initial_cube_z))
+    released_qpos = np.asarray(env.sim.data.qpos[finger_indices], dtype=float).copy()
+    gripper_reopened = bool(np.all(np.abs(released_qpos - open_qpos) < 0.08))
+
     print(f"Final error between drop point ad actual position: {center_error: .5f}m")
 
+    if z_error > 0.015 or not gripper_reopened:
+        print("[INVALID] Cube not resting on table or gripper not open.")
+        return (None, total_steps)
+
     return (center_error, total_steps)
+
 
 def set_osc_gains(env, kp: np.ndarray, damping_ratio: np.ndarray) -> None:
     """This function is used to change the OSC controller's kp and damping ration configurations for grasping to compensate the grasped object's inertia.

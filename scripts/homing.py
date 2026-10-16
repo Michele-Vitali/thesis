@@ -20,7 +20,7 @@ def move_to_home(env: "SingleArmEnv", home_qpos: np.ndarray = settings.starting_
     # Ensure the pose array format.
     home_qpos = np.asarray(home_qpos, dtype=float)
 
-    for step in range(max_steps):
+    for _ in range(max_steps):
         # Current joint positions
         qpos = env.sim.data.qpos[robot._ref_joint_pos_indexes].copy()
 
@@ -32,7 +32,6 @@ def move_to_home(env: "SingleArmEnv", home_qpos: np.ndarray = settings.starting_
 
         # Check if withing position tolerance and slow enough.
         if np.max(np.abs(error)) < tolerance and np.max(np.abs(qvel)) < 0.05:
-            print(f"HOME reached in {step} steps!")
             return
 
         # Convert joint displacement into controller action
@@ -47,7 +46,8 @@ def move_to_home(env: "SingleArmEnv", home_qpos: np.ndarray = settings.starting_
         action = np.concatenate([action_joints, [1.0]])
 
         _, _, done, _ = env.step(action)
-        env.render()
+        if env.has_renderer:
+            env.render()
 
         if done:
             raise RuntimeError("Episode ended during homing!")

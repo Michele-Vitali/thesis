@@ -18,7 +18,7 @@ class OpenVLAClient:
         - A 7D numpy action vector
     """
 
-    def __init__(self, server_url: str = settings.server_url, unnorm_key: str = settings.unnorm_key, timeout: int = settings.timeout):
+    def __init__(self, server_url: str = settings.server_url, unnorm_key: str = settings.unnorm_key, timeout: int = settings.server_timeout):
         """Initializes an OpenVLA client.
 
         Args:
@@ -57,8 +57,8 @@ class OpenVLAClient:
         image = np.asarray(image)
 
         # Various checks on parameters format.
-        if image.ndim != 3 or image.shape[-1] != -3:
-            raise ValueError(f"An RGB image (H, W, 3) was expected, got {image.shape}.")
+        if image.ndim != 3 or image.shape[-1] != 3:
+            raise ValueError(f"Expected an RGB image (H, W, 3) was expected, got {image.shape}.")
 
         if image.dtype != np.uint8:
             raise ValueError("Image must have a dtype uint8.")

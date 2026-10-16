@@ -11,7 +11,7 @@ THESIS_ROOT="$HOME/Scrivania/thesis"
 
 OPENVLA_ENV="$THESIS_ROOT/openvla_env"
 
-DATA_ROOT="$THESIS_ROOT/data/rlds"
+DATA_ROOT="$THESIS_ROOT/rlds_data/rlds"
 
 RUN_ROOT="$THESIS_ROOT/runs/openvla"
 
@@ -68,11 +68,11 @@ BATCH_SIZE=8
 
 GRAD_ACCUMULATION_STEPS=1
 
-LEARNING_RATE=5e-4
+LEARNING_RATE=2e-5
 
-MAX_STEPS=10000
+MAX_STEPS=4000
 
-SAVE_STEPS=1000
+SAVE_STEPS=500
 
 IMAGE_AUG=True
 
@@ -83,7 +83,7 @@ SHUFFLE_BUFFER_SIZE=10000
 # RUN IDENTIFICATION
 # ================================================================
 
-RUN_NOTE="prob3_lora"
+RUN_NOTE="prob3_lora_v2"
 
 
 # ================================================================
@@ -190,7 +190,7 @@ CMD=(
 # No training is started.
 # ================================================================
 
-DRY_RUN=1
+DRY_RUN=0
 
 
 if [[ "$DRY_RUN" == "1" ]]; then

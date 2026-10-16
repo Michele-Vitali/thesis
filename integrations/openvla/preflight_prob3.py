@@ -25,7 +25,7 @@ THESIS_ROOT = THIS_FILE.parents[2]
 
 DATA_ROOT = (
     THESIS_ROOT
-    / "data"
+    / "rlds_data"
     / "rlds"
 )
 

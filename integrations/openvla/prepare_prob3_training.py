@@ -33,27 +33,48 @@ def find_latest_run(project_root: Path) -> Path:
     return candidates[-1]
 
 
+
 def build_view(view_path: Path, selected_ids: list[str], inventory: list[dict], task: str) -> None:
-    """Make a tiny HDF5 with external links to the selected raw episodes."""
+    """
+    Create an HDF5 split using relative External Links.
+
+    The split and its source datasets remain connected
+    when the whole project directory is moved intact.
+    """
+    import os
+
     by_id = {episode["id"]: episode for episode in inventory}
+
     if len(set(selected_ids)) != len(selected_ids):
-        raise ValueError(f"IDs duplicati nello split {view_path.stem}")
+        raise ValueError(f"Duplicate IDs in split {view_path.stem}")
+
+    view_path.parent.mkdir(parents=True, exist_ok=True)
+
     with h5py.File(view_path, "w") as handle:
         group = handle.create_group("data")
+
         group.attrs["task"] = task
         group.attrs["num_demos"] = len(selected_ids)
+
         for index, episode_id in enumerate(selected_ids):
             episode = by_id[episode_id]
-            source = Path(episode["hdf5"]).resolve()
-            group[f"demo_{index}"] = h5py.ExternalLink(str(source), f"/data/{episode['demo']}")
 
-    # Check all external links can be opened and point to expected trajectories.
+            source = Path(episode["hdf5"]).expanduser().resolve(strict=True)
+
+            relative_source = os.path.relpath(source, start=view_path.parent.resolve())
+
+            group[f"demo_{index}"] = h5py.ExternalLink(relative_source, f"/data/{episode['demo']}")
+
+    # Validate every external link immediately.
     with h5py.File(view_path, "r") as handle:
         for index, episode_id in enumerate(selected_ids):
             expected_length = by_id[episode_id]["frames"]
+
             actual_length = len(handle["data"][f"demo_{index}"]["actions_openvla"])
+
             if actual_length != expected_length:
-                raise AssertionError(f"Link non valido: {episode_id}: {actual_length} != {expected_length}")
+                raise AssertionError(f"Invalid HDF5 link: {episode_id}: {actual_length} != {expected_length}")
+
 
 
 def main() -> int:

@@ -1,3 +1,4 @@
+import json
 from datetime import datetime
 from pathlib import Path
 
@@ -6,41 +7,11 @@ import numpy as np
 import settings
 from scipy.spatial.transform import Rotation as R
 
+PHASE_NAMES = ("approach", "descend", "grasp", "lift", "transport", "align", "lower", "release")
+PHASE_TO_ID = {name: idx for idx, name in enumerate(PHASE_NAMES)}
+
 
 class HDF5Recorder:
-    """
-    Recorder for P-Rob3 simulated demonstrations.
-
-    Each successful episode is stored inside one HDF5 file using a
-    LIBERO / OpenVLA-like structure:
-
-        data/
-            demo_0/
-                obs/
-                    agentview_rgb
-                    joint_states
-                    gripper_states
-                    ee_states
-                    ee_pos
-                    ee_ori
-
-                actions
-                actions_openvla
-                states
-                robot_states
-                rewards
-                dones
-
-    `actions` contains the exact 7D OSC action sent to robosuite.
-
-    `actions_openvla` contains the same first 6 dimensions, while
-    converting the gripper to:
-
-        0 = closed
-        1 = open
-
-    Failed demonstrations are never written to disk.
-    """
 
     def __init__(self):
         # The recorder is intentionally LAZY: no directory or HDF5 file
@@ -77,6 +48,13 @@ class HDF5Recorder:
         """
         Reset all temporary buffers for the current episode.
         """
+
+        self.phase = "approach"
+        self._phase_ids = []
+        self._previous_actions = []
+        self._gripper_targets = []
+        self._timestamps = []
+        self._last_recorded_action = np.zeros(7, dtype=np.float32)
 
         self.images = []
 
@@ -124,6 +102,8 @@ class HDF5Recorder:
         if image.shape != expected_shape:
             raise ValueError(f"Unexpected image shape: {image.shape}, expected {expected_shape}.")
 
+        image = np.flipud(image).copy()
+
         return np.ascontiguousarray(image)
 
     def _get_gripper_state(self, observation: dict) -> np.ndarray:
@@ -150,8 +130,8 @@ class HDF5Recorder:
         if not np.all(np.isfinite(action)):
             raise ValueError("Action contains invalid values!")
 
-        if not 0.0 <= action[-1] <= 1.0:
-            raise ValueError(f"Invalid gripper target: {action[-1]}")
+        if not (np.isclose(action[6], 0.0, atol=1e-5) or np.isclose(action[6], 1.0, atol=1e-5)):
+            raise ValueError(f"New dataset requires absolute gripper targets 0=CLOSED, 1=OPEN. Received action[6]={action[6]:.5f}.")
 
         return action.copy()
 
@@ -224,6 +204,12 @@ class HDF5Recorder:
 
         self.robot_states.append(robot_state)
 
+        self._phase_ids.append(PHASE_TO_ID[self.phase])
+        self._previous_actions.append(self._last_recorded_action.copy())
+        self._gripper_targets.append(float(action[6]))
+        self._timestamps.append(len(self._timestamps) / float(settings.dataset_fps))
+        self._last_recorded_action = action.copy()
+
     def save_episode(self):
         """
         Write the buffered successful demonstration to HDF5.
@@ -236,6 +222,11 @@ class HDF5Recorder:
             return
 
         self._open_on_first_save()
+
+        phases = np.asarray(self._phase_ids, dtype=np.uint8)
+        previous_actions = np.stack(self._previous_actions).astype(np.float32)
+        gripper_targets = np.asarray(self._gripper_targets, dtype=np.float32).reshape(-1, 1)
+        timestamps = np.asarray(self._timestamps, dtype=np.float64)
 
         episode_name = f"demo_{self.saved_episodes}"
 
@@ -266,6 +257,16 @@ class HDF5Recorder:
         episode_group.create_dataset("states", data=np.stack(self.sim_states, axis=0), dtype=np.float32)
 
         episode_group.create_dataset("robot_states", data=np.stack(self.robot_states, axis=0), dtype=np.float32)
+
+        episode_group.create_dataset("phase_id", data=phases)
+        episode_group.create_dataset("timestamp", data=timestamps)
+
+        obs_group.create_dataset("previous_action", data=previous_actions)
+        episode_group.create_dataset("gripper_command", data=gripper_targets)
+
+        episode_group.attrs["phase_id_to_name"] = json.dumps(PHASE_NAMES)
+        episode_group.attrs["gripper_convention"] = "absolute: 0=closed,1=open"
+        episode_group.attrs["recorder_version"] = "v2_camera_shadow"
 
         rewards = np.zeros(num_frames, dtype=np.uint8)
 

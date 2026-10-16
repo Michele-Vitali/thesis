@@ -68,6 +68,4 @@ def switch_arm_controller(env: "SingleArmEnv", controller_config: dict):
     if not np.allclose(qvel_before, qvel_after, atol=1e-10):
         raise RuntimeError("The controller switch has changed the joint velocities!")
 
-    print(f"Active controller: {robot.controller.name} | action_dim = {robot.action_dim}")
-
     return robot.controller

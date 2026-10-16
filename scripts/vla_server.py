@@ -93,28 +93,29 @@ class OpenVLAServer:
                 return JSONResponse(action)
         except:  # noqa: E722
             logging.error(traceback.format_exc())
-            logging.warning(
-                "Your request threw an error; make sure your request complies with the expected format:\n"
-                "{'image': np.ndarray, 'instruction': str}\n"
-                "You can optionally an `unnorm_key: str` to specific the dataset statistics you want to use for "
+            logging.warning("Your request threw an error; make sure your request complies with the expected format:\n"
+                "{'image': np.ndarray, 'instruction': str}\nYou can optionally an `unnorm_key: str` to specific the dataset statistics you want to use for "
                 "de-normalizing the output actions."
             )
             return "error"
 
-    def run(self, host: str = settings.server_url, port: int = settings.port) -> None:
+    def run(self, host: str = settings.server_host, port: int = settings.server_port) -> None:
         self.app = FastAPI()
         self.app.post("/act")(self.predict_action)
+        print("=" * 60)
+        print("[SERVER DEBUG] Host:", repr(host))
+        print("[SERVER DEBUG] Port:", repr(port))
+        print("=" * 60)
         uvicorn.run(self.app, host=host, port=port)
-
 
 @dataclass
 class DeployConfig:
     # fmt: off
-    openvla_path: Union[str, Path] = "openvla/openvla-7b"               # HF Hub Path (or path to local run directory)
+    openvla_path: Union[str, Path] = settings.openvla_path              # HF Hub Path (or path to local run directory)
 
     # Server Configuration
-    host: str = settings.server_url                                     # Host IP Address
-    port: int = settings.port                                           # Host Port
+    host: str = settings.server_host                                     # Host IP Address
+    port: int = settings.server_port                                    # Host Port
 
     # fmt: on
 

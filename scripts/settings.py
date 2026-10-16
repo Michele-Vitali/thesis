@@ -5,8 +5,8 @@ import numpy as np
 env_name = "CustomTask"
 robot = "PRob3"
 gripper_types = "PRob3Gripper"
-render_on_screen = True    # Set to false for faster simulations
-record = False
+render_on_screen = False    # Set to false for faster simulations
+record = True
 
 # Environment variables
 max_reachable_x = 0.55 # It is 60cm, but we take a margin and set it to 55cm
@@ -54,8 +54,8 @@ drop_clearance = 0.01
 # Lower the original front camera without changing its orientation (the following values have been collected by testing)
 # camera_init_pos = [1.6, 0.0, 1.45]
 # camera_init_quat = [0.561, 0.431, 0.431, 0.561]
-camera_pos = np.array([1.6, 0.0, 1.05])
-camera_quat = np.array([0.561, 0.431, 0.431, 0.561])
+camera_pos = np.array([0.8, -0.7, 0.55])
+camera_quat = np.array([0.661, 0.553, 0.326, 0.392])
 
 # Starting pose for the robot sim
 starting_pose = np.array([0.0, -0.366, 0.800, 0.0, 1.137, 0.0]) # Top-down grasp
@@ -78,9 +78,9 @@ final_tolerance = 0.005
 # Other values
 n_objects = 1
 
-# LeRobot dataset
+# RLDS dataset
 dataset_root = str(Path(__file__).resolve().parents[1] / "hdf5_data")
-dataset_name = "prob3_pick_place"
+dataset_name = "prob3_pick_place_shadows"
 
 dataset_fps = 20
 
@@ -127,7 +127,9 @@ osc_config = {
 }
 
 # OpenVLA Client/Server configurations
-server_url = "http://127.0.0.1"
-port = 8000
-unnorm_key = ""
-timeout = 120 # 120 s = 2 mins
+server_host = "127.0.0.1"
+server_port = 8000
+server_url = f"http://{server_host}:{server_port}"
+unnorm_key = "prob3_pick_place"
+server_timeout = 120 # 120 s = 2 mins
+openvla_path = "runs/openvla/openvla-7b+prob3_pick_place+b8+lr-0.0005+lora-r32+dropout-0.0--prob3_first_8k--image_aug"
