@@ -149,9 +149,18 @@ def print_final_report(n_successes: int, n_total_tasks: int, recorder: HDF5Recor
     print(f"Dataset episodes currently saved: {recorder.saved_episodes}")
     print("=" * 60)
     np_results = np.array(results)
-    averages = np.mean(np_results, axis=0)
-    print(f"Average final error from the drop point: {averages[0]: 0.5f}")
-    print(f"Average number of steps per episode: {averages[1]: 0.5f}")
+    errors = np_results[:, 0]
+    steps = np_results[:, 1]
+
+    valid_mask = (errors != None)
+
+    filtered_errors = errors[valid_mask]
+    filtered_steps = steps[valid_mask]
+
+    average_err = np.mean(filtered_errors)
+    average_steps = np.mean(filtered_steps)
+    print(f"Average final error from the drop point: {average_err: 0.5f}")
+    print(f"Average number of steps per episode: {average_steps: 0.5f}")
 
 def configure_task(env: "SingleArmEnv"):
     """    
@@ -167,10 +176,6 @@ def configure_task(env: "SingleArmEnv"):
     # Modify the camera FOV
     camera_id = model.camera_name2id(settings.dataset_camera_name)
     #model.cam_fovy[camera_id] = settings.dataset_camera_fovy
-
-    # Enable shadows
-    model.light_castshadow[0] = 1
-    model.light_active[0] = 1
 
     env.sim.forward()
 
@@ -219,34 +224,30 @@ def create_randomized_env(config: dict | None) -> DomainRandomizationWrapper:
         env,
         randomize_color=True,
         randomize_lighting=True,
-        randomize_camera=False,
+        randomize_camera=True,
         randomize_dynamics=False, # Seems useful but for the first trainings we avoid using this...
-        randomize_on_reset=True, # SO the arena gets re-randomized every time we reset the env
+        randomize_on_reset=True, # So the arena gets re-randomized every time we reset the env
         randomize_every_n_steps=0, # Randomization must not happen during the episode
-        lighting_randomization_args={
-        "light_names": None,
-        "randomize_position": True,
-        "randomize_direction": True,
-        "randomize_ambient": True,
-        "randomize_diffuse": True,
-        "randomize_specular": True,
-        "randomize_active": False,
-        "position_perturbation_size": 0.05,
-        "direction_perturbation_size": 0.15,
-        "ambient_perturbation_size": 0.05,
-        "diffuse_perturbation_size": 0.10,
-        "specular_perturbation_size": 0.03,
-    },
     )
 
     env.reset()
-    configure_task(env)
+
+    # Enable shadows
+    model = env.sim.model
+    if model.nlight > 0:
+        model.light_castshadow[:] = int(settings.camera_shadows)
+        active_lights = model.light_active.astype(bool)
+
+        model.light_ambient[active_lights] = settings.camera_shadow_ambient
+        model.light_diffuse[active_lights] = settings.camera_shadow_diffuse 
 
     # Disable the rangefinders rays...
     offscreen_context = getattr(env.sim, "_render_context_offscreen", None)
 
     if offscreen_context is not None:
         offscreen_context.vopt.flags[mujoco.mjtVisFlag.mjVIS_RANGEFINDER] = 0
+
+    env.sim.forward()
 
     return env
 
@@ -364,26 +365,6 @@ def pick_and_place_action(env: "SingleArmEnv", obj, pos: np.ndarray, quat: np.nd
     if not done:
         print("OSC failed during approach.")
         return (None, total_steps)
-
-    robot = env.robots[0]
-
-    candidate_home = np.asarray(
-        env.sim.data.qpos[robot._ref_joint_pos_indexes],
-        dtype=float
-    ).copy()
-
-    eef_pos = np.asarray(
-        env.sim.data.site_xpos[robot.eef_site_id],
-        dtype=float
-    ).copy()
-
-    print("\n" + "=" * 60)
-    print("POSSIBLE NEW HOME")
-    print("Joint positions:", np.round(candidate_home, 6))
-    print("EEF position:", np.round(eef_pos, 4))
-    print("=" * 60 + "\n")
-
-    input("Press any key to continue...")
 
     # Descend to the object.
     recorder.phase = "descend"

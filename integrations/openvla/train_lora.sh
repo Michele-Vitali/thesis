@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-set -euo pipefail
+set -o pipefail
 
 
 # ================================================================
@@ -11,7 +11,7 @@ THESIS_ROOT="$HOME/Scrivania/thesis"
 
 OPENVLA_ENV="$THESIS_ROOT/openvla_env"
 
-DATA_ROOT="$THESIS_ROOT/data/rlds"
+DATA_ROOT="$THESIS_ROOT/rlds_data/rlds"
 
 RUN_ROOT="$THESIS_ROOT/runs/openvla"
 
@@ -19,7 +19,7 @@ ADAPTER_ROOT="$THESIS_ROOT/adapters/openvla"
 
 HF_HOME_DIR="$THESIS_ROOT/cache/huggingface"
 
-TRAIN_WRAPPER="$THESIS_ROOT/integrations/openvla/finetune_prob3.py"
+TRAIN_WRAPPER="$THESIS_ROOT/integrations/openvla/finetune.py"
 
 
 # ================================================================
@@ -42,7 +42,7 @@ DATASET="prob3_pick_place"
 # Set to 1 initially if you want a conservative smoke-training run.
 # Set to 2 for the actual multi-GPU LoRA run.
 
-NUM_GPUS=1
+NUM_GPUS=2
 
 
 # ================================================================
@@ -53,7 +53,7 @@ USE_LORA=True
 
 LORA_RANK=32
 
-LORA_DROPOUT=0.0
+LORA_DROPOUT=0.05
 
 USE_QUANTIZATION=False
 
@@ -64,26 +64,27 @@ USE_QUANTIZATION=False
 # THESE ARE INTENTIONALLY EASY TO EDIT BEFORE TRAINING.
 # ================================================================
 
-BATCH_SIZE=1
+BATCH_SIZE=4
 
 GRAD_ACCUMULATION_STEPS=1
 
-LEARNING_RATE=5e-4
+LEARNING_RATE=1e-4
 
-MAX_STEPS=10
+MAX_STEPS=18000
 
-SAVE_STEPS=9
+SAVE_STEPS=6000
 
 IMAGE_AUG=True
 
-SHUFFLE_BUFFER_SIZE=256
+SHUFFLE_BUFFER_SIZE=2048
 
+SAVE_LATEST_CHECKPOINT_ONLY=False
 
 # ================================================================
 # RUN IDENTIFICATION
 # ================================================================
 
-RUN_NOTE="prob3_smoke_10"
+RUN_NOTE="prob3_lora_v3_shadows_camera_20_october_16pm"
 
 
 # ================================================================
@@ -108,7 +109,7 @@ export HF_HOME="$HF_HOME_DIR"
 # CUDA
 # ================================================================
 
-export CUDA_VISIBLE_DEVICES=0
+export CUDA_VISIBLE_DEVICES=0,1
 
 
 # ================================================================
@@ -116,7 +117,7 @@ export CUDA_VISIBLE_DEVICES=0
 # ================================================================
 
 CMD=(
-    torchrun
+    "$OPENVLA_ENV/bin/torchrun"
     --standalone
     --nnodes
     1
@@ -175,6 +176,9 @@ CMD=(
 
     --run_id_note
     "$RUN_NOTE"
+
+    --save_latest_checkpoint_only
+    "$SAVE_LATEST_CHECKPOINT_ONLY"
 )
 
 

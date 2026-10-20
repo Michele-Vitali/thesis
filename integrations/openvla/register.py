@@ -14,17 +14,9 @@ THIS_FILE = Path(__file__).resolve()
 
 THESIS_ROOT = THIS_FILE.parents[2]
 
-RLDS_BUILDER_ROOT = (
-    THESIS_ROOT
-    / "tools"
-    / "rlds_dataset_builder"
-)
+RLDS_BUILDER_ROOT = (THESIS_ROOT / "tools" / "rlds_dataset_builder")
 
-RLDS_DATA_ROOT = (
-    THESIS_ROOT
-    / "data"
-    / "rlds"
-)
+RLDS_DATA_ROOT = (THESIS_ROOT / "rlds_data" / "rlds")
 
 
 # ================================================================
@@ -41,10 +33,7 @@ RLDS_DATA_ROOT = (
 # normally.
 
 if str(RLDS_BUILDER_ROOT) not in sys.path:
-    sys.path.insert(
-        0,
-        str(RLDS_BUILDER_ROOT),
-    )
+    sys.path.insert(0, str(RLDS_BUILDER_ROOT))
 
 
 import prob3_pick_place.prob3_pick_place_dataset_builder  # noqa: F401,E402
@@ -72,9 +61,7 @@ DATASET_NAME = "prob3_pick_place"
 # P-ROB3 STANDARDIZATION TRANSFORM
 # ================================================================
 
-def prob3_pick_place_dataset_transform(
-    trajectory: Dict[str, Any],
-) -> Dict[str, Any]:
+def prob3_pick_place_dataset_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
     """
     Standardization transform for the simulated P-Rob3 dataset.
 
@@ -105,10 +92,7 @@ def prob3_pick_place_dataset_transform(
     Therefore no geometric conversion is necessary.
     """
 
-    trajectory["action"] = tf.cast(
-        trajectory["action"],
-        tf.float32,
-    )
+    trajectory["action"] = tf.cast(trajectory["action"], tf.float32)
 
     return trajectory
 
@@ -164,11 +148,7 @@ def register_prob3() -> None:
             ActionEncoding.EEF_POS,
     }
 
-    OXE_STANDARDIZATION_TRANSFORMS[
-        DATASET_NAME
-    ] = (
-        prob3_pick_place_dataset_transform
-    )
+    OXE_STANDARDIZATION_TRANSFORMS[DATASET_NAME] = prob3_pick_place_dataset_transform
 
 
 # ================================================================
@@ -182,28 +162,13 @@ def main():
     print("P-Rob3 -> OpenVLA registration test")
     print("=" * 60)
 
-    print(
-        "Dataset config registered:",
-        DATASET_NAME in OXE_DATASET_CONFIGS,
-    )
+    print("Dataset config registered:", DATASET_NAME in OXE_DATASET_CONFIGS)
 
-    print(
-        "Dataset transform registered:",
-        DATASET_NAME
-        in OXE_STANDARDIZATION_TRANSFORMS,
-    )
+    print("Dataset transform registered:", DATASET_NAME in OXE_STANDARDIZATION_TRANSFORMS)
 
-    print(
-        "RLDS root:",
-        RLDS_DATA_ROOT,
-    )
+    print("RLDS root:", RLDS_DATA_ROOT)
 
-    builder = tfds.builder(
-        DATASET_NAME,
-        data_dir=str(
-            RLDS_DATA_ROOT
-        ),
-    )
+    builder = tfds.builder(DATASET_NAME, data_dir=str(RLDS_DATA_ROOT))
 
     print()
     print("TFDS dataset:")
@@ -214,16 +179,10 @@ def main():
 
     print()
     print("Config:")
-    print(
-        OXE_DATASET_CONFIGS[
-            DATASET_NAME
-        ]
-    )
+    print(OXE_DATASET_CONFIGS[DATASET_NAME])
 
     print()
-    print(
-        "P-Rob3 registration: OK"
-    )
+    print("P-Rob3 registration: OK")
 
     print("=" * 60)
 

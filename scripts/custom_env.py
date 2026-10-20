@@ -8,6 +8,7 @@ from robosuite.environments.manipulation.single_arm_env import SingleArmEnv
 from robosuite.models import objects
 from robosuite.models.arenas import TableArena
 from robosuite.models.tasks import ManipulationTask
+import xml.etree.ElementTree as ET
 
 # UniformRandomSampler places objects randomly within a given range
 # We can also give a sampler per object with the SequentialCompositeSampler (future?)

@@ -7,8 +7,8 @@ from scipy.spatial.transform import Rotation as R
 env_name = "CustomTask"
 robot = "PRob3"
 gripper_types = "PRob3Gripper"
-render_on_screen = True    # Set to false for faster simulations
-record = False
+render_on_screen = False    # Set to false for faster simulations
+record = True
 
 # Environment variables
 max_reachable_x = 0.55 # It is 60cm, but we take a margin and set it to 55cm
@@ -38,7 +38,7 @@ max_position_action = 0.40
 max_rotation_action = 0.40
 
 gripper_velocity_factor_per_second = 1.0
-gripper_transition_seconds = 3.0
+gripper_transition_seconds = 5.0
 
 expert_max_segment_seconds = 20.0
 
@@ -62,7 +62,7 @@ drop_clearance = 0.01
 # camera_init_pos = [1.6, 0.0, 1.45]
 # camera_init_quat = [0.561, 0.431, 0.431, 0.561]
 camera_target = np.array([0.0, 0.0, 0.10])
-camera_pos = np.array([-0.35, -0.50, 0.55])
+camera_pos = np.array([-0.40, -0.55, 0.64])
 
 # Compute the quaternion as manually setting it is an hell...
 def compute_camera_quat(camera_target: np.ndarray, camera_pos: np.ndarray) -> np.ndarray:
@@ -91,8 +91,14 @@ def compute_camera_quat(camera_target: np.ndarray, camera_pos: np.ndarray) -> np
 
 camera_quat = np.array(compute_camera_quat(camera_target, camera_pos))
 
+# Rendering
+camera_shadows = True
+camera_shadow_ambient = 0.35
+camera_shadow_diffuse = 0.45
+camera_light_pos = np.array([-0.20, -0.35, 0.55])
+
 # Starting pose for the robot sim
-starting_pose = np.array([-0.269, 0.401, 1.171, -0.010, 1.375, -0.172]) # Top-down grasp
+starting_pose = np.array([0.0, 0.0, 1.5, 0.0, 1.8, 0.0]) # Top-down grasp
 
 # Reward and penalty factors
 closeness = 0.1
@@ -114,7 +120,7 @@ n_objects = 1
 
 # RLDS dataset
 dataset_root = str(Path(__file__).resolve().parents[1] / "hdf5_data")
-dataset_name = "prob3_pick_place_v3"
+dataset_name = "prob3_pick_place_v4_shadows_camera"
 
 dataset_fps = 5
 

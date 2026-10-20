@@ -16,11 +16,17 @@ class HDF5Recorder:
     def __init__(self):
         # The recorder is intentionally LAZY: no directory or HDF5 file
         # is created until the first SUCCESSFUL episode is saved.
+
+        # Define the root directory for the datasets to be saved in.
         self.root_directory = Path(settings.dataset_root).expanduser().resolve()
+
+        # Timestamp to ensure the dataset name is unique.
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+
+        # Some variables useful to the recorder...
         self.run_name = f"{settings.dataset_name}_{timestamp}"
         self.root = self.root_directory / self.run_name
-        self.hdf5_path = self.root / "demo.hdf5"
+        self.hdf5_path = self.root / "dataset.hdf5"
 
         self.file = None
         self.data_group = None

@@ -23,88 +23,104 @@ def project_root() -> Path:
     """Expected position: <thesis>/integrations/openvla/build_dataset.py."""
     return Path(__file__).resolve().parents[2]
 
+SPLIT_FILES = {"train": "train.hdf5", "val": "val.hdf5", "test": "test.hdf5"}
 
-def find_source(root: Path, source: str | None, all_runs: bool) -> Path:
-    if source is not None and all_runs:
-        raise ValueError("Usa --source oppure --all, non entrambi.")
+def find_source(root: Path, source: str | None) -> Path:
+    """Require a prepared directory, never infer or create split assignments."""
 
-    raw_dir = root / "hdf5_data"
-    if source is not None:
-        path = Path(source).expanduser()
-        if not path.is_absolute():
-            path = (Path.cwd() / path).resolve()
-        if path.is_file() and path.suffix.lower() in (".hdf5", ".h5"):
-            return path
-        if path.is_dir():
-            if not list(path.rglob("demo.hdf5")):
-                raise ValueError(f"Nessun demo.hdf5 nella cartella: {path}")
-            return path
-        raise ValueError(f"Sorgente HDF5 non valida: {path}")
+    if source is None:
 
-    if not raw_dir.is_dir():
-        raise FileNotFoundError(f"Cartella dei dati mancante: {raw_dir}")
+        hdf5_root = root / "hdf5_data"
+        candidates = sorted(
+            path for path in hdf5_root.glob("*/splits")
+            if path.is_dir() and all((path / filename).is_file() for filename in SPLIT_FILES.values())
+        )
+        if not candidates:
+            raise FileNotFoundError("No prepared HDF5 splits; run prepare_prob3_dataset.py")
 
-    paths = sorted(raw_dir.glob("*/demo.hdf5"), key=lambda p: (p.parent.name, p.name))
-    if not paths:
-        raise FileNotFoundError(f"Nessun HDF5 trovato in {raw_dir}/*/demo.hdf5")
-    if all_runs:
-        return raw_dir
-    return paths[-1].resolve()
+        def modification_time(path):
+            manifest = path / "manifest.json"
+            target = manifest if manifest.is_file() else path
+
+            return target.stat().st_mtime_ns
+
+        return max(candidates, key=modification_time).resolve()
+        
+    path = Path(source).expanduser()
+
+    if not path.is_absolute():
+
+        path = (Path.cwd() / path).resolve()
+
+    if not path.is_dir():
+        raise ValueError(f"Invalid HDF5 splits directory: {path}")
+
+    missing = [filename for filename in SPLIT_FILES.values()
+               if not (path / filename).is_file()]
+
+    if missing:
+        raise ValueError(f"Missing HDF5 split files in {path}: {missing}")
+
+    return path
 
 
-def hdf5_inventory(source: Path) -> dict[tuple[str, str], int]:
-    """Ground truth used to check TFDS counts and the exact actions after conversion."""
-    try:
-        import h5py
-        import numpy as np
-    except ImportError as exc:
-        raise RuntimeError("L'ambiente corrente non ha h5py/numpy.") from exc
 
-    if source.is_file():
-        files = [source]
-    else:
-        files = sorted(source.rglob("demo.hdf5"))
-
-    inventory: dict[tuple[str, str], int] = {}
-    for file in files:
-        with h5py.File(file, "r") as handle:
-            if "data" not in handle:
-                raise ValueError(f"Gruppo data mancante: {file}")
-            for demo_name, group in handle["data"].items():
-                required = ("actions_openvla", "rewards", "dones")
-                for field in required:
-                    if field not in group:
-                        raise ValueError(f"{file}/{demo_name}: campo {field} mancante")
-                if "obs" not in group or "agentview_rgb" not in group["obs"]:
-                    raise ValueError(f"{file}/{demo_name}: obs/agentview_rgb mancante")
-                if "joint_states" not in group["obs"] or "gripper_states" not in group["obs"]:
-                    raise ValueError(f"{file}/{demo_name}: stati robot/gripper mancanti")
-
-                act = group["actions_openvla"]
-                count = len(act)
-                if count < 2 or act.shape[1:] != (7,):
-                    raise ValueError(f"{file}/{demo_name}: azioni inattese {act.shape}")
-                if group["obs"]["agentview_rgb"].shape != (count, 256, 256, 3):
-                    raise ValueError(f"{file}/{demo_name}: immagini non allineate")
-                if len(group["rewards"]) != count or len(group["dones"]) != count:
-                    raise ValueError(f"{file}/{demo_name}: reward/done non allineati")
-                if not np.all(np.isfinite(act[:])):
-                    raise ValueError(f"{file}/{demo_name}: azioni con NaN/Inf")
-                if not np.all(np.isin(act[:, 6], (0.0, 1.0))):
-                    raise ValueError(f"{file}/{demo_name}: gripper non binario")
-                if not bool(group["dones"][-1]):
-                    raise ValueError(f"{file}/{demo_name}: demo senza done terminale")
-                if float(group["rewards"][-1]) < 0.99:
-                    raise ValueError(f"{file}/{demo_name}: reward terminale non riuscita")
-
-                key = (str(file.resolve()), str(demo_name))
-                if key in inventory:
-                    raise ValueError(f"ID episodio duplicato: {key}")
-                inventory[key] = count
-
-    if not inventory:
-        raise ValueError("Nessun episodio HDF5 valido trovato")
-    return inventory
+def hdf5_inventory(source: Path) -> dict[str, dict[tuple[str, str], int]]:
+    import h5py
+    import numpy as np
+    inventories = {}
+    for split, filename in SPLIT_FILES.items():
+        path = (source / filename).resolve()
+        inventory = {}
+        with h5py.File(path, "r") as h5:
+            if "data" not in h5:
+                raise ValueError(f"Missing /data in {path}")
+            for name, ep in h5["data"].items():
+                for field in ("actions_openvla", "rewards", "dones"):
+                    if field not in ep:
+                        raise ValueError(f"Missing {field}: {path}::{name}")
+                if "obs" not in ep:
+                    raise ValueError(f"Missing obs: {path}::{name}")
+                obs = ep["obs"]
+                if any(f not in obs for f in ("agentview_rgb", "joint_states", "gripper_states")):
+                    raise ValueError(f"Missing observation field: {path}::{name}")
+                actions = ep["actions_openvla"][:]
+                count = len(actions)
+                if count < 2 or actions.shape[1:] != (7,):
+                    raise ValueError(f"Invalid actions: {path}::{name}")
+                if obs["agentview_rgb"].shape != (count, 256, 256, 3):
+                    raise ValueError(f"Invalid images: {path}::{name}")
+                if obs["joint_states"].shape != (count, 6):
+                    raise ValueError(f"Invalid joints: {path}::{name}")
+                if obs["gripper_states"].shape[0] != count:
+                    raise ValueError(f"Invalid gripper: {path}::{name}")
+                if len(ep["rewards"]) != count or len(ep["dones"]) != count:
+                    raise ValueError(f"Invalid terminal arrays: {path}::{name}")
+                if not np.isfinite(actions).all() or not np.isin(actions[:, 6], (0.0, 1.0)).all():
+                    raise ValueError(f"Invalid actions content: {path}::{name}")
+                if not bool(ep["dones"][-1]) or float(ep["rewards"][-1]) < 0.99:
+                    raise ValueError(f"Invalid episode ending: {path}::{name}")
+                inventory[(str(path), str(name))] = count
+        if not inventory:
+            raise ValueError(f"Split {split} is empty")
+        inventories[split] = inventory
+    # Ensure the same original episode does not appear twice across splits.
+    # For external-link views, retrieve the target filename and group path.
+    original_targets = set()
+    for split, filename in SPLIT_FILES.items():
+        path = source / filename
+        with h5py.File(path, "r") as h5:
+            for name in h5["data"]:
+                link = h5["data"].get(name, getlink=True)
+                if isinstance(link, h5py.ExternalLink):
+                    original = (path.parent / link.filename).resolve()
+                    identity = (str(original), link.path)
+                else:
+                    identity = (str(path.resolve()), f"/data/{name}")
+                if identity in original_targets:
+                    raise ValueError(f"Episode shared across HDF5 splits: {identity}")
+                original_targets.add(identity)
+    return inventories
 
 
 def decode_text(item: object) -> str:
@@ -117,63 +133,55 @@ def decode_text(item: object) -> str:
     return str(item)
 
 
-def verify_rlds(dataset_dir: Path, source_inventory: dict[tuple[str, str], int]) -> None:
-    """Read every TFDS episode and cross-check identity, length, flags and actions."""
+def verify_rlds(dataset_dir: Path, inventories: dict[str, dict[tuple[str, str], int]]) -> None:
+    """Check all three RLDS splits, identity, episode lengths and exact actions."""
     import h5py
     import numpy as np
     import tensorflow_datasets as tfds
 
     builder = tfds.builder_from_directory(str(dataset_dir))
-    split = builder.info.splits.get("train")
-    if split is None or int(split.num_examples) != len(source_inventory):
-        raise AssertionError("Split train assente o numero episodi errato")
+    for split, expected in inventories.items():
+        info = builder.info.splits.get(split)
+        if info is None or int(info.num_examples) != len(expected):
+            raise AssertionError(f"Wrong RLDS episode count for {split}")
+        observed = set()
+        for episode in tfds.as_numpy(builder.as_dataset(split=split)):
+            metadata = episode["episode_metadata"]
+            key = (str(Path(decode_text(metadata["file_path"])).resolve()),
+                   decode_text(metadata["demo_name"]))
+            if key not in expected or key in observed:
+                raise AssertionError(f"Unexpected/duplicate RLDS episode in {split}: {key}")
+            with h5py.File(key[0], "r") as h5:
+                original = h5["data"][key[1]]["actions_openvla"]
+                count = 0
+                for step in episode["steps"]:
+                    if step["observation"]["image"].shape != (256, 256, 3):
+                        raise AssertionError(f"Unexpected image shape: {key}")
+                    if step["observation"]["state"].shape != (7,):
+                        raise AssertionError(f"Unexpected state shape: {key}")
+                    if step["action"].shape != (7,) or not np.allclose(
+                        step["action"], original[count], atol=1e-6, rtol=0.0
+                    ):
+                        raise AssertionError(f"Action mismatch: {key} step {count}")
+                    if not np.isfinite(step["observation"]["state"]).all():
+                        raise AssertionError(f"Nonfinite state: {key}")
+                    last = count == expected[key] - 1
+                    if bool(step["is_first"]) != (count == 0):
+                        raise AssertionError(f"Wrong is_first: {key}")
+                    if bool(step["is_last"]) != last or bool(step["is_terminal"]) != last:
+                        raise AssertionError(f"Wrong terminal flags: {key}")
+                    if float(step["discount"]) != (0.0 if last else 1.0):
+                        raise AssertionError(f"Wrong discount: {key}")
+                    if not decode_text(step["language_instruction"]).strip():
+                        raise AssertionError(f"Missing instruction: {key}")
+                    count += 1
+                if count != expected[key]:
+                    raise AssertionError(f"Wrong number of steps: {key}")
+            observed.add(key)
+        if observed != set(expected):
+            raise AssertionError(f"Missing RLDS episodes in {split}: {set(expected) - observed}")
+        print(f"VERIFIED {split}: {len(observed)} episodes, {sum(expected.values())} steps", flush=True)
 
-    observed: dict[tuple[str, str], int] = {}
-    for episode in tfds.as_numpy(builder.as_dataset(split="train")):
-        metadata = episode["episode_metadata"]
-        key = (
-            str(Path(decode_text(metadata["file_path"])).resolve()),
-            decode_text(metadata["demo_name"]),
-        )
-        if key in observed:
-            raise AssertionError(f"Episodio duplicato in RLDS: {key}")
-        if key not in source_inventory:
-            raise AssertionError(f"Episodio RLDS non previsto: {key}")
-
-        length = 0
-        hdf5_file, demo_name = key
-        with h5py.File(hdf5_file, "r") as h5:
-            reference = h5["data"][demo_name]["actions_openvla"]
-            for step in episode["steps"]:
-                image = step["observation"]["image"]
-                state = step["observation"]["state"]
-                action = step["action"]
-
-                if image.shape != (256, 256, 3) or state.shape != (7,) or action.shape != (7,):
-                    raise AssertionError(f"Shape errata nell'episodio {demo_name} al frame {length}")
-                if not np.isfinite(state).all() or not np.isfinite(action).all():
-                    raise AssertionError(f"NaN/Inf in {demo_name} al frame {length}")
-                if not np.allclose(action, reference[length], atol=1e-6, rtol=0.0):
-                    raise AssertionError(f"Azione non corrispondente all'HDF5: {demo_name} frame {length}")
-                if bool(step["is_first"]) != (length == 0):
-                    raise AssertionError(f"is_first errato: {demo_name} frame {length}")
-                last = length == source_inventory[key] - 1
-                if bool(step["is_last"]) != last or bool(step["is_terminal"]) != last:
-                    raise AssertionError(f"Flag terminali errati: {demo_name} frame {length}")
-                if float(step["discount"]) != (0.0 if last else 1.0):
-                    raise AssertionError(f"Discount errato: {demo_name} frame {length}")
-                if not decode_text(step["language_instruction"]).strip():
-                    raise AssertionError(f"Istruzione vuota: {demo_name} frame {length}")
-                length += 1
-
-        if length != source_inventory[key]:
-            raise AssertionError(f"Lunghezza RLDS errata: {demo_name} {length}/{source_inventory[key]}")
-        observed[key] = length
-        print(f"  OK {demo_name}: {length} frame — {Path(hdf5_file).parent.name}", flush=True)
-
-    if observed.keys() != source_inventory.keys():
-        raise AssertionError(f"Episodi mancanti: {source_inventory.keys() - observed.keys()}")
-    print(f"\nVALIDAZIONE SUPERATA: {len(observed)} episodi, {sum(observed.values())} frame.", flush=True)
 
 
 def publish_dataset(root: Path, staged_dataset: Path) -> tuple[Path, Path | None]:
@@ -203,9 +211,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(
         description="Build, verify and optionally publish P-Rob3 RLDS from HDF5."
     )
-    sources = parser.add_mutually_exclusive_group()
-    sources.add_argument("--source", help="HDF5 specifico o directory con demo.hdf5; default: run più recente.")
-    sources.add_argument("--all", action="store_true", help="Combina tutti i demo.hdf5 di hdf5_data/.")
+    parser.add_argument("--source", help="Directory containing prepared train.hdf5, val.hdf5 and test.hdf5; default: latest prepared split.")
     parser.add_argument("--publish", action="store_true", help="Attiva il dataset per OpenVLA; fa backup del precedente.")
     parser.add_argument("--dry-run", action="store_true", help="Mostra le operazioni senza convertire o spostare dati.")
     args = parser.parse_args()
@@ -215,7 +221,7 @@ def main() -> int:
     if not (builder_dir / "prob3_pick_place_dataset_builder.py").is_file():
         raise FileNotFoundError(f"Builder mancante: {builder_dir}")
 
-    source = find_source(root, args.source, args.all)
+    source = find_source(root, args.source)
     staged_root = root / "rlds_data" / "rlds_builds" / (
         datetime.now().strftime("%Y%m%d_%H%M%S_%f") + "_" + uuid.uuid4().hex[:6]
     )
@@ -229,8 +235,8 @@ def main() -> int:
         print("DRY RUN: nessun file modificato.")
         return 0
 
-    inventory = hdf5_inventory(source)
-    print(f"\nHDF5 validati: {len(inventory)} episodi, {sum(inventory.values())} frame.", flush=True)
+    inventories = hdf5_inventory(source)
+    print("HDF5 inventories: ", {k: len(v) for k,v in inventories.items()}, flush=True)
 
     tfds_executable = Path(sys.executable).with_name("tfds")
     if not tfds_executable.is_file():
@@ -253,7 +259,7 @@ def main() -> int:
     # Keep TensorFlow off the GPU when running validation too.
     os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
     os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "2")
-    verify_rlds(staged_dataset, inventory)
+    verify_rlds(staged_dataset, inventories)
 
     if args.publish:
         active, backup = publish_dataset(root, staged_dataset.parent)

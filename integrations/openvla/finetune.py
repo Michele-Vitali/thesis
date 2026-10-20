@@ -1,7 +1,8 @@
 import runpy
 from pathlib import Path
 
-from register_prob3 import register_prob3
+from register import register_prob3
+from data_policy import install_prob3_train_only_statistics
 
 
 # ================================================================
@@ -9,6 +10,7 @@ from register_prob3 import register_prob3
 # ================================================================
 
 register_prob3()
+install_prob3_train_only_statistics()
 
 
 # ================================================================
@@ -19,13 +21,7 @@ THIS_FILE = Path(__file__).resolve()
 
 THESIS_ROOT = THIS_FILE.parents[2]
 
-OPENVLA_FINETUNE = (
-    THESIS_ROOT
-    / "tools"
-    / "openvla"
-    / "vla-scripts"
-    / "finetune.py"
-)
+OPENVLA_FINETUNE = (THESIS_ROOT / "tools" / "openvla" / "vla-scripts" / "finetune.py")
 
 
 # ================================================================
@@ -38,17 +34,9 @@ OPENVLA_FINETUNE = (
 
 def main():
     if not OPENVLA_FINETUNE.exists():
-        raise FileNotFoundError(
-            f"OpenVLA finetune script not found: "
-            f"{OPENVLA_FINETUNE}"
-        )
+        raise FileNotFoundError(f"OpenVLA finetune script not found: "f"{OPENVLA_FINETUNE}")
 
-    runpy.run_path(
-        str(
-            OPENVLA_FINETUNE
-        ),
-        run_name="__main__",
-    )
+    runpy.run_path(str(OPENVLA_FINETUNE), run_name="__main__")
 
 
 if __name__ == "__main__":

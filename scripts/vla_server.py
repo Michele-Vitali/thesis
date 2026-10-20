@@ -40,7 +40,7 @@ SYSTEM_PROMPT = (
 
 
 def get_openvla_prompt(instruction: str, openvla_path: str | Path) -> str:
-    if "v01" in openvla_path:
+    if "v01" in str(openvla_path):
         return f"{SYSTEM_PROMPT} USER: What action should the robot take to {instruction.lower()}? ASSISTANT:"
     else:
         return f"In: What action should the robot take to {instruction.lower()}?\nOut:"
@@ -102,28 +102,35 @@ class OpenVLAServer:
     def run(self, host: str = settings.server_host, port: int = settings.server_port) -> None:
         self.app = FastAPI()
         self.app.post("/act")(self.predict_action)
+        self.app.get("/health")(self.health)
         print("=" * 60)
         print("[SERVER DEBUG] Host:", repr(host))
         print("[SERVER DEBUG] Port:", repr(port))
         print("=" * 60)
         uvicorn.run(self.app, host=host, port=port)
 
+    def health(self):
+        return {"status": "OK"}
+
 @dataclass
 class DeployConfig:
     # fmt: off
-    openvla_path: Union[str, Path] = settings.openvla_path              # HF Hub Path (or path to local run directory)
+    openvla_path: Union[str, Path] = settings.openvla_path              # If no model is passed, use the fallback model in the settings file!
 
     # Server Configuration
-    host: str = settings.server_host                                     # Host IP Address
+    host: str = settings.server_host                                    # Host IP Address
     port: int = settings.server_port                                    # Host Port
 
     # fmt: on
 
 
+def run_server_with_cfg(cfg: DeployConfig) -> None:
+    server = OpenVLAServer(openvla_path=cfg.openvla_path)
+    server.run(host=cfg.host, port=cfg.port)
+
 @draccus.wrap()
 def deploy(cfg: DeployConfig) -> None:
-    server = OpenVLAServer(cfg.openvla_path)
-    server.run(cfg.host, port=cfg.port)
+    run_server_with_cfg(cfg)
 
 
 if __name__ == "__main__":

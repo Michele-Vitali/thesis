@@ -50,9 +50,11 @@ LORA_RANK = 32
 # REGISTER P-ROB3 DATASET
 # ================================================================
 
-from register_prob3 import register_prob3
+from register import register_prob3
+from data_policy import install_prob3_train_only_statistics
 
 register_prob3()
+install_prob3_train_only_statistics()
 
 
 # ================================================================
@@ -62,53 +64,27 @@ register_prob3()
 import numpy as np
 import torch
 
-from peft import (
-    LoraConfig,
-    get_peft_model,
-)
+from peft import (LoraConfig, get_peft_model)
 
 from torch.utils.data import DataLoader
 
-from transformers import (
-    AutoConfig,
-    AutoImageProcessor,
-    AutoModelForVision2Seq,
-    AutoProcessor,
-)
+from transformers import (AutoConfig, AutoImageProcessor, AutoModelForVision2Seq, AutoProcessor)
 
-from prismatic.extern.hf.configuration_prismatic import (
-    OpenVLAConfig,
-)
+from prismatic.extern.hf.configuration_prismatic import (OpenVLAConfig)
 
-from prismatic.extern.hf.modeling_prismatic import (
-    OpenVLAForActionPrediction,
-)
+from prismatic.extern.hf.modeling_prismatic import (OpenVLAForActionPrediction)
 
-from prismatic.extern.hf.processing_prismatic import (
-    PrismaticImageProcessor,
-    PrismaticProcessor,
-)
+from prismatic.extern.hf.processing_prismatic import (PrismaticImageProcessor, PrismaticProcessor)
 
-from prismatic.models.backbones.llm.prompting import (
-    PurePromptBuilder,
-)
+from prismatic.models.backbones.llm.prompting import (PurePromptBuilder)
 
-from prismatic.util.data_utils import (
-    PaddedCollatorForActionPrediction,
-)
+from prismatic.util.data_utils import (PaddedCollatorForActionPrediction)
 
-from prismatic.vla.action_tokenizer import (
-    ActionTokenizer,
-)
+from prismatic.vla.action_tokenizer import (ActionTokenizer)
 
-from prismatic.vla.datasets import (
-    RLDSBatchTransform,
-    RLDSDataset,
-)
+from prismatic.vla.datasets import (RLDSBatchTransform, RLDSDataset)
 
-from prismatic.vla.datasets.rlds.utils.data_utils import (
-    save_dataset_statistics,
-)
+from prismatic.vla.datasets.rlds.utils.data_utils import (save_dataset_statistics)
 
 
 # ================================================================
@@ -127,124 +103,63 @@ def print_separator(title):
 # ================================================================
 
 def main():
-    print_separator(
-        "P-Rob3 / OpenVLA-7B PRE-FLIGHT"
-    )
+    print_separator("P-Rob3 / OpenVLA-7B PRE-FLIGHT")
 
-    print(
-        "PyTorch:",
-        torch.__version__,
-    )
+    print("PyTorch:", torch.__version__)
 
-    print(
-        "CUDA runtime:",
-        torch.version.cuda,
-    )
+    print("CUDA runtime:", torch.version.cuda)
 
-    print(
-        "CUDA available:",
-        torch.cuda.is_available(),
-    )
+    print("CUDA available:", torch.cuda.is_available())
 
-    print(
-        "GPU count:",
-        torch.cuda.device_count(),
-    )
+    print("GPU count:", torch.cuda.device_count())
 
     if not torch.cuda.is_available():
-        raise RuntimeError(
-            "CUDA is not available."
-        )
+        raise RuntimeError("CUDA is not available.")
 
-    for i in range(
-        torch.cuda.device_count()
-    ):
-        print(
-            f"GPU {i}:",
-            torch.cuda.get_device_name(i),
-        )
+    for i in range(torch.cuda.device_count()):
+        print(f"GPU {i}:", torch.cuda.get_device_name(i))
 
-    device = torch.device(
-        "cuda:0"
-    )
+    device = torch.device("cuda:0")
 
     # ============================================================
     # REGISTER OPENVLA HF CLASSES
     # ============================================================
 
-    AutoConfig.register(
-        "openvla",
-        OpenVLAConfig,
-    )
+    AutoConfig.register("openvla", OpenVLAConfig)
 
-    AutoImageProcessor.register(
-        OpenVLAConfig,
-        PrismaticImageProcessor,
-    )
+    AutoImageProcessor.register(OpenVLAConfig, PrismaticImageProcessor)
 
-    AutoProcessor.register(
-        OpenVLAConfig,
-        PrismaticProcessor,
-    )
+    AutoProcessor.register(OpenVLAConfig, PrismaticProcessor)
 
-    AutoModelForVision2Seq.register(
-        OpenVLAConfig,
-        OpenVLAForActionPrediction,
-    )
+    AutoModelForVision2Seq.register(OpenVLAConfig, OpenVLAForActionPrediction)
 
     # ============================================================
     # LOAD PROCESSOR
     # ============================================================
 
-    print_separator(
-        "LOADING PROCESSOR"
-    )
+    print_separator("LOADING PROCESSOR")
 
-    processor = AutoProcessor.from_pretrained(
-        MODEL_ID,
-        trust_remote_code=True,
-    )
+    processor = AutoProcessor.from_pretrained(MODEL_ID, trust_remote_code=True)
 
-    print(
-        "Processor loaded: OK"
-    )
+    print("Processor loaded: OK")
 
     # ============================================================
     # LOAD OPENVLA-7B
     # ============================================================
 
-    print_separator(
-        "LOADING OPENVLA-7B"
-    )
+    print_separator("LOADING OPENVLA-7B")
 
-    vla = AutoModelForVision2Seq.from_pretrained(
-        MODEL_ID,
-        torch_dtype=torch.bfloat16,
-        low_cpu_mem_usage=True,
-        trust_remote_code=True,
-    )
+    vla = AutoModelForVision2Seq.from_pretrained(MODEL_ID, torch_dtype=torch.bfloat16, low_cpu_mem_usage=True, trust_remote_code=True)
 
-    print(
-        "Model loaded on CPU: OK"
-    )
+    print("Model loaded on CPU: OK")
 
-    print(
-        "Image sizes:",
-        vla.config.image_sizes,
-    )
+    print("Image sizes:", vla.config.image_sizes)
 
-    print(
-        "Moving model to:",
-        device,
-    )
+    print("Moving model to:", device)
 
-    vla = vla.to(
-        device
-    )
+    vla = vla.to(device)
 
-    print(
-        "Model on GPU: OK"
-    )
+    print("Model on GPU: OK")
 
     # ============================================================
     # APPLY LoRA
@@ -254,65 +169,29 @@ def main():
     # NO TRAINING happens here.
     # ============================================================
 
-    print_separator(
-        "ATTACHING LoRA"
-    )
+    print_separator("ATTACHING LoRA")
 
-    lora_config = LoraConfig(
-        r=LORA_RANK,
-        lora_alpha=min(
-            LORA_RANK,
-            16,
-        ),
-        lora_dropout=0.0,
-        target_modules="all-linear",
-        init_lora_weights="gaussian",
-    )
+    lora_config = LoraConfig(r=LORA_RANK, lora_alpha=min(LORA_RANK, 16), lora_dropout=0.0, target_modules="all-linear", init_lora_weights="gaussian")
 
-    vla = get_peft_model(
-        vla,
-        lora_config,
-    )
+    vla = get_peft_model(vla, lora_config)
 
     vla.print_trainable_parameters()
 
-    trainable_parameters = sum(
-        p.numel()
-        for p in vla.parameters()
-        if p.requires_grad
-    )
+    trainable_parameters = sum(p.numel() for p in vla.parameters() if p.requires_grad)
 
-    total_parameters = sum(
-        p.numel()
-        for p in vla.parameters()
-    )
+    total_parameters = sum(p.numel() for p in vla.parameters())
 
-    print(
-        "Trainable parameters:",
-        f"{trainable_parameters:,}",
-    )
+    print("Trainable parameters:", f"{trainable_parameters:,}")
 
-    print(
-        "Total parameters:",
-        f"{total_parameters:,}",
-    )
+    print("Total parameters:", f"{total_parameters:,}")
 
-    print(
-        "Trainable percentage:",
-        (
-            100.0
-            * trainable_parameters
-            / total_parameters
-        ),
-    )
+    print("Trainable percentage:", (100.0 * trainable_parameters / total_parameters))
 
     # ============================================================
     # ACTION TOKENIZER
     # ============================================================
 
-    action_tokenizer = ActionTokenizer(
-        processor.tokenizer
-    )
+    action_tokenizer = ActionTokenizer(processor.tokenizer)
 
     # ============================================================
     # RLDS -> OPENVLA TRANSFORM
@@ -360,6 +239,51 @@ def main():
         "Dataset length:",
         len(vla_dataset),
     )
+
+
+    # ============================================================
+    # VERIFY RLDS SPLITS AND TRAIN-ONLY STATISTICS
+    # ============================================================
+
+    import tensorflow_datasets as tfds
+
+    builder = tfds.builder(
+        DATASET_NAME,
+        data_dir=str(DATA_ROOT),
+    )
+
+    required_splits = {"train", "val", "test"}
+    actual_splits = set(builder.info.splits.keys())
+
+    if not required_splits.issubset(actual_splits):
+        raise RuntimeError(
+            f"Missing required RLDS splits: "
+            f"{required_splits - actual_splits}"
+        )
+
+    expected_train_episodes = int(
+        builder.info.splits["train"].num_examples
+    )
+
+    statistics_episodes = int(
+        vla_dataset.dataset_statistics[DATASET_NAME][
+            "num_trajectories"
+        ]
+    )
+
+    print("RLDS train episodes:", expected_train_episodes)
+    print("Statistics trajectories:", statistics_episodes)
+
+    if statistics_episodes != expected_train_episodes:
+        raise RuntimeError(
+            "Normalization statistics were not computed "
+            "from train only! "
+            f"Expected {expected_train_episodes} trajectories, "
+            f"found {statistics_episodes}."
+        )
+
+    print("Train-only normalization: VERIFIED")
+
 
     # ============================================================
     # DATASET STATISTICS
