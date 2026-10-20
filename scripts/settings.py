@@ -1,12 +1,14 @@
 from pathlib import Path
+
 import numpy as np
+from scipy.spatial.transform import Rotation as R
 
 # Setup values
 env_name = "CustomTask"
 robot = "PRob3"
 gripper_types = "PRob3Gripper"
-render_on_screen = False    # Set to false for faster simulations
-record = True
+render_on_screen = True    # Set to false for faster simulations
+record = False
 
 # Environment variables
 max_reachable_x = 0.55 # It is 60cm, but we take a margin and set it to 55cm
@@ -35,6 +37,11 @@ rotation_gain = 0.12
 max_position_action = 0.40
 max_rotation_action = 0.40
 
+gripper_velocity_factor_per_second = 1.0
+gripper_transition_seconds = 3.0
+
+expert_max_segment_seconds = 20.0
+
 # Integral Z payload compensation
 z_integral_gain = 0.36
 z_integral_limit = 0.025
@@ -54,11 +61,38 @@ drop_clearance = 0.01
 # Lower the original front camera without changing its orientation (the following values have been collected by testing)
 # camera_init_pos = [1.6, 0.0, 1.45]
 # camera_init_quat = [0.561, 0.431, 0.431, 0.561]
-camera_pos = np.array([0.8, -0.7, 0.55])
-camera_quat = np.array([0.661, 0.553, 0.326, 0.392])
+camera_target = np.array([0.0, 0.0, 0.10])
+camera_pos = np.array([-0.35, -0.50, 0.55])
+
+# Compute the quaternion as manually setting it is an hell...
+def compute_camera_quat(camera_target: np.ndarray, camera_pos: np.ndarray) -> np.ndarray:
+    forward = camera_target - camera_pos
+    norm = np.linalg.norm(forward)
+
+    if norm < 1e-8:
+        raise ValueError("The quaternion is impossible to compute.")
+
+    forward /= norm
+    world_up = np.array([0.0, 0.0, 1.0])
+    right = np.cross(forward, world_up)
+    right_norm = np.linalg.norm(right)
+
+    if right_norm < 1e-8:
+        raise ValueError("Camera direction parallel to world z.")
+
+    right /= right_norm
+
+    up = np.cross(right, forward)
+
+    rotation_matrix = np.column_stack([right, up, -forward])
+    quat = R.from_matrix(rotation_matrix).as_quat(scalar_first=True)
+
+    return np.asarray(quat)
+
+camera_quat = np.array(compute_camera_quat(camera_target, camera_pos))
 
 # Starting pose for the robot sim
-starting_pose = np.array([0.0, -0.366, 0.800, 0.0, 1.137, 0.0]) # Top-down grasp
+starting_pose = np.array([-0.269, 0.401, 1.171, -0.010, 1.375, -0.172]) # Top-down grasp
 
 # Reward and penalty factors
 closeness = 0.1
@@ -71,7 +105,7 @@ z_target = 0.3
 # Tolerances
 position_tolerance = 0.003 # 3mm
 rotation_tolerance_deg = 1.0 # 1 degree
-transport_position_tolerance = 0.004
+transport_position_tolerance = 0.005
 transport_rotation_tolerance = 2.0
 final_tolerance = 0.005
 
@@ -80,12 +114,13 @@ n_objects = 1
 
 # RLDS dataset
 dataset_root = str(Path(__file__).resolve().parents[1] / "hdf5_data")
-dataset_name = "prob3_pick_place_shadows"
+dataset_name = "prob3_pick_place_v3"
 
-dataset_fps = 20
+dataset_fps = 5
 
 dataset_camera_name = "frontview"
 dataset_camera_observation_key = "frontview_image"
+#dataset_camera_fovy = 70.0
 
 dataset_image_width = 256
 dataset_image_height = 256

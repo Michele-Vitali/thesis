@@ -7,6 +7,7 @@ from robosuite.models.robots.manipulators.manipulator_model import ManipulatorMo
 from robosuite.models.robots.robot_model import register_robot
 from robosuite.robots import ROBOT_CLASS_MAPPING
 from robosuite.robots.single_arm import SingleArm
+import settings
 
 
 class PRob3Gripper(GripperModel):
@@ -54,7 +55,7 @@ class PRob3Gripper(GripperModel):
         """
         The speed at which the fingers of the gripper move
         """
-        return 0.01
+        return settings.gripper_velocity_factor_per_second / settings.dataset_fps
 
     def format_action(self, action: np.ndarray):
         """Formats the passed gripper action in the convention:

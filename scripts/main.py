@@ -166,7 +166,7 @@ def configure_task(env: "SingleArmEnv"):
 
     # Modify the camera FOV
     camera_id = model.camera_name2id(settings.dataset_camera_name)
-    model.cam_fovy[camera_id] = 70.0
+    #model.cam_fovy[camera_id] = settings.dataset_camera_fovy
 
     # Enable shadows
     model.light_castshadow[0] = 1
@@ -354,15 +354,36 @@ def pick_and_place_action(env: "SingleArmEnv", obj, pos: np.ndarray, quat: np.nd
 
     # Total steps for debug/report
     total_steps = 0
+    gripper_max_steps = max(1, int(np.ceil(settings.gripper_transition_seconds * settings.dataset_fps)))
 
     # Move over the object.
     recorder.phase = "approach"
-    done, steps = movements_ctrl.move_robot_to_position(above_object_pos, quat, record=record)
+    done, steps = movements_ctrl.move_robot_to_position(above_object_pos, quat, record=record, position_tolerance=settings.transport_position_tolerance, rotation_tolerance_deg=settings.transport_rotation_tolerance)
     total_steps += steps
 
     if not done:
         print("OSC failed during approach.")
         return (None, total_steps)
+
+    robot = env.robots[0]
+
+    candidate_home = np.asarray(
+        env.sim.data.qpos[robot._ref_joint_pos_indexes],
+        dtype=float
+    ).copy()
+
+    eef_pos = np.asarray(
+        env.sim.data.site_xpos[robot.eef_site_id],
+        dtype=float
+    ).copy()
+
+    print("\n" + "=" * 60)
+    print("POSSIBLE NEW HOME")
+    print("Joint positions:", np.round(candidate_home, 6))
+    print("EEF position:", np.round(eef_pos, 4))
+    print("=" * 60 + "\n")
+
+    input("Press any key to continue...")
 
     # Descend to the object.
     recorder.phase = "descend"
@@ -379,7 +400,7 @@ def pick_and_place_action(env: "SingleArmEnv", obj, pos: np.ndarray, quat: np.nd
 
     # Close the gripper.
     recorder.phase = "grasp"
-    movements_ctrl.set_gripper(target=0.0, record=record)
+    movements_ctrl.set_gripper(target=0.0, record=record, max_steps=gripper_max_steps)
     closed_qpos = np.asarray(env.sim.data.qpos[finger_indices], dtype=float).copy()
 
     if not np.all(open_qpos - closed_qpos >= 0.10):
@@ -387,7 +408,7 @@ def pick_and_place_action(env: "SingleArmEnv", obj, pos: np.ndarray, quat: np.nd
         return (None, total_steps)
 
     # Change the controller kp and damping ratio to compensate object's inertia...
-    set_osc_gains(env, kp=settings.grasp_kp, damping_ratio=settings.grasp_damping)
+    #set_osc_gains(env, kp=settings.grasp_kp, damping_ratio=settings.grasp_damping)
 
     # Lift the object vertically to the transport height.
     # Note: We use payload compensation and some tolerances to achieve higher precision in some particular movements
@@ -406,7 +427,7 @@ def pick_and_place_action(env: "SingleArmEnv", obj, pos: np.ndarray, quat: np.nd
     
     # Move diagonally above the central drop point.
     recorder.phase = "transport"
-    done, steps = movements_ctrl.move_robot_to_position(above_drop_pos, quat, payload_compensation=True, record=record)
+    done, steps = movements_ctrl.move_robot_to_position(above_drop_pos, quat, payload_compensation=True, record=record, position_tolerance=settings.transport_position_tolerance, rotation_tolerance_deg=settings.transport_rotation_tolerance)
     total_steps += steps
 
     if not done:
@@ -415,7 +436,7 @@ def pick_and_place_action(env: "SingleArmEnv", obj, pos: np.ndarray, quat: np.nd
 
     # Now just align the cube!
     recorder.phase = "align"
-    done, steps = movements_ctrl.move_robot_to_position(above_drop_pos, payload_compensation=True, record=record)
+    done, steps = movements_ctrl.move_robot_to_position(above_drop_pos, payload_compensation=True, record=record, position_tolerance=settings.transport_position_tolerance, rotation_tolerance_deg=settings.transport_rotation_tolerance)
     total_steps += steps
 
     if not done:
@@ -433,10 +454,10 @@ def pick_and_place_action(env: "SingleArmEnv", obj, pos: np.ndarray, quat: np.nd
     
     # Open the gripper.
     recorder.phase = "release"
-    movements_ctrl.set_gripper(target=1.0, record=record)
+    movements_ctrl.set_gripper(target=1.0, record=record, max_steps=gripper_max_steps)
 
     # Reset controller configuration...
-    set_osc_gains(env, kp=settings.free_kp, damping_ratio=settings.free_damping)
+    #set_osc_gains(env, kp=settings.free_kp, damping_ratio=settings.free_damping)
 
     # Some debug/report code...
     final_object_pos = (env.sim.data.body_xpos[obj_id].copy())

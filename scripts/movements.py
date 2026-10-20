@@ -227,6 +227,8 @@ class OSCMovementController:
         # Convert the target position to a np.ndarray and copy it.
         target_pos = np.asarray(target_pos, dtype=float).copy()
 
+        max_steps = min(max_steps, max(1, int(np.ceil(settings.expert_max_segment_seconds * settings.dataset_fps))))
+
         # Integral component variables...
         dt = 1.0 /float(settings.dataset_fps)
         integral_z = 0.0
