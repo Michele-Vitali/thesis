@@ -51,11 +51,27 @@ class PRob3Gripper(GripperModel):
         return np.array([0.523599, 0.523599]) # Gripper initially fully open
 
     @property
+    def _important_geoms(self):
+        left_geoms = [f"left_finger_col_{i}" for i in range(7)]
+        right_geoms = [f"right_finger_col_{i}" for i in range(7)]
+
+        return{
+            "left_finger": left_geoms,
+            "right_finger": right_geoms,
+            "left_fingerpad": left_geoms,
+            "right_fingerpad": right_geoms,
+        }
+
+
+    @property
     def speed(self):
         """
         The speed at which the fingers of the gripper move
         """
-        return settings.gripper_velocity_factor_per_second / settings.dataset_fps
+        # We use 2.0 since the action range is 2.0 units wide (in ROBOSUITE only!)
+        #return 2.0 / (settings.gripper_transition_seconds * settings.dataset_fps)
+
+        return 0.002
 
     def format_action(self, action: np.ndarray):
         """Formats the passed gripper action in the convention:
@@ -69,6 +85,7 @@ class PRob3Gripper(GripperModel):
             np.ndarray: the formatted action.
         """
 
+        self._format_calls = getattr(self, "_format_calls", 0) + 1
         # Ensure the action is an np array and flatten it.
         action = np.asarray(action, dtype=float).reshape(-1)
 

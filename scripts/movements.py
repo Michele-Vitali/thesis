@@ -362,72 +362,13 @@ class OSCMovementController:
 
         # Return the tuple that we receive from the move_eef_to_pose function!
         return self.move_eef_to_pose(target_pos=target_eef_pos, target_rotation=target_rotation, max_steps=max_steps, position_tolerance=position_tolerance, rotation_tolerance_deg=rotation_tolerance_deg, payload_compensation=payload_compensation, record=record)
-
-    '''def toggle_grab(self, max_steps: int = 50, settle_steps: int = 4, record: bool = True) -> bool:
-        """
-        Toggles the current gripper's state. If the action was holding the current pose, we keep holding it!
-
-        If:
-            - +1 (Open) => -1 (Closed)
-            - -1 (Closed) => +1 (Open)
-            - 0.0 (Hold) => 0.0 (Hold)
-
-        Args:
-            max_steps (int, optional): The maximum number of steps the toggling action should take. Defaults to 50.
-            settle_steps (int, optional): The number of steps our simulation should wait for the fingers to settle in the correct position. Defaults to 4.
-            record (bool, optional): Whether we should record the episode or not. Defaults to True.
-
-        Returns:
-            bool: Whether the togglin action was completed or not.
-        """
-
-        # Invert the current gripper state!
-        self.gripper_state = 1.0 - self.gripper_state
-        target_state = float(self.gripper_state)
-
-        # Initialize a "blank" action
-        action = np.zeros(self.env.action_dim, dtype=float)
-
-        # Set the new grip state
-        action[6] = target_state
-
-        # Execute the action for at max "max_steps" until we are sure the state is completely toggled
-        reached = False
-        for _ in range(max_steps):
-            # Grab the current observation.
-            observation = self.env._get_observations()
-
-            # Execute the step and eventually record it.
-            self._step(action=action, observation=observation, record=record)
-
-            # Grab the current action the gripper is executing and flatten it.
-            current_command = np.asarray(self.env.robots[0].gripper.current_action, dtype=float).reshape(-1)
-
-            # Condition to early-stop the toggling if the target is already reached!
-            if current_command.size > 0 and abs(float(current_command[0]) - target_state) < 0.02:
-                reached = True
-                break
-
-        # Execute an hold action to give time to the fingers to settle.
-        hold_action = np.zeros(self.env.action_dim, dtype=float)
-        for _ in range(settle_steps):
-            self._step(action=hold_action, record=record)
-
-        if not reached:
-            print("Gripper did not fully toggle!")
-
-        return True
-    '''
         
-    def set_gripper(self, target: float, max_steps: int = 50, tolerance: float = 0.02, record: bool = False) -> bool:
+    def set_gripper(self, target: float, max_steps: int = 50, record: bool = False, obj = None) -> tuple[bool, int]:
 
 
         if not 0.0 <= target <= 1.0:
             raise ValueError(f"Invalid gripper target! Must be in [0, 1], got {target}")
-
-        # Grab the robot's instance.
-        robot = self.env.robots[0]
-
+        
         # Remember the target for next OSC movements.
         self.gripper_state = float(target)
 
@@ -435,28 +376,51 @@ class OSCMovementController:
         action = np.zeros(self.env.action_dim, dtype=float)
         action[-1] = self.gripper_state
 
-        # Read the physical actuator limits.
-        actuator_idx = robot._ref_joint_gripper_actuator_indexes[0]
-        lower, upper = self.env.sim.model.actuator_ctrlrange[actuator_idx]
+        stable_steps = 0
+        steps = 0
+        gripper = self.env.robots[0].gripper
 
-        # Convert normalized target to physical joint target.
-        target_qpos = lower + target * (upper - lower)
-
-        # Read the first physical gripper joint.
-        joint_idx = robot._ref_gripper_joint_pos_indexes[0]
-
+        finger_indices = self.env.robots[0]._ref_gripper_joint_pos_indexes
+        init_qpos = np.asarray(self.env.sim.data.qpos[finger_indices]).copy()
+        
         for _ in range(max_steps):
+
             # Grab the current observation.
             observation = self.env._get_observations()
 
             # Execute the step and eventually record it.
             self._step(action=action, observation=observation, record=record)
+            steps += 1
 
-            # Read the actual joint position.
-            current_qpos = float(self.env.sim.data.qpos[joint_idx])
+            # Check if we're grasping the object.
+            is_grasped = self.env._check_grasp(gripper=gripper, object_geoms=obj)
 
-            # Stop if the physical target has been reached.
-            if abs(current_qpos - target_qpos) < tolerance:
-                return True
+            if target == 0 and obj is not None:
+                if is_grasped:
+                    stable_steps += 1
+                else:
+                    stable_steps = 0
 
-        return False
+                if stable_steps >= 3:
+                    # We can assume the gripper is firmly closed...
+                    return (True, steps)
+
+            if target == 1 and obj is not None:
+                current_qpos = np.asarray(self.env.sim.data.qpos[finger_indices]).copy()
+                is_open = np.all(np.abs(current_qpos - init_qpos) < 0.08)
+
+                if not is_grasped and is_open:
+                    stable_steps += 1
+                else:
+                    stable_steps = 0
+
+                if stable_steps >= 3:
+                    # This means we're not controlling the object anymore!
+                    return (True, steps)
+
+        # If the target was to be closed but we finished max_steps we failed...
+        if target == 0 and obj is not None:
+            return (False, max_steps)
+
+        # If the target was opening, after max_steps we are sure to have opened...
+        return (True, steps)

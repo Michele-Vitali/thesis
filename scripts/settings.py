@@ -7,8 +7,8 @@ from scipy.spatial.transform import Rotation as R
 env_name = "CustomTask"
 robot = "PRob3"
 gripper_types = "PRob3Gripper"
-render_on_screen = False    # Set to false for faster simulations
-record = True
+render_on_screen = True    # Set to false for faster simulations
+record = False
 
 # Environment variables
 max_reachable_x = 0.55 # It is 60cm, but we take a margin and set it to 55cm
@@ -37,8 +37,7 @@ rotation_gain = 0.12
 max_position_action = 0.40
 max_rotation_action = 0.40
 
-gripper_velocity_factor_per_second = 1.0
-gripper_transition_seconds = 5.0
+gripper_transition_seconds = 1.0
 
 expert_max_segment_seconds = 20.0
 
@@ -63,6 +62,8 @@ drop_clearance = 0.01
 # camera_init_quat = [0.561, 0.431, 0.431, 0.561]
 camera_target = np.array([0.0, 0.0, 0.10])
 camera_pos = np.array([-0.40, -0.55, 0.64])
+
+#camera_pos = np.array([-1.0, -2.0, -2.0]) Camera for debugging...
 
 # Compute the quaternion as manually setting it is an hell...
 def compute_camera_quat(camera_target: np.ndarray, camera_pos: np.ndarray) -> np.ndarray:
@@ -99,6 +100,7 @@ camera_light_pos = np.array([-0.20, -0.35, 0.55])
 
 # Starting pose for the robot sim
 starting_pose = np.array([0.0, 0.0, 1.5, 0.0, 1.8, 0.0]) # Top-down grasp
+
 
 # Reward and penalty factors
 closeness = 0.1
@@ -173,4 +175,4 @@ server_port = 8000
 server_url = f"http://{server_host}:{server_port}"
 unnorm_key = "prob3_pick_place"
 server_timeout = 120 # 120 s = 2 mins
-openvla_path = "runs/openvla/openvla-7b+prob3_pick_place+b8+lr-0.0005+lora-r32+dropout-0.0--prob3_first_8k--image_aug"
+openvla_path = "runs/openvla/openvla-7b+prob3_pick_place+b4+lr-0.0001+lora-r32+dropout-0.05--prob3_lora_v3_shadows_camera_20_october_16pm--image_aug--18000_chkpt"

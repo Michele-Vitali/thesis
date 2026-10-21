@@ -73,12 +73,12 @@ def compute_metrics(gt_actions: np.ndarray, pred_actions: np.ndarray):
 
     # Compute their MAE, RMSE, cosine similarity
     translation_mae = float(np.abs(translation_error).mean())
-    translation_rmse = float(np.sqrt(np.mean(rotation_error ** 2)))
+    translation_rmse = float(np.sqrt(np.mean(translation_error ** 2)))
 
     rotation_mae = float(np.abs(rotation_error).mean())
     rotation_rmse = float(np.sqrt(np.mean(rotation_error ** 2)))
 
-    translation_vector_error = float(np.linalg.norm(translation_error, axis=1)).mean()
+    translation_vector_error = float(np.linalg.norm(translation_error, axis=1).mean())
     rotation_vector_error = float(np.linalg.norm(rotation_error, axis=1).mean())
 
     # Grab only the translation components
@@ -181,13 +181,16 @@ def save_metrics(model_name: str, dataset_dir: str, split_name: str, metrics: di
 
     result = {
         "model": model_name,
-        "dataset": dataset_dir.name,
+        "dataset": dataset_dir,
         "split": split_name,
         "metrics": metrics
     }
 
     # Note: the extension is .jsonl, it is a variant of normal json, perfect for appending json objects independently!
-    with open(results_dir / "offline_results.jsonl", "a", encoding="utf-8") as f:
+    with open(results_dir / "evaluation_results.json", "w", encoding="utf-8") as f:
         f.write(json.dumps(result) + "\n")
 
     print(f"[SAVED] Results for {model_name}")
+
+def generate_graphs():
+    pass

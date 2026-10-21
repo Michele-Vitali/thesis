@@ -355,8 +355,7 @@ def pick_and_place_action(env: "SingleArmEnv", obj, pos: np.ndarray, quat: np.nd
 
     # Total steps for debug/report
     total_steps = 0
-    gripper_max_steps = max(1, int(np.ceil(settings.gripper_transition_seconds * settings.dataset_fps)))
-
+    
     # Move over the object.
     recorder.phase = "approach"
     done, steps = movements_ctrl.move_robot_to_position(above_object_pos, quat, record=record, position_tolerance=settings.transport_position_tolerance, rotation_tolerance_deg=settings.transport_rotation_tolerance)
@@ -381,11 +380,12 @@ def pick_and_place_action(env: "SingleArmEnv", obj, pos: np.ndarray, quat: np.nd
 
     # Close the gripper.
     recorder.phase = "grasp"
-    movements_ctrl.set_gripper(target=0.0, record=record, max_steps=gripper_max_steps)
-    closed_qpos = np.asarray(env.sim.data.qpos[finger_indices], dtype=float).copy()
+    done, steps = movements_ctrl.set_gripper(target=0.0, record=record, obj=obj)
+    print(f"Closing steps: {steps}")
+    total_steps += steps
 
-    if not np.all(open_qpos - closed_qpos >= 0.10):
-        print("[INVALID] Gripper did not sufficiently close: open={open_qpos} closed={closed_qpos}")
+    if not done:
+        print("OSC failed while closing the gripper.")
         return (None, total_steps)
 
     # Change the controller kp and damping ratio to compensate object's inertia...
@@ -435,7 +435,12 @@ def pick_and_place_action(env: "SingleArmEnv", obj, pos: np.ndarray, quat: np.nd
     
     # Open the gripper.
     recorder.phase = "release"
-    movements_ctrl.set_gripper(target=1.0, record=record, max_steps=gripper_max_steps)
+    done, steps = movements_ctrl.set_gripper(target=1.0, record=record, obj=obj)
+    print(f"Opening steps: {steps}")
+    total_steps += steps
+
+    if not done:
+        print("OSC failed while opening the gripper.")
 
     # Reset controller configuration...
     #set_osc_gains(env, kp=settings.free_kp, damping_ratio=settings.free_damping)

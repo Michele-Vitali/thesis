@@ -65,7 +65,8 @@ class OpenVLAServer:
             torch_dtype=torch.bfloat16,
             low_cpu_mem_usage=True,
             trust_remote_code=True,
-        ).to(self.device)
+            device_map={"": str(self.device)}
+        )
 
         # [Hacky] Load Dataset Statistics from Disk (if passing a path to a fine-tuned model)
         if os.path.isdir(self.openvla_path):
@@ -107,7 +108,7 @@ class OpenVLAServer:
         print("[SERVER DEBUG] Host:", repr(host))
         print("[SERVER DEBUG] Port:", repr(port))
         print("=" * 60)
-        uvicorn.run(self.app, host=host, port=port)
+        uvicorn.run(self.app, host=host, port=port, access_log=False)
 
     def health(self):
         return {"status": "OK"}

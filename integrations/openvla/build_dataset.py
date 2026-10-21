@@ -1,10 +1,6 @@
-#!/usr/bin/env python3
 """Build and validate P-Rob3 HDF5 -> TFDS/RLDS with one command.
 
-Install at thesis/integrations/openvla/build_dataset.py.
 Run from anywhere using the project's openvla_env Python.
-
-The existing TFDS builder is reused without editing its source.
 """
 
 from __future__ import annotations

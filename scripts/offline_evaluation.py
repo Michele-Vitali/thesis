@@ -1,11 +1,17 @@
-import json
+import os
+
+os.environ["USE_TF"] = "0"  # Disables TensorFlow (TF) warnings, used since we do not utilize TF here but it gets imported via HF dependencies...
+
 import multiprocessing
 import time
 from pathlib import Path
 
 import h5py
+import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import requests
+import seaborn as sns
 import settings
 from offline_metrics import compute_metrics, save_metrics
 from vla_client import OpenVLAClient
@@ -57,16 +63,17 @@ def main():
             raise RuntimeError("No dataset with val.hdf5 was found!")
 
         # Print the available datasets in the directory
+        print("="*60)
         print("Available datasets:")
         for i, path in enumerate(available_datasets):
             print(f"[{i}] {path.name}")
 
         # Make the user choos the dataset to use...
-        choice = input("Chosen dataset index (Enter => Choose the latest): ").strip()
+        choice = input("\nChosen dataset index (Enter => Choose the latest): ").strip()
         index = int(choice) if choice else 0
 
         if not 0 <= index < len(available_datasets):
-            raise ValueError("Invalid dataset idnex chosen!")
+            raise ValueError("Invalid dataset index chosen!")
 
         # Grab the dataset directory and the validation file path
         dataset_dir = available_datasets[index]
@@ -74,12 +81,13 @@ def main():
 
         print(f"Selected dataset: {dataset_dir.name}")
         print(f"Validation file: {val_file}")
+        print("="*60)
 
         # Compute the models' directory
         checkpoints_base_dir = script_dir / Path("../runs/openvla")
 
         n_models_to_test = int(input("How many models you want to test (the latest N will be chosen...)? "))
-        if 0 > n_models_to_test:
+        if n_models_to_test <= 0:
             raise ValueError("At least 1 model must be testes!")
 
         if checkpoints_base_dir.exists():
@@ -87,6 +95,7 @@ def main():
                             key=lambda p: p.stat().st_mtime,
                             reverse=True)[:n_models_to_test]
 
+            models_name = [p.name for p in models]
             models = [str(p) for p in models]
         else:
             raise ValueError("The checkpoints' folder does not exist!")        
@@ -95,13 +104,19 @@ def main():
         if not models:
                 raise ValueError("No models to be tested were found!")
 
+        print("="*60)
+        print("These models will be tested:")
+        for i, model in enumerate(models_name):
+            print(f"[Model-{i}] {model}")
+        print("="*60)
+
+        all_models_results = {}
         # Loop to test every model.
         for i, model_path in enumerate(models):
             
             # Grab the last part of the path (the unique model name...)
-            model_name = model_path.split("0.0--")[-1]
             print("="*60)
-            print(f"[Model-{i}] {model_name}")
+            print(f"[Model-{i}] {models_name[i]}")
             print("="*60)
 
             # Create a new config for the current model
@@ -189,16 +204,17 @@ def main():
 
                         metrics = compute_metrics(all_gt_actions, all_pred_actions)
 
-                        results_dir = script_dir.parent / "evaluations"
+                        results_dir = thesis_root / "evaluations" / models_name[i]
                         split_name = "val"
-                        save_metrics(model_name, dataset_dir.name, split_name, metrics, results_dir)
+                        save_metrics(models_name[i], dataset_dir.name, split_name, metrics, results_dir)
+                        all_models_results[models_name[i]] = metrics
 
                         # Print the final report!
                         print("\n" + "=" * 60)
-                        print(f"Evaluation results for model: {model_name}")
+                        print(f"Evaluation results for model: {models_name[i]}")
                         print("="*60)
 
-                        print(f"Evaluated frames: {metrics[num_frames]}")
+                        print(f"Evaluated frames: {metrics['num_frames']}")
                         print(f"Arm MAE: {metrics['arm']['mae']}")
                         print(f"Translation MAE: {metrics['arm']['translation_mae']}")
                         print(f"Rotation MAE: {metrics['arm']['rotation_mae']}")
@@ -216,6 +232,13 @@ def main():
             finally:
                 server_process.kill()
                 server_process.join()   # Waits for the child process to be killed ...
+
+        # Now we plot the graphs for easier model comparison...
+        discrete_metrics = {
+            "Model": []
+        }
+
+
     except KeyboardInterrupt:
         print("Process terminated by the user...")
 

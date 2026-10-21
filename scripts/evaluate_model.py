@@ -29,7 +29,7 @@ def main():
             env_name=settings.env_name,
             robots=settings.robot,
             gripper_types=settings.gripper_types,
-            has_renderer=settings.render_on_screen, # On-screen renderer, usefule for debug, but slow for dataset gathering...
+            has_renderer=True, # On-screen renderer, usefule for debug, but slow for dataset gathering...
             has_offscreen_renderer=True, # Necessary for the dataset!
             use_camera_obs=True, # Also for dataset...
             camera_names=settings.dataset_camera_name,
@@ -42,6 +42,15 @@ def main():
             horizon=1000, # So we are sure that all the pick and places terminate
             reward_shaping=True, # Not useful in our case but had implemented it anyway...
         )
+
+    # Enable shadows (like in training!)
+    model = env.sim.model
+    if model.nlight > 0:
+        model.light_castshadow[:] = int(settings.camera_shadows)
+        active_lights = model.light_active.astype(bool)
+
+        model.light_ambient[active_lights] = settings.camera_shadow_ambient
+        model.light_diffuse[active_lights] = settings.camera_shadow_diffuse 
 
     # 3.1 Remove rangefinders visualization...
     context = getattr(env.sim, "_render_context_offscreen", None)
@@ -144,11 +153,52 @@ def execute_task(env: "SingleArmEnv", obs: dict, client: OpenVLAClient, max_step
 
         # We must adapt the output (e.g. the gripper action as we use different conventions...)
         action = adapt_action(prediction)
-
+        """
         # Execute the action
         obs, _, _, _ = env.step(action)
         env.render()
         total_steps += 1
+        """
+
+
+        # Measure what happens when the action is executed.
+        robot = env.robots[0]
+        eef_before = env.sim.data.site_xpos[robot.eef_site_id].copy()
+
+        next_obs, _, _, _ = env.step(action)
+        env.render()
+
+        eef_after = env.sim.data.site_xpos[robot.eef_site_id].copy()
+
+        # Actual end-effector displacement in meters.
+        eef_movement = float(np.linalg.norm(eef_after - eef_before))
+
+        # How much has the image changed?
+        next_image = prepare_rgb(next_obs)
+        image_delta = float(np.mean(
+            np.abs(
+                next_image.astype(np.float32)
+                - image.astype(np.float32)
+            )
+        ))
+
+        if total_steps % 5 == 0:
+            finger_qpos = env.sim.data.qpos[
+                robot._ref_gripper_joint_pos_indexes
+            ].copy()
+
+            print(
+                f"\n[STEP {total_steps}]"
+                f"\n  Action: {np.round(action, 4)}"
+                f"\n  EEF movement: {eef_movement:.6f} m"
+                f"\n  EEF Z: {eef_after[2]:.4f} m"
+                f"\n  Finger qpos: {np.round(finger_qpos, 4)}"
+                f"\n  Image delta: {image_delta:.4f}"
+            )
+
+        obs = next_obs
+        total_steps += 1
+
 
         # Check for success...
         if env.objects:
@@ -197,6 +247,8 @@ def prepare_rgb(obs: dict):
     if image.shape != expected:
         raise ValueError(f"Expected image shap: {expected}, got {image.shape}")
 
+    image = np.flipud(image).copy()
+
     return np.ascontiguousarray(image)
 
 
@@ -212,6 +264,8 @@ def adapt_action(prediction: np.ndarray):
 
     # Use a threshold for deciding the action on the gripper.
     prediction[-1] = 1.0 if prediction[-1] >= 0.5 else 0.0
+
+    print(f"Predicted action: {prediction}")
 
     return prediction
 
