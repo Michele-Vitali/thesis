@@ -81,13 +81,13 @@
                       type="sphere" />
                   
                   <body name="wrist_camera_mount"
-                      pos="0.055 -0.040 0.018" >
+                      pos="0.10 0 0.10" >
 
                       <camera 
                           name="wristview"
                           mode="fixed"
                           pos="0 0 0"
-                          quat="0.175216 -0.418585 0.822005 -0.344084"
+                          quat="-0.306311 0.637318 -0.637318 0.306311"
                           fovy="75"
                         />
                   </body>

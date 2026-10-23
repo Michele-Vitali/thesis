@@ -2,6 +2,11 @@
 
 set -o pipefail
 
+# Remove some secondary junk warnings...
+export TF_CPP_MIN_LOG_LEVEL=3
+export TF_ENABLE_ONEDNN_OPTS=0
+export OMP_NUM_THREADS=1
+
 
 # ================================================================
 # PROJECT
@@ -51,9 +56,7 @@ NUM_GPUS=2
 
 USE_LORA=True
 
-LORA_RANK=32
-
-LORA_ALPHA=64
+LORA_RANK=16    # First experiment with lora rank halved. Then return to 32 and double the dropout rate.
 
 LORA_DROPOUT=0.05
 
@@ -86,7 +89,7 @@ SAVE_LATEST_CHECKPOINT_ONLY=False
 # RUN IDENTIFICATION
 # ================================================================
 
-RUN_NOTE="prob3_lora_v3_shadows_camera_20_october_16pm"
+RUN_NOTE="v4_rank16_drop05"
 
 
 # ================================================================

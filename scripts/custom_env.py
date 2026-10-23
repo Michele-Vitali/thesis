@@ -8,11 +8,10 @@ from robosuite.environments.manipulation.single_arm_env import SingleArmEnv
 from robosuite.models import objects
 from robosuite.models.arenas import TableArena
 from robosuite.models.tasks import ManipulationTask
-import xml.etree.ElementTree as ET
 
 # UniformRandomSampler places objects randomly within a given range
 # We can also give a sampler per object with the SequentialCompositeSampler (future?)
-from robosuite.utils.placement_samplers import SequentialCompositeSampler
+#from robosuite.utils.placement_samplers import SequentialCompositeSampler
 
 
 @register_env
@@ -29,8 +28,6 @@ class CustomTask(SingleArmEnv):
         self.reward_shaping = reward_shaping
         self.available_objects = [
             objects.BoxObject,
-            objects.BoxObject,
-            objects.BoxObject,
             #objects.BallObject,
             #objects.CylinderObject,
             #objects.CapsuleObject,
@@ -40,6 +37,8 @@ class CustomTask(SingleArmEnv):
         ]
         self.gripper_state = +1.0 # Start with the gripper open
         self.sampler = None 
+        self.objects = []
+
         super().__init__(**kwargs)
 
     def _load_model(self) -> None:
@@ -109,50 +108,30 @@ class CustomTask(SingleArmEnv):
         This function randomly picks n_objects (defined in settings.py) by the list of possible objects defined in the environment, then creates them one by one and adds them to the objects list of the environment.
         """
 
-        chosen_objects = random.SystemRandom().sample(self.available_objects, settings.n_objects)
-        self.objects = []
+        for i in range(settings.n_objects):
+            obj_class = random.choice(self.available_objects)
 
-        for i, class_obj in enumerate(chosen_objects):
+            # Object's args.
             name = f"RNG_Object_{i}"
+            kwargs = {
+                "name": name,
+                "size_min": list(np.full(3, settings.object_half_size_min)),
+                "size_max": list(np.full(3, settings.object_half_size_max))
+            }
 
-            half_size = float(np.random.uniform(settings.object_half_size_min, settings.object_half_size_max))
-
-            obj_instance = class_obj(name=name, size=[half_size] * 3)
-
+            obj_instance = obj_class(**kwargs)
             self.objects.append(obj_instance)
 
     def _reset_internal(self):
         """
         Resets the internal simulation state of the environment.
         """
+
         super()._reset_internal()
 
-        for obj in self.objects:
-
-            new_size = np.random.uniform(low=settings.object_half_size_min, high=settings.object_half_size_max, size=3)
-
-            all_geoms = obj.contact_geoms + obj.visual_geoms
-            for geom_name in all_geoms:
-                geom_id = self.sim.model.geom_name2id(geom_name)
-                self.sim.model.geom_size[geom_id] = new_size
-
-            body_id = self.sim.model.body_name2id(obj.root_body)
-
-            volume = 8 * np.prod(new_size)
-            new_mass = 1000 * volume    # Where 1000 is robosuite's default density.
-            self.sim.model.body_mass[body_id] = new_mass
-
-            w, d, h = new_size / 2
-            ixx = (1.0 / 12.0) * new_mass * (d ** 2 + h ** 2)
-            iyy = (1.0 / 12.0) * new_mass * (w ** 2 + h ** 2)
-            izz = (1.0 / 12.0) * new_mass * (w ** 2 + d ** 2)
-            self.sim.model.body_inertia[body_id] = [ixx, iyy, izz]
-
-
-        self.sim.forward()
-
-        # For every reset we compute a random objects's positioning.
+        # Randomize its position and orientation as before.
         self._place_objects()
+
 
     """
     THE REWARD AND CHEKC_SUCESS FUNCTIONS ARE USELESS IN OUR CASE, BUT I HAD ALREADY IMPLEMENTED THEM...

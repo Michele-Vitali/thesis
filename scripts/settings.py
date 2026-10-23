@@ -7,8 +7,8 @@ from scipy.spatial.transform import Rotation as R
 env_name = "CustomTask"
 robot = "PRob3"
 gripper_types = "PRob3Gripper"
-render_on_screen = True    # Set to false for faster simulations
-record = False
+render_on_screen = False    # Set to false for faster simulations
+record = True
 
 # Environment variables
 max_reachable_x = 0.55 # It is 60cm, but we take a margin and set it to 55cm
@@ -22,6 +22,8 @@ object_half_size_min = 0.010
 object_half_size_max = 0.035
 
 max_object_height = 2.0 * object_half_size_max
+
+recreate_env_every = 5
 
 # Object spawning variables
 forbidden_spawning_pos = (0.0, 0.0) # As it is the drop point!
@@ -143,7 +145,7 @@ dataset_image_height = 256
 
 dataset_use_videos = False
 
-dataset_task = "Pick up the cube and place it straight at the center of the table"
+dataset_task = "Pick up the object and place it straight at the center of the table"
 
 gripper_q_min = -0.001
 gripper_q_max = 1.0472
@@ -158,7 +160,6 @@ grasp_damping = np.array([1.15, 1.15, 1.30, 1.0, 1.0, 1.0])
 
 test_kp = np.array([250, 250, 300, 150, 150, 150])
 test_damping = np.array([1.15, 1.15, 1.30, 1.0, 1.0, 1.0])
-
 
 osc_config = {
     "type": "OSC_POSE",

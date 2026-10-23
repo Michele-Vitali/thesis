@@ -1,79 +1,34 @@
 
 import numpy as np
-import mujoco
-import robosuite
+from scipy.spatial.transform import Rotation as R
 
-import settings
-from custom_osc import install_prob3_custom_osc
-from homing import prepare_episode
-from hdf5_recorder import NullRecorder
-from main import create_randomized_env, pick_and_place_task
-from robosuite.controllers import load_controller_config
+def camera_look_at(position, target):
+    position = np.asarray(position, dtype=float)
+    target = np.asarray(target, dtype=float)
 
+    forward = target - position
+    forward /= np.linalg.norm(forward)
 
-def main():
-    print("MuJoCo:", mujoco.__version__)
-    print("Robosuite:", robosuite.__version__)
+    reference_up = np.array([0.0, 0.0, 1.0])
 
-    # Do not save demonstrations or open the interactive viewer.
-    settings.record = False
-    settings.render_on_screen = False
+    right = np.cross(forward, reference_up)
+    right /= np.linalg.norm(right)
 
-    install_prob3_custom_osc()
+    up = np.cross(right, forward)
 
-    joint_config = load_controller_config(
-        default_controller="JOINT_POSITION"
-    )
+    rotation = np.column_stack([
+        right,
+        up,
+        -forward,
+    ])
 
-    osc_config = load_controller_config(
-        default_controller="OSC_POSE"
-    )
-    osc_config.update(settings.osc_config)
-
-    env = None
-
-    try:
-        print("[TEST] Creating environment")
-        env = create_randomized_env(joint_config)
-
-        for i in range(3):
-            print(f"\n[TEST] Episode {i + 1}")
-
-            obs = prepare_episode(
-                env, joint_config, osc_config
-            )
-
-            assert env.robots[0].action_dim == 7
-            assert env.robots[0].controller.name == "OSC_POSE"
-
-            image = np.asarray(
-                obs[settings.dataset_camera_observation_key]
-            )
-
-            assert image.shape == (
-                settings.dataset_image_height,
-                settings.dataset_image_width,
-                3,
-            )
-
-            print("[OK] Controller and camera")
-
-            error, steps = pick_and_place_task(
-                env,
-                recorder=NullRecorder(),
-                record=False,
-            )
-
-            print(
-                f"[RESULT] error={error}, steps={steps}"
-            )
-
-        print("\n[TEST] Completed without crashes")
-
-    finally:
-        if env is not None:
-            env.close()
+    return R.from_matrix(rotation).as_quat(scalar_first=True)
 
 
-if __name__ == "__main__":
-    main()
+camera_pos = [0.10, 0, 0.12]
+grasp_target = [0.0, 0.0, 0.30]
+
+quat = camera_look_at(camera_pos, grasp_target)
+
+print("Camera position:", camera_pos)
+print("Camera quaternion:", quat)

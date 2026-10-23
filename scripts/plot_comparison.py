@@ -28,7 +28,6 @@ def plot_comparisons(only_models=None, name_contains=None):
             continue
         if name_contains and name_contains not in folder.name:
             continue
-        print(folder.name)
         if folder.name == "comparisons":
             continue
 

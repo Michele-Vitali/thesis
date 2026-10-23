@@ -36,7 +36,7 @@ def main():
     recorder = HDF5Recorder() if record else NullRecorder()
 
     # Create the env
-    env = create_randomized_env(joint_config)
+    
 
     try:
         task_loop = True
@@ -51,6 +51,12 @@ def main():
 
             # Loop to ensure we get N successes (and not N simulations, as failures should not be included or the model will learn on bad episodes...)
             while successes < n_tasks:
+                #if n_simulated_tasks > 0 and n_simulated_tasks % settings.recreate_env_every == 0:
+                    #print("[ENV] Recreating environment...")
+                    #env.close()
+                    #env = None
+                    #env = create_randomized_env(joint_config)
+                env = create_randomized_env(joint_config)
                 prepare_episode(env, joint_config, osc_config)
                 configure_task(env)
                 (error, steps) = execute_task(successes, env, recorder, record)
@@ -67,6 +73,9 @@ def main():
             
                 # Increase the counter of the total number of simulated tasks
                 n_simulated_tasks += 1
+                env.close()
+                env = None
+                #env = create_randomized_env(joint_config)
 
             # Print the debug report
             print_final_report(successes, n_simulated_tasks, recorder, results)
@@ -162,6 +171,7 @@ def print_final_report(n_successes: int, n_total_tasks: int, recorder: HDF5Recor
     print(f"Average final error from the drop point: {average_err: 0.5f}")
     print(f"Average number of steps per episode: {average_steps: 0.5f}")
 
+
 def configure_task(env: "SingleArmEnv"):
     """    
     Prepares the task for the simulation.
@@ -170,12 +180,12 @@ def configure_task(env: "SingleArmEnv"):
         env (SingleArmEnv): The simulation environment.
     """
 
-    # Grab the model instance.
-    #model = env.sim.model
+    '''# Grab the model instance.
+    model = env.sim.model
 
     # Modify the camera FOV
-    #camera_id = model.camera_name2id(settings.)
-    #model.cam_fovy[camera_id] = settings.dataset_camera_fovy
+    camera_id = model.camera_name2id(settings.dataset_camera_name)
+    #model.cam_fovy[camera_id] = settings.dataset_camera_fovy'''
 
     env.sim.forward()
 
@@ -201,6 +211,7 @@ def create_randomized_env(config: dict | None) -> DomainRandomizationWrapper:
         has_renderer=settings.render_on_screen, # On-screen renderer, usefule for debug, but slow for dataset gathering...
         has_offscreen_renderer=True, # Necessary for the dataset!
         use_camera_obs=True, # Also for dataset...
+        #render_camera="gripper0_wristview",    # De-comment this line to see the simulation from the wrist camera
         camera_names=settings.dataset_camera_names, # Note: We changed the value to the list of cameras!
         camera_heights=settings.dataset_image_height,
         camera_widths=settings.dataset_image_width,
@@ -232,6 +243,7 @@ def create_randomized_env(config: dict | None) -> DomainRandomizationWrapper:
 
     env.reset()
 
+    '''
     # Enable shadows
     model = env.sim.model
     if model.nlight > 0:
@@ -239,7 +251,8 @@ def create_randomized_env(config: dict | None) -> DomainRandomizationWrapper:
         active_lights = model.light_active.astype(bool)
 
         model.light_ambient[active_lights] = settings.camera_shadow_ambient
-        model.light_diffuse[active_lights] = settings.camera_shadow_diffuse 
+        model.light_diffuse[active_lights] = settings.camera_shadow_diffuse
+    '''
 
     # Disable the rangefinders rays...
     offscreen_context = getattr(env.sim, "_render_context_offscreen", None)
@@ -250,6 +263,57 @@ def create_randomized_env(config: dict | None) -> DomainRandomizationWrapper:
     env.sim.forward()
 
     return env
+
+
+def debug_wrist_camera(env, label=""):
+    model = env.sim.model
+    data = env.sim.data
+
+    env.sim.forward()
+
+    obj = env.objects[0]
+    obj_id = model.body_name2id(obj.root_body)
+    obj_pos = data.body_xpos[obj_id].copy()
+
+    for cam_id in range(model.ncam):
+        cam_name = model.camera_id2name(cam_id)
+
+        if "wristview" not in cam_name:
+            continue
+
+        parent_id = int(model.cam_bodyid[cam_id])
+        parent_name = model.body_id2name(parent_id)
+
+        cam_pos = data.cam_xpos[cam_id].copy()
+
+        rotation = data.cam_xmat[cam_id].reshape(3, 3)
+
+        # MuJoCo cameras look along local -Z.
+        forward = -rotation[:, 2]
+
+        to_object = obj_pos - cam_pos
+        distance = np.linalg.norm(to_object)
+        to_object /= max(distance, 1e-8)
+
+        angle = np.degrees(
+            np.arccos(
+                np.clip(
+                    np.dot(forward, to_object),
+                    -1.0, 1.0
+                )
+            )
+        )
+
+        print(f"\n[WRIST CAMERA] {label}")
+        print("Camera:", cam_name)
+        print("Attached body:", parent_name)
+        print("Camera XYZ:", np.round(cam_pos, 4))
+        print("Object XYZ:", np.round(obj_pos, 4))
+        print("Viewing direction:", np.round(forward, 4))
+        print("Angle to object:", round(angle, 2), "deg")
+
+        return cam_pos
+
 
 def pick_and_place_task(env: "SingleArmEnv", recorder: HDF5Recorder, record: bool = True) -> tuple[float, int]:
     """This function executes the pick and place tas.
@@ -380,7 +444,7 @@ def pick_and_place_action(env: "SingleArmEnv", obj, pos: np.ndarray, quat: np.nd
 
     # Close the gripper.
     recorder.phase = "grasp"
-    done, steps = movements_ctrl.set_gripper(target=0, record=record, obj=obj)
+    done, steps = movements_ctrl.set_gripper(target=0.0, record=record, obj=obj)
     total_steps += steps
 
     if not done:
@@ -434,7 +498,7 @@ def pick_and_place_action(env: "SingleArmEnv", obj, pos: np.ndarray, quat: np.nd
     
     # Open the gripper.
     recorder.phase = "release"
-    done, steps = movements_ctrl.set_gripper(target=1, record=record, obj=obj)
+    done, steps = movements_ctrl.set_gripper(target=1.0, record=record, obj=obj)
     total_steps += steps
 
     if not done:
@@ -460,7 +524,6 @@ def pick_and_place_action(env: "SingleArmEnv", obj, pos: np.ndarray, quat: np.nd
 
 '''
 Commented out as we should not be able to change controller settings at runtime on the real robot...
-
 def set_osc_gains(env, kp: np.ndarray, damping_ratio: np.ndarray) -> None:
     """This function is used to change the OSC controller's kp and damping ration configurations for grasping to compensate the grasped object's inertia.
 
@@ -485,7 +548,6 @@ def set_osc_gains(env, kp: np.ndarray, damping_ratio: np.ndarray) -> None:
     osc.kp = kp
     osc.kd = 2.0 * np.sqrt(kp) * damping_ratio
 '''
-    
 
 if __name__ == "__main__":
     main()
