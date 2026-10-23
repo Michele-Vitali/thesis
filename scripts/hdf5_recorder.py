@@ -47,7 +47,8 @@ class HDF5Recorder:
         self.data_group.attrs["env"] = settings.env_name
         self.data_group.attrs["fps"] = settings.dataset_fps
         self.data_group.attrs["task"] = settings.dataset_task
-        self.data_group.attrs["camera"] = settings.dataset_camera_name
+        self.data_group.attrs["external_camera"] = settings.dataset_external_camera_name
+        self.data.group.attrs["wrist_camera"] = settings.dataset_wrist_camera_name
         print(f"HDF5 dataset: {self.hdf5_path}")
 
     def _clear_episode_buffer(self):
@@ -63,6 +64,7 @@ class HDF5Recorder:
         self._last_recorded_action = np.zeros(7, dtype=np.float32)
 
         self.images = []
+        self.wrist_images = []
 
         self.joint_states = []
         self.gripper_states = []
@@ -141,7 +143,7 @@ class HDF5Recorder:
 
         return action.copy()
 
-    def record_frame(self, env, action: np.ndarray, observation: dict = None):
+    def record_frame(self, env, action: np.ndarray, observation: dict | None = None):
         """
         Record observation_t together with action_t.
 
@@ -154,12 +156,21 @@ class HDF5Recorder:
         if observation is None:
             observation = env._get_observations()
 
-        camera_key = settings.dataset_camera_observation_key
+        external_camera_key = settings.dataset_external_camera_observation_key
 
-        if camera_key not in observation:
-            raise KeyError(f"Camera observation '{camera_key}' not found.")
+        if external_camera_key not in observation:
+            raise KeyError(f"Camera observation '{external_camera_key}' not found.")
 
-        image = self._prepare_image(observation[camera_key])
+        external_image = self._prepare_image(observation[external_camera_key])
+
+        wrist_suffix = settings.dataset_wrist_camera_observation_key
+
+        wrist_camera_keys = [key for key in observation if key.endswith(wrist_suffix)]
+
+        if len(wrist_camera_keys) != 1:
+            raise KeyboardInterrupt(f"Expected one wrist camera observation ending with '{wrist_suffix}', found: {wrist_camera_keys}")
+
+        wrist_image = self-self._prepare_image(observation[wrist_camera_keys[0]])
 
         joint_state = np.asarray(env.robots[0]._joint_positions, dtype=np.float32).reshape(-1)[:6]
 
@@ -190,7 +201,9 @@ class HDF5Recorder:
         # [gripper physical qpos, eef xyz, eef quaternion]
         robot_state = np.concatenate([gripper_state, eef_pos, eef_quat]).astype(np.float32)
 
-        self.images.append(image)
+        self.images.append(external_image)
+
+        self.wrist_images.append(wrist_image)
 
         self.joint_states.append(joint_state)
 
@@ -245,6 +258,8 @@ class HDF5Recorder:
         obs_group = episode_group.create_group("obs")
 
         obs_group.create_dataset("agentview_rgb", data=np.stack(self.images, axis=0), dtype=np.uint8, compression="gzip", compression_opts=4)
+
+        obs_group.create_dataset("wrist_rgb", data=np.stack(self.wrist_images, axis=0), dtype=np.uint8, compression="gzip", compression_opts=4)
 
         obs_group.create_dataset("joint_states", data=np.stack(self.joint_states, axis=0), dtype=np.float32)
 

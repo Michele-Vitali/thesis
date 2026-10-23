@@ -232,13 +232,6 @@ def main():
             finally:
                 server_process.kill()
                 server_process.join()   # Waits for the child process to be killed ...
-
-        # Now we plot the graphs for easier model comparison...
-        discrete_metrics = {
-            "Model": []
-        }
-
-
     except KeyboardInterrupt:
         print("Process terminated by the user...")
 

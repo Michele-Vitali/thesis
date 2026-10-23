@@ -122,13 +122,21 @@ n_objects = 1
 
 # RLDS dataset
 dataset_root = str(Path(__file__).resolve().parents[1] / "hdf5_data")
-dataset_name = "prob3_pick_place_v4_shadows_camera"
+dataset_name = "v5_multi_camera"
 
 dataset_fps = 5
 
-dataset_camera_name = "frontview"
-dataset_camera_observation_key = "frontview_image"
+# External fixed camera
+dataset_external_camera_name = "frontview"
+dataset_external_camera_observation_key = "frontview_image"
 #dataset_camera_fovy = 70.0
+
+# Gripper-connected wrist camera
+dataset_wrist_camera_name = "wristview"
+dataset_wrist_camera_observation_key = "wristview_image"
+
+# Useful for robosuite to register the cameras...
+dataset_camera_names = [dataset_external_camera_name, f"all-{dataset_wrist_camera_name}"]
 
 dataset_image_width = 256
 dataset_image_height = 256
@@ -148,14 +156,17 @@ free_damping = np.full(6, 1.0)
 grasp_kp = np.array([250, 250, 300, 150, 150, 150])
 grasp_damping = np.array([1.15, 1.15, 1.30, 1.0, 1.0, 1.0])
 
+test_kp = np.array([250, 250, 300, 150, 150, 150])
+test_damping = np.array([1.15, 1.15, 1.30, 1.0, 1.0, 1.0])
+
 
 osc_config = {
     "type": "OSC_POSE",
     "interpolation": "linear",
     "ramp_ratio": 1.0,
     "impedance_mode": "fixed",
-    "kp": free_kp,
-    "damping_ratio": free_damping,
+    "kp": test_kp,
+    "damping_ratio": test_damping,
     "control_delta": True,
     "input_min": -1.0,
     "input_max": 1.0,

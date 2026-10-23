@@ -65,7 +65,7 @@ class CustomTask(SingleArmEnv):
         self.robots[0].robot_model.set_base_xpos(settings.robot_position) 
 
         # Lower the camera!
-        self.mujoco_arena.set_camera(camera_name=settings.dataset_camera_name, pos=settings.camera_pos, quat=settings.camera_quat)
+        self.mujoco_arena.set_camera(camera_name=settings.dataset_external_camera_name, pos=settings.camera_pos, quat=settings.camera_quat)
         
         # 2. Spawn and place some objects...
         self._create_objects()
@@ -114,13 +114,11 @@ class CustomTask(SingleArmEnv):
 
         for i, class_obj in enumerate(chosen_objects):
             name = f"RNG_Object_{i}"
-            kwargs = {
-                "name": name,
-                "size_min": [settings.object_half_size_min, settings.object_half_size_min, settings.object_half_size_min],
-                "size_max": [settings.object_half_size_max, settings.object_half_size_max, settings.object_half_size_max],
-            }
 
-            obj_instance = class_obj(**kwargs)
+            half_size = float(np.random.uniform(settings.object_half_size_min, settings.object_half_size_max))
+
+            obj_instance = class_obj(name=name, size=[half_size] * 3)
+
             self.objects.append(obj_instance)
 
     def _reset_internal(self):
@@ -129,7 +127,31 @@ class CustomTask(SingleArmEnv):
         """
         super()._reset_internal()
 
-        # For every reset we re-create the object and compute a random positioning
+        for obj in self.objects:
+
+            new_size = np.random.uniform(low=settings.object_half_size_min, high=settings.object_half_size_max, size=3)
+
+            all_geoms = obj.contact_geoms + obj.visual_geoms
+            for geom_name in all_geoms:
+                geom_id = self.sim.model.geom_name2id(geom_name)
+                self.sim.model.geom_size[geom_id] = new_size
+
+            body_id = self.sim.model.body_name2id(obj.root_body)
+
+            volume = 8 * np.prod(new_size)
+            new_mass = 1000 * volume    # Where 1000 is robosuite's default density.
+            self.sim.model.body_mass[body_id] = new_mass
+
+            w, d, h = new_size / 2
+            ixx = (1.0 / 12.0) * new_mass * (d ** 2 + h ** 2)
+            iyy = (1.0 / 12.0) * new_mass * (w ** 2 + h ** 2)
+            izz = (1.0 / 12.0) * new_mass * (w ** 2 + d ** 2)
+            self.sim.model.body_inertia[body_id] = [ixx, iyy, izz]
+
+
+        self.sim.forward()
+
+        # For every reset we compute a random objects's positioning.
         self._place_objects()
 
     """

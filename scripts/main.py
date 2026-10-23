@@ -171,10 +171,10 @@ def configure_task(env: "SingleArmEnv"):
     """
 
     # Grab the model instance.
-    model = env.sim.model
+    #model = env.sim.model
 
     # Modify the camera FOV
-    camera_id = model.camera_name2id(settings.dataset_camera_name)
+    #camera_id = model.camera_name2id(settings.)
     #model.cam_fovy[camera_id] = settings.dataset_camera_fovy
 
     env.sim.forward()
@@ -201,7 +201,7 @@ def create_randomized_env(config: dict | None) -> DomainRandomizationWrapper:
         has_renderer=settings.render_on_screen, # On-screen renderer, usefule for debug, but slow for dataset gathering...
         has_offscreen_renderer=True, # Necessary for the dataset!
         use_camera_obs=True, # Also for dataset...
-        camera_names=settings.dataset_camera_name,
+        camera_names=settings.dataset_camera_names, # Note: We changed the value to the list of cameras!
         camera_heights=settings.dataset_image_height,
         camera_widths=settings.dataset_image_width,
         camera_depths=False,
@@ -224,7 +224,7 @@ def create_randomized_env(config: dict | None) -> DomainRandomizationWrapper:
         env,
         randomize_color=True,
         randomize_lighting=True,
-        randomize_camera=True,
+        randomize_camera=False, # We first set this to False so we don't randomize the grip camera as well...
         randomize_dynamics=False, # Seems useful but for the first trainings we avoid using this...
         randomize_on_reset=True, # So the arena gets re-randomized every time we reset the env
         randomize_every_n_steps=0, # Randomization must not happen during the episode
@@ -380,8 +380,7 @@ def pick_and_place_action(env: "SingleArmEnv", obj, pos: np.ndarray, quat: np.nd
 
     # Close the gripper.
     recorder.phase = "grasp"
-    done, steps = movements_ctrl.set_gripper(target=0.0, record=record, obj=obj)
-    print(f"Closing steps: {steps}")
+    done, steps = movements_ctrl.set_gripper(target=0, record=record, obj=obj)
     total_steps += steps
 
     if not done:
@@ -435,8 +434,7 @@ def pick_and_place_action(env: "SingleArmEnv", obj, pos: np.ndarray, quat: np.nd
     
     # Open the gripper.
     recorder.phase = "release"
-    done, steps = movements_ctrl.set_gripper(target=1.0, record=record, obj=obj)
-    print(f"Opening steps: {steps}")
+    done, steps = movements_ctrl.set_gripper(target=1, record=record, obj=obj)
     total_steps += steps
 
     if not done:
@@ -460,6 +458,8 @@ def pick_and_place_action(env: "SingleArmEnv", obj, pos: np.ndarray, quat: np.nd
 
     return (center_error, total_steps)
 
+'''
+Commented out as we should not be able to change controller settings at runtime on the real robot...
 
 def set_osc_gains(env, kp: np.ndarray, damping_ratio: np.ndarray) -> None:
     """This function is used to change the OSC controller's kp and damping ration configurations for grasping to compensate the grasped object's inertia.
@@ -484,6 +484,8 @@ def set_osc_gains(env, kp: np.ndarray, damping_ratio: np.ndarray) -> None:
     # Update the controller configurations...
     osc.kp = kp
     osc.kd = 2.0 * np.sqrt(kp) * damping_ratio
+'''
+    
 
 if __name__ == "__main__":
     main()

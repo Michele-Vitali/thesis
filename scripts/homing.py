@@ -71,6 +71,9 @@ def prepare_episode(env: "SingleArmEnv", joint_config: dict | None = None, osc_c
 
     env.reset()
 
+    # Grab the post-reset's robot.
+    robot = env.robots[0]
+
     if robot.controller.name != "JOINT_POSITION":
         raise RuntimeError("JOINT_POSITION is not active after reset.")
 

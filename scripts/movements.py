@@ -363,7 +363,7 @@ class OSCMovementController:
         # Return the tuple that we receive from the move_eef_to_pose function!
         return self.move_eef_to_pose(target_pos=target_eef_pos, target_rotation=target_rotation, max_steps=max_steps, position_tolerance=position_tolerance, rotation_tolerance_deg=rotation_tolerance_deg, payload_compensation=payload_compensation, record=record)
         
-    def set_gripper(self, target: float, max_steps: int = 50, record: bool = False, obj = None) -> tuple[bool, int]:
+    def set_gripper(self, target: int, max_steps: int = 50, record: bool = False, obj = None) -> tuple[bool, int]:
 
 
         if not 0.0 <= target <= 1.0:
@@ -381,7 +381,6 @@ class OSCMovementController:
         gripper = self.env.robots[0].gripper
 
         finger_indices = self.env.robots[0]._ref_gripper_joint_pos_indexes
-        init_qpos = np.asarray(self.env.sim.data.qpos[finger_indices]).copy()
         
         for _ in range(max_steps):
 
@@ -407,7 +406,7 @@ class OSCMovementController:
 
             if target == 1 and obj is not None:
                 current_qpos = np.asarray(self.env.sim.data.qpos[finger_indices]).copy()
-                is_open = np.all(np.abs(current_qpos - init_qpos) < 0.08)
+                is_open = np.all(np.abs(current_qpos > 0.52))
 
                 if not is_grasped and is_open:
                     stable_steps += 1
