@@ -19,7 +19,7 @@ def project_root() -> Path:
     """Expected position: <thesis>/integrations/openvla/build_dataset.py."""
     return Path(__file__).resolve().parents[2]
 
-SPLIT_FILES = {"train": "train.hdf5", "val": "val.hdf5", "test": "test.hdf5"}
+SPLIT_FILES = {"train": "train.hdf5", "val": "validation.hdf5", "test": "test.hdf5"}
 
 def find_source(root: Path, source: str | None) -> Path:
     """Require a prepared directory, never infer or create split assignments."""
@@ -97,7 +97,9 @@ def hdf5_inventory(source: Path) -> dict[str, dict[tuple[str, str], int]]:
                 if not bool(ep["dones"][-1]) or float(ep["rewards"][-1]) < 0.99:
                     raise ValueError(f"Invalid episode ending: {path}::{name}")
                 inventory[(str(path), str(name))] = count
-        if not inventory:
+        
+        # Allow empty validation or test splits when creating overfit datasets.
+        if not inventory and split == "train":
             raise ValueError(f"Split {split} is empty")
         inventories[split] = inventory
     # Ensure the same original episode does not appear twice across splits.
@@ -137,6 +139,11 @@ def verify_rlds(dataset_dir: Path, inventories: dict[str, dict[tuple[str, str], 
 
     builder = tfds.builder_from_directory(str(dataset_dir))
     for split, expected in inventories.items():
+        # Skip verification for empty splits.
+        if not expected:
+            print(f"SKIPPED {split}: split is empty", flush=True)
+            continue
+            
         info = builder.info.splits.get(split)
         if info is None or int(info.num_examples) != len(expected):
             raise AssertionError(f"Wrong RLDS episode count for {split}")

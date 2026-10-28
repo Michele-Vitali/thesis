@@ -18,17 +18,22 @@ class OSCMovementController:
         [0.0,  0.0, -1.0],
     ])
 
-    def __init__(self, env: SingleArmEnv, gripper_state: float = 1.0, recorder = None):
+    def __init__(self, env: SingleArmEnv, gripper_state: float = 1.0, recorder = None, action_smoothing: float = 0.15):
         """Initalizes an OSCMovementController.
 
         Args:
             env (SingleArmEnv): The simulation environment.
             gripper_state (float, optional): The initial gripper state. Defaults to 1.0.
             recorder (_type_, optional): The HDF5 recorder used to record the episodes. Defaults to None.
+            action_smoothing (float, optional): Temporal smoothing factor for smooth movements. Defaults to 0.3.
         """
 
         self.env = env
         self.gripper_state = gripper_state
+        
+        # # Save action smoothing factor and previous action buffer for temporal filtering.
+        self.action_smoothing = action_smoothing
+        self.previous_action = np.zeros(self.env.action_dim, dtype=float)
 
         # Optional HDF5 dataset recorder.
         self.recorder = recorder
@@ -200,12 +205,19 @@ class OSCMovementController:
 
         action[3:6] = np.clip(normalized_rotation, -max_rotation_action, +max_rotation_action)
 
+        # Apply temporal smoothing (rate-limiting) to prevent sudden spikes in movement.
+        if self.action_smoothing > 0.0:
+            action[:6] = (1.0 - self.action_smoothing) * action[:6] + self.action_smoothing * self.previous_action[:6]
+
+        # # Update previous action buffer for the next step.
+        self.previous_action = action.copy()
+
         # Hold the current gripper state.
         action[6] = self.gripper_state
 
         return action
 
-    def move_eef_to_pose(self, target_pos: np.ndarray, target_rotation: R, max_steps: int = 400, position_tolerance: float = settings.position_tolerance,
+    def move_eef_to_pose(self, target_pos: np.ndarray, target_rotation: R, max_steps: int = 500, position_tolerance: float = settings.position_tolerance,
         rotation_tolerance_deg: float = settings.rotation_tolerance_deg, payload_compensation: bool = False, record: bool = True) -> tuple[bool, int]:
         """
         Closed-loop Cartesian motion using OSC_POSE.
@@ -232,6 +244,9 @@ class OSCMovementController:
         # Integral component variables...
         dt = 1.0 /float(settings.dataset_fps)
         integral_z = 0.0
+
+        # # Reset previous action buffer at the start of a new movement phase.
+        self.previous_action = np.zeros(self.env.action_dim, dtype=float)
 
         for step in range(max_steps):
             # Grab the env's observations...
@@ -287,6 +302,9 @@ class OSCMovementController:
                 # Add the integral Z action to the normal Z action 
                 action[2] += integral_action_z
                 action[2] = float(np.clip(action[2], -0.40, +0.40))
+                
+                # # Sync previous action buffer when direct adjustments are made.
+                self.previous_action = action.copy()
 
             # Save observation_ and action_t for dataset population...
             self._step(action=action, observation=observation, record=record)
@@ -381,6 +399,9 @@ class OSCMovementController:
         gripper = self.env.robots[0].gripper
 
         finger_indices = self.env.robots[0]._ref_gripper_joint_pos_indexes
+        
+        # # Reset previous action buffer for gripper operations.
+        self.previous_action = np.zeros(self.env.action_dim, dtype=float)
         
         for _ in range(max_steps):
 

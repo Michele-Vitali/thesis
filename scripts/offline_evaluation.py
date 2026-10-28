@@ -1,17 +1,15 @@
 import os
 
-os.environ["USE_TF"] = "0"  # Disables TensorFlow (TF) warnings, used since we do not utilize TF here but it gets imported via HF dependencies...
+os.environ["USE_TF"] = "0"  # Disables TensorFlow (TF) warnings, used since we do not utilize TF here but it gets imported via HF dependencies.
 
+import argparse
 import multiprocessing
 import time
 from pathlib import Path
 
 import h5py
-import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
 import requests
-import seaborn as sns
 import settings
 from offline_metrics import compute_metrics, save_metrics
 from vla_client import OpenVLAClient
@@ -47,79 +45,95 @@ def wait_for_server(process, timeout=600):
 
     raise TimeoutError("OpenVLA server startup timeout!")
 
+
 def main():
+    # Parse CLI arguments for split selection and number of evaluation episodes.
+    parser = argparse.ArgumentParser(description="Valutazione offline modelli OpenVLA.")
+    parser.add_argument("--split", type=str, default="val", choices=["val", "train", "dataset"], help="Split da valutare (default: val)")
+    parser.add_argument("--max_demos", type=int, default=None, help="Numero massimo di episodi da valutare (es. 5 per overfit)")
+    parser.add_argument("--n_models", type=int, default=None, help="Numero di ultimi modelli da valutare")
+    args = parser.parse_args()
 
     try:
         script_dir = Path(__file__).parent.resolve()
         thesis_root = script_dir.parent
         hdf5_root = thesis_root / "hdf5_data"
 
+        split_filename = f"{args.split}.hdf5" if args.split != "dataset" else "dataset.hdf5"
+
         # Grab the available datasets and order them from the most recent to the oldest.
-        available_datasets = sorted([path for path in hdf5_root.iterdir() if path.is_dir() and (path / "splits" / "val.hdf5").is_file()],
-                                    key=lambda p: p.stat().st_mtime,
-                                    reverse=True)
+        available_datasets = sorted(
+            [path for path in hdf5_root.iterdir() if path.is_dir() and ((path / "splits" / split_filename).is_file() or (path / split_filename).is_file())],
+            key=lambda p: p.stat().st_mtime,
+            reverse=True,
+        )
 
         if not available_datasets:
-            raise RuntimeError("No dataset with val.hdf5 was found!")
+            raise RuntimeError(f"No dataset with {split_filename} was found!")
 
-        # Print the available datasets in the directory
-        print("="*60)
+        # Print the available datasets in the directory.
+        print("=" * 60)
         print("Available datasets:")
         for i, path in enumerate(available_datasets):
             print(f"[{i}] {path.name}")
 
-        # Make the user choos the dataset to use...
+        # Make the user choose the dataset to use.
         choice = input("\nChosen dataset index (Enter => Choose the latest): ").strip()
         index = int(choice) if choice else 0
 
         if not 0 <= index < len(available_datasets):
             raise ValueError("Invalid dataset index chosen!")
 
-        # Grab the dataset directory and the validation file path
+        # Grab the dataset directory and the validation file path.
         dataset_dir = available_datasets[index]
-        val_file = dataset_dir / "splits" / "val.hdf5"
+        eval_file = dataset_dir / "splits" / split_filename if (dataset_dir / "splits" / split_filename).is_file() else dataset_dir / split_filename
 
         print(f"Selected dataset: {dataset_dir.name}")
-        print(f"Validation file: {val_file}")
-        print("="*60)
+        print(f"Validation file: {eval_file}")
+        print("=" * 60)
 
-        # Compute the models' directory
+        # Compute the models' directory.
         checkpoints_base_dir = script_dir / Path("../runs/openvla")
 
-        n_models_to_test = int(input("How many models you want to test (the latest N will be chosen...)? "))
+        if args.n_models is not None:
+            n_models_to_test = args.n_models
+        else:
+            n_models_to_test = int(input("How many models you want to test (the latest N will be chosen...)? "))
+
         if n_models_to_test <= 0:
-            raise ValueError("At least 1 model must be testes!")
+            raise ValueError("At least 1 model must be tested!")
 
         if checkpoints_base_dir.exists():
-            models = sorted([p for p in checkpoints_base_dir.iterdir() if p.is_dir()],
-                            key=lambda p: p.stat().st_mtime,
-                            reverse=True)[:n_models_to_test]
+            models = sorted(
+                [p for p in checkpoints_base_dir.iterdir() if p.is_dir() and "chkpt" in p.name],    # Ensure chkpt is in the name so faulty folders do not get analyzed!
+                key=lambda p: p.stat().st_mtime,
+                reverse=True,
+            )[:n_models_to_test]
 
             models_name = [p.name for p in models]
             models = [str(p) for p in models]
         else:
-            raise ValueError("The checkpoints' folder does not exist!")        
+            raise ValueError("The checkpoints' folder does not exist!")
 
         print(f"Models found to test: {len(models)}")
         if not models:
-                raise ValueError("No models to be tested were found!")
+            raise ValueError("No models to be tested were found!")
 
-        print("="*60)
+        print("=" * 60)
         print("These models will be tested:")
         for i, model in enumerate(models_name):
             print(f"[Model-{i}] {model}")
-        print("="*60)
+        print("=" * 60)
 
         all_models_results = {}
         # Loop to test every model.
         for i, model_path in enumerate(models):
-            
-            # Grab the last part of the path (the unique model name...)
-            print("="*60)
+            # Grab the last part of the path (the unique model name).
+            print("=" * 60)
             print(f"[Model-{i}] {models_name[i]}")
-            print("="*60)
+            print("=" * 60)
 
-            # Create a new config for the current model
+            # Create a new config for the current model.
             current_config = DeployConfig(openvla_path=model_path)
 
             # Start a new process for the model, so when it finishes all the VRAM gets flushed.
@@ -129,34 +143,35 @@ def main():
             try:
                 wait_for_server(server_process)
 
-                # Create a client to allow the model to predict actions...
-                # Note: Server must already be active!
+                # Create a client to allow the model to predict actions.
+                # Note: Server must already be active.
                 client = OpenVLAClient()
 
                 # We use some metrics for the arm and some for the gripper.
                 # Arm: Axis-MAE, MAE translation, MAE rotation, RMSE, Action direction cosine, Zero-action baseline.
                 # Gripper: Accuracy, Precision closed, Recall closed, F1 closed, F1 open, Macro F1, Confusion Matrix.
-                # Note: For the gripper we use a threshold of >= 0.5 to be considered 1.0!
+                # Note: For the gripper we use a threshold of >= 0.5 to be considered 1.0.
                 all_gt_actions = []
                 all_pred_actions = []
 
                 try:
-                    val_file = dataset_dir / "splits" / "val.hdf5"
+                    if not eval_file.is_file():
+                        raise FileNotFoundError(eval_file)
 
-                    if not val_file.is_file():
-                        raise FileNotFoundError(val_file)
-
-                    with h5py.File(val_file, "r") as f:
-                        # Grab and sort the contained episodes
+                    with h5py.File(eval_file, "r") as f:
+                        # Grab and sort the contained episodes.
                         demos = sorted(f["data"].keys())
+                        if args.max_demos is not None:
+                            demos = demos[:args.max_demos]
+
                         print(f"Total number of validation episodes: {len(demos)}")
 
-                        # Loop through all episodes
+                        # Loop through all episodes.
                         for demo_name in demos:
-                            # Grab the correct data group in the episodes file
+                            # Grab the correct data group in the episodes file.
                             group = f["data"][demo_name]
 
-                            # Grab images, expert actions and language instruction
+                            # Grab images, expert actions and language instruction.
                             images = group["obs"]["agentview_rgb"]
                             gt_actions = group["actions_openvla"]
 
@@ -172,7 +187,7 @@ def main():
 
                             print(f"[{demo_name}] Evaluating: {num_frames} frames.")
 
-                            # Now loop through every episode (1 episode = N steps or frames)
+                            # Now loop through every episode (1 episode = N steps or frames).
                             for t in range(num_frames):
                                 # 1. Read the observation at timestep t.
                                 image = np.asarray(images[t], dtype=np.uint8)
@@ -180,11 +195,11 @@ def main():
                                 # 2. Read the expert action at the SAME timestep t.
                                 gt_action = np.asarray(gt_actions[t], dtype=np.float32)
 
-                                # 3. Ask the model to predict an action...
+                                # 3. Ask the model to predict an action.
                                 pred_action = client.predict(image=image, instruction=language_instruction)
 
                                 # 4. Check the prediction.
-                                pred_action = np.asarray(pred_action, dtype=np.float32).reshape(-1) # Flatten it.
+                                pred_action = np.asarray(pred_action, dtype=np.float32).reshape(-1)
 
                                 if gt_action.shape != (7,):
                                     raise ValueError(f"{demo_name}, frame {t}, invalid GT shape: {gt_action.shape}")
@@ -198,21 +213,20 @@ def main():
 
                             print(f"[OK] {demo_name} completed.")
 
-                        # After all episodes have been analyzed we compute the metrics over them...
+                        # After all episodes have been analyzed we compute the metrics over them.
                         all_gt_actions = np.asarray(all_gt_actions, dtype=np.float32)
                         all_pred_actions = np.asarray(all_pred_actions, dtype=np.float32)
 
                         metrics = compute_metrics(all_gt_actions, all_pred_actions)
 
                         results_dir = thesis_root / "evaluations" / models_name[i]
-                        split_name = "val"
-                        save_metrics(models_name[i], dataset_dir.name, split_name, metrics, results_dir)
+                        save_metrics(models_name[i], dataset_dir.name, args.split, metrics, results_dir)
                         all_models_results[models_name[i]] = metrics
 
-                        # Print the final report!
+                        # Print the final report.
                         print("\n" + "=" * 60)
                         print(f"Evaluation results for model: {models_name[i]}")
-                        print("="*60)
+                        print("=" * 60)
 
                         print(f"Evaluated frames: {metrics['num_frames']}")
                         print(f"Arm MAE: {metrics['arm']['mae']}")
@@ -222,7 +236,7 @@ def main():
                         print(f"Gripper Macro F1: {metrics['gripper']['macro_f1']}")
 
                 except (FileNotFoundError, ValueError) as e:
-                    print(f"An exception occured while evaluating a model! Error: {e}")
+                    print(f"An exception occurred while evaluating a model! Error: {e}")
                 finally:
                     client.close()
 
@@ -231,7 +245,8 @@ def main():
                 raise KeyboardInterrupt
             finally:
                 server_process.kill()
-                server_process.join()   # Waits for the child process to be killed ...
+                # Waits for the child process to be killed.
+                server_process.join()
     except KeyboardInterrupt:
         print("Process terminated by the user...")
 

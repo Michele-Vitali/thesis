@@ -17,7 +17,7 @@ from robosuite.models.tasks import ManipulationTask
 @register_env
 class CustomTask(SingleArmEnv):
 
-    def __init__(self, reward_shaping: bool = False, **kwargs) -> None:
+    def __init__(self, reward_shaping: bool = False, init_conditions: dict | None = None, **kwargs) -> None:
         """
         Initializes the custom environment inherited by the SingleArmEnv environment provided by robosuite.
 
@@ -38,6 +38,7 @@ class CustomTask(SingleArmEnv):
         self.gripper_state = +1.0 # Start with the gripper open
         self.sampler = None 
         self.objects = []
+        self.initial_conditions = init_conditions
 
         super().__init__(**kwargs)
 
@@ -113,11 +114,18 @@ class CustomTask(SingleArmEnv):
 
             # Object's args.
             name = f"RNG_Object_{i}"
-            kwargs = {
-                "name": name,
-                "size_min": list(np.full(3, settings.object_half_size_min)),
-                "size_max": list(np.full(3, settings.object_half_size_max))
-            }
+
+            if self.initial_conditions is None:
+                kwargs = {
+                    "name": name,
+                    "size_min": list(np.full(3, settings.object_half_size_min)),
+                    "size_max": list(np.full(3, settings.object_half_size_max))
+                }
+            else:
+                kwargs = {
+                    "name": name,
+                    "size": self.initial_conditions["init_obj_size"],
+                }
 
             obj_instance = obj_class(**kwargs)
             self.objects.append(obj_instance)
@@ -238,4 +246,7 @@ class CustomTask(SingleArmEnv):
         
         for obj_pos, obj_quat, obj in new_pos.values():
             # Update the object position by changing its "free joint"'s state.
-            self.sim.data.set_joint_qpos(obj.joints[0], np.concatenate([np.array(obj_pos), np.array(obj_quat)]))
+            if self.initial_conditions is None:
+                self.sim.data.set_joint_qpos(obj.joints[0], np.concatenate([np.array(obj_pos), np.array(obj_quat)]))
+            else:
+                self.sim.data.set_joint_qpos(obj.joints[0], np.concatenate([np.array(self.initial_conditions["init_obj_pos"]), np.array(self.initial_conditions["init_obj_quat"])]))

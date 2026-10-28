@@ -1,9 +1,7 @@
 import os
 from pathlib import Path
 
-# ================================================================
-# ENVIRONMENT
-# ================================================================
+# Env.
 
 os.environ.setdefault(
     "TOKENIZERS_PARALLELISM",
@@ -15,10 +13,7 @@ os.environ.setdefault(
     "2",
 )
 
-
-# ================================================================
-# PATHS
-# ================================================================
+# Some directories.
 
 THIS_FILE = Path(__file__).resolve()
 THESIS_ROOT = THIS_FILE.parents[2]
@@ -45,21 +40,13 @@ DATASET_NAME = "prob3_pick_place"
 
 LORA_RANK = 32
 
-
-# ================================================================
-# REGISTER P-ROB3 DATASET
-# ================================================================
+# Register the custom dataset.
 
 from register import register_prob3
 from data_policy import install_prob3_train_only_statistics
 
 register_prob3()
 install_prob3_train_only_statistics()
-
-
-# ================================================================
-# IMPORTS
-# ================================================================
 
 import numpy as np
 import torch
@@ -86,21 +73,11 @@ from prismatic.vla.datasets import (RLDSBatchTransform, RLDSDataset)
 
 from prismatic.vla.datasets.rlds.utils.data_utils import (save_dataset_statistics)
 
-
-# ================================================================
-# HELPERS
-# ================================================================
-
 def print_separator(title):
     print()
     print("=" * 70)
     print(title)
     print("=" * 70)
-
-
-# ================================================================
-# MAIN
-# ================================================================
 
 def main():
     print_separator("P-Rob3 / OpenVLA-7B PRE-FLIGHT")
@@ -121,10 +98,6 @@ def main():
 
     device = torch.device("cuda:0")
 
-    # ============================================================
-    # REGISTER OPENVLA HF CLASSES
-    # ============================================================
-
     AutoConfig.register("openvla", OpenVLAConfig)
 
     AutoImageProcessor.register(OpenVLAConfig, PrismaticImageProcessor)
@@ -133,19 +106,11 @@ def main():
 
     AutoModelForVision2Seq.register(OpenVLAConfig, OpenVLAForActionPrediction)
 
-    # ============================================================
-    # LOAD PROCESSOR
-    # ============================================================
-
     print_separator("LOADING PROCESSOR")
 
     processor = AutoProcessor.from_pretrained(MODEL_ID, trust_remote_code=True)
 
     print("Processor loaded: OK")
-
-    # ============================================================
-    # LOAD OPENVLA-7B
-    # ============================================================
 
     print_separator("LOADING OPENVLA-7B")
 
@@ -160,14 +125,6 @@ def main():
     vla = vla.to(device)
 
     print("Model on GPU: OK")
-
-    # ============================================================
-    # APPLY LoRA
-    #
-    # Same configuration used by official finetune.py.
-    #
-    # NO TRAINING happens here.
-    # ============================================================
 
     print_separator("ATTACHING LoRA")
 
@@ -187,15 +144,7 @@ def main():
 
     print("Trainable percentage:", (100.0 * trainable_parameters / total_parameters))
 
-    # ============================================================
-    # ACTION TOKENIZER
-    # ============================================================
-
     action_tokenizer = ActionTokenizer(processor.tokenizer)
-
-    # ============================================================
-    # RLDS -> OPENVLA TRANSFORM
-    # ============================================================
 
     batch_transform = RLDSBatchTransform(
         action_tokenizer,
@@ -207,10 +156,6 @@ def main():
         ),
         prompt_builder_fn=PurePromptBuilder,
     )
-
-    # ============================================================
-    # LOAD P-ROB3 RLDS DATASET
-    # ============================================================
 
     print_separator(
         "LOADING P-Rob3 RLDS"
@@ -240,11 +185,6 @@ def main():
         len(vla_dataset),
     )
 
-
-    # ============================================================
-    # VERIFY RLDS SPLITS AND TRAIN-ONLY STATISTICS
-    # ============================================================
-
     import tensorflow_datasets as tfds
 
     builder = tfds.builder(
@@ -252,7 +192,7 @@ def main():
         data_dir=str(DATA_ROOT),
     )
 
-    required_splits = {"train", "val", "test"}
+    required_splits = {"train"}
     actual_splits = set(builder.info.splits.keys())
 
     if not required_splits.issubset(actual_splits):
@@ -283,11 +223,6 @@ def main():
         )
 
     print("Train-only normalization: VERIFIED")
-
-
-    # ============================================================
-    # DATASET STATISTICS
-    # ============================================================
 
     print_separator(
         "ACTION NORMALIZATION STATISTICS"
@@ -367,10 +302,6 @@ def main():
         PREFLIGHT_ROOT,
     )
 
-    # ============================================================
-    # DATALOADER
-    # ============================================================
-
     collator = (
         PaddedCollatorForActionPrediction(
             processor.tokenizer.model_max_length,
@@ -440,15 +371,6 @@ def main():
             "No supervised action tokens "
             "found in the batch."
         )
-
-    # ============================================================
-    # FORWARD PASS ONLY
-    #
-    # IMPORTANT:
-    #   no optimizer
-    #   no backward()
-    #   no parameter update
-    # ============================================================
 
     print_separator(
         "FORWARD PASS (NO TRAINING)"

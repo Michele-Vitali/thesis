@@ -87,7 +87,7 @@ def manifest_for(episodes: list[dict], seed: int, test_size: int, val_size: int,
     count = len(episodes)
 
     # Check for dataset's splits parameters.
-    if min(test_size, val_size) < 0 or test_size + val_size >= count:
+    if min(test_size, val_size) < 0 or test_size + val_size > count:
         raise ValueError("Invalid test/validation sizes")
 
     # Grab the episodes' ids.
@@ -107,7 +107,7 @@ def manifest_for(episodes: list[dict], seed: int, test_size: int, val_size: int,
     
     fold_entries = []
 
-    if folds:
+    if folds and len(development) > 0:
         # Compute the folds' sizes.
         sizes = [len(development) // folds + (i < len(development) % folds) for i in range(folds)]
         start = 0
@@ -116,16 +116,16 @@ def manifest_for(episodes: list[dict], seed: int, test_size: int, val_size: int,
             # Populate the fold's list.
             fold_val = development[start:start + size]
             fold_train = development[:start] + development[start + size:]
-            fold_entries.append({"fold": idx, "train": fold_train, "val": fold_val})
+            fold_entries.append({"fold": idx, "train": fold_train, "validation": fold_val})
             start += size
 
     return {
         "format": "prob3-episode-splits-v2",
         "created_utc": datetime.now(timezone.utc).isoformat(),
         "seed": seed,
-        "counts": {"total": count, "train": len(train), "val": len(val), "test": len(test), "folds": folds},
+        "counts": {"total": count, "train": len(train), "validation": len(val), "test": len(test), "folds": folds},
         "episodes": episodes,
-        "split": {"train": train, "val": val, "test": test},
+        "split": {"train": train, "validation": val, "test": test},
         "folds": fold_entries,
     }
 
@@ -212,7 +212,7 @@ def main() -> None:
         attrs = dict(h5["data"].attrs.items())
 
     # Note: The splits are just a re-buildable view computed from the full_dataset, so we do not occupy a lot of space!
-    for split in ("train", "val", "test"):
+    for split in ("train", "validation", "test"):
         view = destination / f"{split}.hdf5"
         create_view(view, manifest["split"][split], manifest, attrs)
         print(f"{split:5s}: {len(manifest['split'][split]):4d} episodes -> {view}")

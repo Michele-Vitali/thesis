@@ -233,8 +233,8 @@ def create_randomized_env(config: dict | None) -> DomainRandomizationWrapper:
     # We use domain randomization to create a more robust dataset
     env = DomainRandomizationWrapper(
         env,
-        randomize_color=True,
-        randomize_lighting=True,
+        randomize_color=False,
+        randomize_lighting=False,
         randomize_camera=False, # We first set this to False so we don't randomize the grip camera as well...
         randomize_dynamics=False, # Seems useful but for the first trainings we avoid using this...
         randomize_on_reset=True, # So the arena gets re-randomized every time we reset the env

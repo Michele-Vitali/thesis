@@ -7,7 +7,7 @@ from scipy.spatial.transform import Rotation as R
 env_name = "CustomTask"
 robot = "PRob3"
 gripper_types = "PRob3Gripper"
-render_on_screen = False    # Set to false for faster simulations
+render_on_screen = True    # Set to false for faster simulations
 record = True
 
 # Environment variables
@@ -34,10 +34,10 @@ radial_range = [0.35, 0.55] # Stable pre-waypoint working range
 safe_offset_gripper = [0.0, 0.0, 0.115]
 
 # OSC actions variables
-position_gain = 0.24
-rotation_gain = 0.12
-max_position_action = 0.40
-max_rotation_action = 0.40
+position_gain = 0.15
+rotation_gain = 0.06
+max_position_action = 0.70
+max_rotation_action = 0.70
 
 gripper_transition_seconds = 1.0
 
@@ -124,7 +124,7 @@ n_objects = 1
 
 # RLDS dataset
 dataset_root = str(Path(__file__).resolve().parents[1] / "hdf5_data")
-dataset_name = "v5_multi_camera"
+dataset_name = "v7_overfit_1k_no_randomization"
 
 dataset_fps = 5
 
@@ -163,8 +163,9 @@ test_damping = np.array([1.15, 1.15, 1.30, 1.0, 1.0, 1.0])
 
 osc_config = {
     "type": "OSC_POSE",
+    "interpolate": True,
+    "ramp_ratio": 0.1,
     "interpolation": "linear",
-    "ramp_ratio": 1.0,
     "impedance_mode": "fixed",
     "kp": test_kp,
     "damping_ratio": test_damping,
@@ -187,4 +188,4 @@ server_port = 8000
 server_url = f"http://{server_host}:{server_port}"
 unnorm_key = "prob3_pick_place"
 server_timeout = 120 # 120 s = 2 mins
-openvla_path = "runs/openvla/openvla-7b+prob3_pick_place+b4+lr-0.0001+lora-r32+dropout-0.05--prob3_lora_v3_shadows_camera_20_october_16pm--image_aug--18000_chkpt"
+openvla_path = "runs/openvla/openvla-7b+prob3_pick_place+b8+lr-5e-05+lora-r64+dropout-0.0--v7_overfit_test_5_demos_second_try--1400_chkpt"

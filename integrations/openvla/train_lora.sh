@@ -2,125 +2,71 @@
 
 set -o pipefail
 
-# Remove some secondary junk warnings...
+# Remove secondary warnings
 export TF_CPP_MIN_LOG_LEVEL=3
 export TF_ENABLE_ONEDNN_OPTS=0
 export OMP_NUM_THREADS=1
 
-
-# ================================================================
-# PROJECT
-# ================================================================
-
+# Project directories
 THESIS_ROOT="$HOME/Scrivania/thesis"
-
 OPENVLA_ENV="$THESIS_ROOT/openvla_env"
-
 DATA_ROOT="$THESIS_ROOT/rlds_data/rlds"
-
 RUN_ROOT="$THESIS_ROOT/runs/openvla"
-
 ADAPTER_ROOT="$THESIS_ROOT/adapters/openvla"
-
 HF_HOME_DIR="$THESIS_ROOT/cache/huggingface"
 
-TRAIN_WRAPPER="$THESIS_ROOT/integrations/openvla/finetune.py"
+# Train wrapper script (switch to integrations/openvla/finetune.py for full training)
+TRAIN_WRAPPER="$THESIS_ROOT/integrations/openvla/finetune_overfit_test.py"
 
-
-# ================================================================
-# MODEL / DATASET
-# ================================================================
-
+# Current base model and dataset
 MODEL="openvla/openvla-7b"
-
 DATASET="prob3_pick_place"
 
-
-# ================================================================
-# DISTRIBUTED TRAINING
-# ================================================================
-
-# You have 2 x RTX PRO 5000 Blackwell.
-#
-# We can eventually use both.
-#
-# Set to 1 initially if you want a conservative smoke-training run.
-# Set to 2 for the actual multi-GPU LoRA run.
-
+# Training parameters
 NUM_GPUS=2
 
-
-# ================================================================
-# LoRA
-# ================================================================
-
+# LoRA parameters
 USE_LORA=True
-
-LORA_RANK=16    # First experiment with lora rank halved. Then return to 32 and double the dropout rate.
-
-LORA_DROPOUT=0.05
-
+LORA_RANK=64
+LORA_ALPHA=128
+LORA_DROPOUT=0.0
 USE_QUANTIZATION=False
 
-
-# ================================================================
-# TRAINING HYPERPARAMETERS
-#
-# THESE ARE INTENTIONALLY EASY TO EDIT BEFORE TRAINING.
-# ================================================================
-
-BATCH_SIZE=4
-
+# Training hyperparameters
+BATCH_SIZE=8
 GRAD_ACCUMULATION_STEPS=1
-
-LEARNING_RATE=1e-4
-
-MAX_STEPS=18000
-
-SAVE_STEPS=6000
-
-IMAGE_AUG=True
-
-SHUFFLE_BUFFER_SIZE=2048
-
+LEARNING_RATE=5e-5
+NUM_TRAINING_EPOCHS=50
+MAX_STEPS=10000
+SAVE_STEPS=200
+WARMUP_RATIO=0.05
+IMAGE_AUG=False # Set to False for overfitting testing
+SHUFFLE_BUFFER_SIZE=64
 SAVE_LATEST_CHECKPOINT_ONLY=False
 
-# ================================================================
-# RUN IDENTIFICATION
-# ================================================================
+# HF-like metrics (Attenzione: definiti ma non usati dalla configurazione di OpenVLA)
+LOGGING_STEPS=10
+WEIGHT_DECAY=0.0
+MAX_GRAD_NORM=1.0
+EVAL_STRATEGY="no"
+LOAD_BEST_MODEL_AT_END=False
 
-RUN_NOTE="v4_rank16_drop05"
+# Number of episodes for overfit test wrapper
+NUM_EPISODES=5
 
+# Run id
+RUN_NOTE="v7_overfit_test_5_demos_second_try"
 
-# ================================================================
-# WANDB
-#
-# Keep offline for now.
-#
-# Change this only when / if you want cloud logging.
-# ================================================================
-
+# Wandb logging, offline mode
 export WANDB_MODE=offline
 
-
-# ================================================================
-# HUGGING FACE CACHE
-# ================================================================
-
+# HuggingFace cache directory
 export HF_HOME="$HF_HOME_DIR"
 
-
-# ================================================================
-# CUDA
-# ================================================================
-
+# Cuda visible devices
 export CUDA_VISIBLE_DEVICES=0,1
 
-
-# ================================================================
-# BUILD COMMAND
-# ================================================================
-
+# Build torchrun command array
 CMD=(
     "$OPENVLA_ENV/bin/torchrun"
     --standalone
@@ -130,6 +76,9 @@ CMD=(
     "$NUM_GPUS"
 
     "$TRAIN_WRAPPER"
+
+    --num_episodes
+    "$NUM_EPISODES"
 
     --vla_path
     "$MODEL"
@@ -186,24 +135,9 @@ CMD=(
     "$SAVE_LATEST_CHECKPOINT_ONLY"
 )
 
-
-# ================================================================
-# SAFETY
-#
-# IMPORTANT:
-#
-# DRY_RUN=1 means:
-#
-#   PRINT COMMAND ONLY
-#
-# No training is started.
-# ================================================================
-
 DRY_RUN=0
 
-
 if [[ "$DRY_RUN" == "1" ]]; then
-
     echo
     echo "============================================================"
     echo "OpenVLA-7B P-Rob3 LoRA"
@@ -213,22 +147,12 @@ if [[ "$DRY_RUN" == "1" ]]; then
     echo
     echo "The following command WOULD be executed:"
     echo
-
     printf '%q ' "${CMD[@]}"
-
     echo
     echo
     echo "NO TRAINING STARTED."
     echo
-
     exit 0
 fi
 
-
-# ================================================================
-# ACTUAL TRAINING
-#
-# This line is unreachable while DRY_RUN=1.
-# ================================================================
-
-exec "${CMD[@]}"
+exec "${CMD[@]}" "$@"

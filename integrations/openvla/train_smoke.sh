@@ -2,10 +2,7 @@
 
 set -euo pipefail
 
-
-# ================================================================
-# PROJECT
-# ================================================================
+# Project directories.
 
 THESIS_ROOT="$HOME/Scrivania/thesis"
 
@@ -22,32 +19,15 @@ HF_HOME_DIR="$THESIS_ROOT/cache/huggingface"
 TRAIN_WRAPPER="$THESIS_ROOT/integrations/openvla/finetune_prob3.py"
 
 
-# ================================================================
-# MODEL / DATASET
-# ================================================================
+# Current model and dataset.
 
 MODEL="openvla/openvla-7b"
 
 DATASET="prob3_pick_place"
 
-
-# ================================================================
-# DISTRIBUTED TRAINING
-# ================================================================
-
-# You have 2 x RTX PRO 5000 Blackwell.
-#
-# We can eventually use both.
-#
-# Set to 1 initially if you want a conservative smoke-training run.
-# Set to 2 for the actual multi-GPU LoRA run.
+# Training parameters and LoRA
 
 NUM_GPUS=1
-
-
-# ================================================================
-# LoRA
-# ================================================================
 
 USE_LORA=True
 
@@ -57,12 +37,7 @@ LORA_DROPOUT=0.0
 
 USE_QUANTIZATION=False
 
-
-# ================================================================
-# TRAINING HYPERPARAMETERS
-#
-# THESE ARE INTENTIONALLY EASY TO EDIT BEFORE TRAINING.
-# ================================================================
+# Training hyperparameters.
 
 BATCH_SIZE=1
 
@@ -78,42 +53,23 @@ IMAGE_AUG=True
 
 SHUFFLE_BUFFER_SIZE=256
 
-
-# ================================================================
-# RUN IDENTIFICATION
-# ================================================================
+# Run ID.
 
 RUN_NOTE="prob3_smoke_10"
 
-
-# ================================================================
-# WANDB
-#
-# Keep offline for now.
-#
-# Change this only when / if you want cloud logging.
-# ================================================================
+# Wandb logging.
 
 export WANDB_MODE=offline
 
-
-# ================================================================
-# HUGGING FACE CACHE
-# ================================================================
+# Hugging Face cache.
 
 export HF_HOME="$HF_HOME_DIR"
 
-
-# ================================================================
-# CUDA
-# ================================================================
+# Cuda.
 
 export CUDA_VISIBLE_DEVICES=0
 
-
-# ================================================================
-# BUILD COMMAND
-# ================================================================
+# Build the bash command.
 
 CMD=(
     "$OPENVLA_ENV/bin/torchrun"
@@ -177,18 +133,7 @@ CMD=(
     "$RUN_NOTE"
 )
 
-
-# ================================================================
-# SAFETY
-#
-# IMPORTANT:
-#
-# DRY_RUN=1 means:
-#
-#   PRINT COMMAND ONLY
-#
-# No training is started.
-# ================================================================
+# Dry-run = 1 means we build the command but do not run it yet.
 
 DRY_RUN=0
 
@@ -215,11 +160,6 @@ if [[ "$DRY_RUN" == "1" ]]; then
     exit 0
 fi
 
-
-# ================================================================
-# ACTUAL TRAINING
-#
-# This line is unreachable while DRY_RUN=1.
-# ================================================================
+# With dry-run = 0 the command will be executed.
 
 exec "${CMD[@]}"

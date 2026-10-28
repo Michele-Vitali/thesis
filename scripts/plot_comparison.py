@@ -1,4 +1,3 @@
-
 import argparse
 import json
 import re
@@ -12,7 +11,7 @@ import pandas as pd
 import seaborn as sns
 
 EVAL_ROOT = Path(__file__).resolve().parents[1] / "evaluations"
-RESULT_NAMES = ("evaluation_results.json")
+RESULT_NAMES = "evaluation_results.json"
 
 
 def plot_comparisons(only_models=None, name_contains=None):
@@ -21,7 +20,7 @@ def plot_comparisons(only_models=None, name_contains=None):
 
     # Load the already computed results.
     for folder in EVAL_ROOT.iterdir():
-        # If the element is not a folder or the model is not in the "plotting" ones, just skip the folder...
+        print(folder.name)
         if not folder.is_dir():
             continue
         if only_models is not None and folder.name not in only_models:
@@ -31,24 +30,21 @@ def plot_comparisons(only_models=None, name_contains=None):
         if folder.name == "comparisons":
             continue
 
-
-        # Grab the result's file for that model...
+        # Grab the result file for that model.
         result_file = folder / RESULT_NAMES
-        if result_file is None:
-            # If there are no results for that model, just skip it.
+        if not result_file.is_file():
             continue
 
-        # Load the json data...
+        # Load the json data.
         data = json.loads(result_file.read_text(encoding="utf-8"))
 
-        # If the evaluation data does not come from the validation split, skip the folder!
-        if data.get("split") != "val":
-            continue
+        # If the evaluation data does not come from the validation split, skip the folder.
+        #if data.get("split") != "val":
+            #continue
 
-        # Grab the model
         model = data["model"]
 
-        # Grab the model's checkpoint steps...
+        # Grab the model checkpoint steps.
         match = re.search(r"--(\d+)_chkpt$", model)
         if not match:
             print(f"[SKIP] Cannot identify checkpoint step: {model}")
@@ -56,8 +52,8 @@ def plot_comparisons(only_models=None, name_contains=None):
 
         arm = data["metrics"]["arm"]
         grip = data["metrics"]["gripper"]
+        print(model.rsplit("--", 1)[0])
 
-        # Define the pandas dataframe structure...
         row = {
             "step": int(match.group(1)),
             "run": model.rsplit("--", 1)[0],
@@ -82,16 +78,12 @@ def plot_comparisons(only_models=None, name_contains=None):
             "Rotation RMSE": arm["rotation_rmse"],
             "Translation vector error": arm["translation_vector_error"],
             "Rotation vector error": arm["rotation_vector_error"],
-
-            # Gripper metrics for each class.
             "Precision closed": grip["precision_closed"],
             "Recall closed": grip["recall_closed"],
             "F1 closed": grip["f1_closed"],
             "Precision open": grip["precision_open"],
             "Recall open": grip["recall_open"],
             "F1 open": grip["f1_open"],
-
-            # Dataset statistics.
             "Total frames": data["metrics"]["num_frames"],
             "Valid direction frames": arm["direction_cosine_valid_frames"],
             "GT closed frames": grip["num_closed_gt"],
@@ -99,28 +91,20 @@ def plot_comparisons(only_models=None, name_contains=None):
         })
 
         confusion_matrices[int(match.group(1))] = grip["confusion_matrix"]
-
-        # Append the model's row to the other rows...
         rows.append(row)
 
     if len(rows) < 2:
         raise ValueError("At least two checkpoint results are required!")
 
-    # Never compare different runs/datasets accidentally.
     if len({r["run"] for r in rows}) != 1 or len({r["dataset"] for r in rows}) != 1:
         raise ValueError("Selected models belong to different runs or datasets!")
 
-    # Create the pandas dataframe and sort the rows by their checkpoint's steps
     df = pd.DataFrame(rows).sort_values("step")
-
-    # Grab the model's name
     run_note = rows[0]["run"].split("--")[1] if "--" in rows[0]["run"] else rows[0]["run"]
 
-    # Define where the results will be put...
     output_dir = EVAL_ROOT / "comparisons" / run_note
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Seaborn settings...
     sns.set_theme(style="whitegrid")
 
     # Graph 1: Main evaluation metrics.
@@ -133,24 +117,18 @@ def plot_comparisons(only_models=None, name_contains=None):
         ("Gripper Macro F1", None),
     ]
 
-    # Create the layout for the plots...
     fig, axes = plt.subplots(3, 2, figsize=(12, 12))
 
-    # Loop through the metrics
     for ax, (metric, baseline) in zip(axes.flat, specs):
         sns.lineplot(data=df, x="step", y=metric, marker="o", ax=ax, label="OpenVLA")
 
-        # If we have a baseline (=> we are looking at arm properties) set it to a gray color...
         if baseline:
             ax.axhline(df[baseline].iloc[0], linestyle="--", color="gray", label="Zero-action baseline")
-
-        # If we do not have a baseline, check if we are considering gripper metrics or the cosine similarity...
         elif metric.startswith("Gripper"):
             ax.set_ylim(0, 1)
         elif metric == "Direction cosine":
             ax.set_ylim(-1, 1)
 
-        # Other graph's settings...
         ax.set_xticks(df["step"])
         ax.set_xlabel("Training steps")
         ax.set_ylabel(metric)
@@ -165,9 +143,7 @@ def plot_comparisons(only_models=None, name_contains=None):
     fig, axes = plt.subplots(1, 2, figsize=(12, 4))
 
     for ax, axis_names, title in zip(axes, [("x", "y", "z"), ("rx", "ry", "rz")], ["Translation axis MAE", "Rotation axis MAE"]):
-        # Set the graph's columns
         columns = [f"axis_{name}" for name in axis_names]
-
         long_df = df[["step", *columns]].melt("step", var_name="axis", value_name="MAE")
         long_df["axis"] = long_df["axis"].str.replace("axis_", "", regex=False)
 
@@ -179,26 +155,14 @@ def plot_comparisons(only_models=None, name_contains=None):
     fig.savefig(output_dir / "axes.png", dpi=200)
     plt.close(fig)
 
-
     def save_metric_grid(metric_names, filename, probabilities=False):
         ncols = 3
         nrows = (len(metric_names) + ncols - 1) // ncols
 
-        fig, axes = plt.subplots(
-            nrows, ncols,
-            figsize=(15, 4 * nrows),
-            squeeze=False,
-        )
+        fig, axes = plt.subplots(nrows, ncols, figsize=(15, 4 * nrows), squeeze=False)
 
         for ax, metric in zip(axes.flat, metric_names):
-            sns.lineplot(
-                data=df,
-                x="step",
-                y=metric,
-                marker="o",
-                ax=ax,
-            )
-
+            sns.lineplot(data=df, x="step", y=metric, marker="o", ax=ax)
             ax.set_title(metric)
             ax.set_xlabel("Training steps")
             ax.set_ylabel(metric)
@@ -239,20 +203,10 @@ def plot_comparisons(only_models=None, name_contains=None):
         probabilities=True,
     )
 
+    # Plot confusion matrices for every checkpoint.
+    fig, axes = plt.subplots(1, len(df), figsize=(4.5 * len(df), 4.5), squeeze=False)
 
-    # Plot the gripper confusion matrix for every checkpoint.
-    fig, axes = plt.subplots(
-        1,
-        len(df),
-        figsize=(4.5 * len(df), 4.5),
-        squeeze=False,
-    )
-
-    max_count = max(
-        max(row)
-        for matrix in confusion_matrices.values()
-        for row in matrix
-    )
+    max_count = max(max(row) for matrix in confusion_matrices.values() for row in matrix)
 
     for ax, step in zip(axes.flat, df["step"]):
         cm = confusion_matrices[int(step)]
@@ -278,15 +232,12 @@ def plot_comparisons(only_models=None, name_contains=None):
     fig.savefig(output_dir / "offline_confusion_matrices.png", dpi=200)
     plt.close(fig)
 
-    # Save a complete numeric comparison table.
+    # Save numeric comparison table.
     df.to_csv(output_dir / "all_metrics.csv", index=False)
-
-
     print(f"[PLOTS] Saved comparisons to: {output_dir}")
 
 
 if __name__ == "__main__":
-    # The contains args is useful for plotting specific models...
     parser = argparse.ArgumentParser()
     parser.add_argument("--contains", default=None)
     args = parser.parse_args()
