@@ -47,20 +47,6 @@ def install_prob3_train_only_statistics(num_episodes: Optional[int] = None):
     original_from_rlds = dl.DLataset.from_rlds
     original_get_stats = rlds_module.get_dataset_statistics
 
-    def patched_from_rlds(builder, *args, **kwargs):
-        if builder.info.name == "prob3_pick_place":
-            # If num episodes is specificied we load only *those* number of episodes, otherwise all the training split.
-            if num_episodes is not None and num_episodes > 0:
-                kwargs["split"] = f"train[:{num_episodes}]"
-                print(
-                    f"[P-Rob3 Policy] Caricamento limitato a: train[:{num_episodes}] episodi."
-                )
-            else:
-                kwargs["split"] = "train"
-                print("[P-Rob3 Policy] Caricamento completo: split 'train'.")
-
-        return original_from_rlds(builder, *args, **kwargs)
-
     def patched_get_stats(dataset, hash_dependencies, save_dir=None):
         if save_dir is None:
             raise RuntimeError(
@@ -77,7 +63,6 @@ def install_prob3_train_only_statistics(num_episodes: Optional[int] = None):
             dataset, hash_dependencies=dependencies, save_dir=save_dir
         )
 
-    dl.DLataset.from_rlds = staticmethod(patched_from_rlds)
     rlds_module.get_dataset_statistics = patched_get_stats
 
     dl.DLataset._prob3_policy_installed = True

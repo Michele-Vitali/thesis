@@ -73,6 +73,8 @@ class OpenVLAServer:
             with open(Path(self.openvla_path) / "dataset_statistics.json", "r") as f:
                 self.vla.norm_stats = json.load(f)
 
+        print(f"Loaded server with model: {Path(openvla_path).name}")
+
     def predict_action(self, payload: dict[str, Any]) -> str:
         try:
             if double_encode := "encoded" in payload:

@@ -202,30 +202,11 @@ class OSCMovementController:
         normalized_rotation = rotation_gain * rotation_error / self.OSC_ROTATION_OUTPUT_MAX
 
         action[3:6] = np.clip(normalized_rotation, -max_rotation_action, +max_rotation_action)
-        
-        delta = action - self.previous_action
-
-        delta[:6] = np.clip(delta[:6], -settings.max_action_delta, +settings.max_action_delta)
 
         # Hold the current gripper state.
-        action[6] = self.gripper_state
+        action[6] = self.gripper_state  
 
-        actual_action = self.previous_action + delta
-
-        '''
-        # RAMP DEBUG
-        print(f"Received action: {action}")
-        print(f"Ramped action: {actual_action}")
-        actual_delta = np.abs(actual_action[:6] - self.previous_action[:6])
-        print(f"Delta from previous action: {actual_delta}")
-        print(f"Is it within the fixed delta: {np.all(actual_delta <= settings.max_action_delta + 1e-9)}")
-        print(f"Was the gripper clipped: {actual_action[-1] != action[-1]}")
-        '''
-
-        # Update previous action buffer for the next step.
-        self.previous_action = actual_action.copy()        
-
-        return actual_action
+        return action
 
     def move_eef_to_pose(self, target_pos: np.ndarray, target_rotation: R, max_steps: int = 500, position_tolerance: float = settings.position_tolerance,
         rotation_tolerance_deg: float = settings.rotation_tolerance_deg, position_gain: float = settings.gains['position']['lift'], rotation_gain: float = settings.gains['rotation']['align'],
@@ -256,9 +237,6 @@ class OSCMovementController:
         dt = 1.0 /float(settings.dataset_fps)
         integral_z = 0.0
 
-        # # Reset previous action buffer at the start of a new movement phase.
-        self.previous_action = np.zeros(self.env.action_dim, dtype=float)
-
         for step in range(max_steps):
             # Grab the env's observations...
             try:
@@ -277,11 +255,12 @@ class OSCMovementController:
             # Compute the error solely on the Z-axis.
             z_error = float(position_error[2])
 
+            '''
             # Check if the absolute value of the error falls within the threshold of using the integral component...
             if abs(z_error) > settings.z_integral_deadband:
                 # Clip the value of the integral on the z axis between the defined limits
                 integral_z = float(np.clip(integral_z, -settings.z_integral_limit, +settings.z_integral_limit))
-
+            '''
             # Compute the needed delta rotation to get closer to the goal rotation... 
             delta_rotation = (target_rotation * current_rotation.inv())
 
@@ -313,12 +292,27 @@ class OSCMovementController:
                 # Add the integral Z action to the normal Z action 
                 action[2] += integral_action_z
                 action[2] = float(np.clip(action[2], -0.40, +0.40))
-                
-                # # Sync previous action buffer when direct adjustments are made.
-                self.previous_action = action.copy()
+
+            # Ramp limit the action!
+            delta = action - self.previous_action
+            delta[:6] = np.clip(delta[:6], -settings.max_action_delta, +settings.max_action_delta)
+            actual_action = self.previous_action + delta
+    
+            '''
+            # RAMP DEBUG
+            print(f"Received action: {action}")
+            print(f"Ramped action: {actual_action}")
+            actual_delta = np.abs(actual_action[:6] - self.previous_action[:6])
+            print(f"Delta from previous action: {actual_delta}")
+            print(f"Is it within the fixed delta: {np.all(actual_delta <= settings.max_action_delta + 1e-9)}")
+            print(f"Was the gripper clipped: {actual_action[-1] != action[-1]}")
+            '''
+    
+            # Update previous action buffer for the next step.
+            self.previous_action = actual_action.copy()      
 
             # Save observation_ and action_t for dataset population...
-            self._step(action=action, observation=observation, record=record)
+            self._step(action=actual_action, observation=observation, record=record)
 
         # If we arrive here it means we did not reach the target in max_steps => We are sure to have failed!
         print("OSC target NOT reached!")
@@ -433,20 +427,20 @@ class OSCMovementController:
                 else:
                     stable_steps = 0
 
-                if stable_steps >= 3:
+                if stable_steps >= 5:
                     # We can assume the gripper is firmly closed...
                     return (True, steps)
 
             if target == 1 and obj is not None:
                 current_qpos = np.asarray(self.env.sim.data.qpos[finger_indices]).copy()
-                is_open = np.all(np.abs(current_qpos > 0.52))
+                is_open = np.all(np.abs(current_qpos > 0.5236))
 
                 if not is_grasped and is_open:
                     stable_steps += 1
                 else:
                     stable_steps = 0
 
-                if stable_steps >= 3:
+                if stable_steps >= 7:
                     # This means we're not controlling the object anymore!
                     return (True, steps)
 

@@ -7,7 +7,7 @@ import numpy as np
 import settings
 from scipy.spatial.transform import Rotation as R
 
-PHASE_NAMES = ("approach", "descend", "grasp", "lift", "transport", "align", "lower", "release")
+PHASE_NAMES = ("approach", "descend", "grasp", "lift", "transport", "lower", "release")
 PHASE_TO_ID = {name: idx for idx, name in enumerate(PHASE_NAMES)}
 
 

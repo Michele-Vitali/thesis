@@ -8,7 +8,7 @@ env_name = "CustomTask"
 robot = "PRob3"
 gripper_types = "PRob3Gripper"
 render_on_screen = True    # Set to false for faster simulations
-record = False
+record = True
 
 # Environment variables
 max_reachable_x = 0.55 # It is 60cm, but we take a margin and set it to 55cm
@@ -36,18 +36,18 @@ safe_offset_gripper = [0.0, 0.0, 0.115]
 # OSC actions variables
 gains = {
     "position": {
-        "approach": 1.0,
-        "descend": 0.14,
-        "lift": 0.36,
-        "transport": 1.0,
-        "lower": 0.14,
+        "approach": 0.13,
+        "descend": 0.1,
+        "lift": 0.1,
+        "transport": 0.13,
+        "lower": 0.095,
     },
     "rotation": {
-        "align": 0.57
+        "align": 0.12
     }
 }
 
-max_action_delta = 0.05 # This ensures we do not "jump" too many bins (useful for ensuring smoother model jumps and predictions!) This is an implicit way of introducing a ramp action, avoids spikes in commands!
+max_action_delta = 0.03 # This ensures we do not "jump" too many bins (useful for ensuring smoother model jumps and predictions!) This is an implicit way of introducing a ramp action, avoids spikes in commands!
 max_position_action = 0.50  # Safe maximum output so the robot stays in a controllable speed
 max_rotation_action = 0.50
 
@@ -134,9 +134,9 @@ final_tolerance = 0.005
 # Other values
 n_objects = 1
 
-# RLDS dataset
+# RLDS 
 dataset_root = str(Path(__file__).resolve().parents[1] / "hdf5_data")
-dataset_name = "v7_overfit_1k_no_randomization"
+dataset_name = "v8_no_randomization"
 
 dataset_fps = 5
 
@@ -200,4 +200,4 @@ server_port = 8000
 server_url = f"http://{server_host}:{server_port}"
 unnorm_key = "prob3_pick_place"
 server_timeout = 120 # 120 s = 2 mins
-openvla_path = "runs/openvla/openvla-7b+prob3_pick_place+b8+lr-5e-05+lora-r64+dropout-0.0--v7_overfit_test_5_demos_second_try--1400_chkpt"
+openvla_path = "runs/openvla/openvla-7b+prob3_pick_place+b32+lr-0.0005+lora-r32+dropout-0.0--v7_overfit_smooth_second_try--2000_chkpt"

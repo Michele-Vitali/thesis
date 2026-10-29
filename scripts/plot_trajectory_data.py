@@ -5,11 +5,23 @@ import h5py
 import matplotlib.pyplot as plt
 import numpy as np
 
+# Mappatura delle fasi basata sulla logica di P-Rob3
+PHASE_NAMES = {
+    0: "approach",
+    1: "descend",
+    2: "grasp",
+    3: "lift",
+    4: "transport",
+    5: "align",
+    6: "lower",
+    7: "release",
+}
 
 def plot_temporal_series(hdf5_path: Path, output_dir: Path, max_demos: int = 5):
     """
     Legge un dataset HDF5 generato per P-Rob3 e produce grafici dell'andamento 
-    temporale (step-by-step) di azioni (comandi) e posizioni (giunti).
+    temporale (step-by-step) di azioni (comandi) e posizioni (giunti),
+    includendo dei separatori visivi per le diverse fasi dell'episodio.
     """
     output_dir.mkdir(parents=True, exist_ok=True)
     
@@ -24,17 +36,22 @@ def plot_temporal_series(hdf5_path: Path, output_dir: Path, max_demos: int = 5):
         for demo_name in demo_names:
             demo = f["data"][demo_name]
             
-            # Estrazione dei dati
+            # Estrazione dei dati[cite: 8]
             actions = demo["actions_openvla"][:]
             joints = demo["obs"]["joint_states"][:]
             
+            # Estrazione dei phase_id se presenti
+            phase_ids = None
+            if "phase_id" in demo:
+                phase_ids = demo["phase_id"][:]
+            
             steps = np.arange(actions.shape[0])
             
-            # Creazione di una figura con 4 subplot impilati verticalmente
+            # Creazione di una figura con 4 subplot impilati verticalmente[cite: 8]
             fig, axs = plt.subplots(4, 1, figsize=(12, 14), sharex=True)
             fig.suptitle(f"Andamento Temporale - Traiettoria: {demo_name}", fontsize=16, fontweight="bold")
             
-            # 1. Comandi di Traslazione (dx, dy, dz)
+            # 1. Comandi di Traslazione (dx, dy, dz)[cite: 8]
             axs[0].plot(steps, actions[:, 0], label="dx", alpha=0.85, linewidth=1.5)
             axs[0].plot(steps, actions[:, 1], label="dy", alpha=0.85, linewidth=1.5)
             axs[0].plot(steps, actions[:, 2], label="dz", alpha=0.85, linewidth=1.5)
@@ -43,7 +60,7 @@ def plot_temporal_series(hdf5_path: Path, output_dir: Path, max_demos: int = 5):
             axs[0].legend(loc="upper right")
             axs[0].grid(True, linestyle="--", alpha=0.6)
             
-            # 2. Comandi di Rotazione (dRx, dRy, dRz)
+            # 2. Comandi di Rotazione (dRx, dRy, dRz)[cite: 8]
             axs[1].plot(steps, actions[:, 3], label="dRx", alpha=0.85, linewidth=1.5)
             axs[1].plot(steps, actions[:, 4], label="dRy", alpha=0.85, linewidth=1.5)
             axs[1].plot(steps, actions[:, 5], label="dRz", alpha=0.85, linewidth=1.5)
@@ -52,14 +69,14 @@ def plot_temporal_series(hdf5_path: Path, output_dir: Path, max_demos: int = 5):
             axs[1].legend(loc="upper right")
             axs[1].grid(True, linestyle="--", alpha=0.6)
             
-            # 3. Comando Gripper
+            # 3. Comando Gripper[cite: 8]
             axs[2].plot(steps, actions[:, 6], label="Gripper (0=Chiuso, 1=Aperto)", color="purple", drawstyle="steps-post", linewidth=2)
             axs[2].set_ylabel("Stato")
             axs[2].set_title("Stato del Gripper")
             axs[2].legend(loc="upper right")
             axs[2].grid(True, linestyle="--", alpha=0.6)
             
-            # 4. Posizioni dei Giunti (q1-q6)
+            # 4. Posizioni dei Giunti (q1-q6)[cite: 8]
             for i in range(6):
                 axs[3].plot(steps, joints[:, i], label=f"q{i+1}", alpha=0.85, linewidth=1.5)
             axs[3].set_ylabel("Angolo (rad)")
@@ -67,10 +84,34 @@ def plot_temporal_series(hdf5_path: Path, output_dir: Path, max_demos: int = 5):
             axs[3].set_xlabel("Sim Step")
             axs[3].legend(loc="center right", bbox_to_anchor=(1.12, 0.5))
             axs[3].grid(True, linestyle="--", alpha=0.6)
+
+            # --- Aggiunta dei separatori di fase ---
+            if phase_ids is not None:
+                # Trova gli indici in cui il phase_id cambia
+                phase_changes = np.where(np.diff(phase_ids) != 0)[0] + 1
+                
+                # Prepara la lista delle transizioni (inizio incluso)
+                transitions = [(0, phase_ids[0])]
+                for idx in phase_changes:
+                    transitions.append((idx, phase_ids[idx]))
+
+                # Disegna le linee verticali su tutti i subplot
+                for ax in axs:
+                    for idx in phase_changes:
+                        ax.axvline(x=idx, color='dimgray', linestyle='--', linewidth=1.5, alpha=0.8)
+
+                # Aggiunge le etichette di testo solo sul primo grafico
+                for idx, p_id in transitions:
+                    phase_name = PHASE_NAMES.get(p_id, f"Fase {p_id}")
+                    # Posiziona il testo appena a destra della linea verticale, in alto
+                    axs[0].text(idx + (len(steps) * 0.005), 0.95, phase_name, 
+                                transform=axs[0].get_xaxis_transform(),
+                                rotation=90, verticalalignment='top', 
+                                color='dimgray', fontsize=9, fontweight='bold', alpha=0.9)
             
             plt.tight_layout()
             
-            # Salvataggio
+            # Salvataggio[cite: 8]
             out_file = output_dir / f"{demo_name}_temporal.png"
             plt.savefig(out_file, dpi=150, bbox_inches="tight")
             plt.close()

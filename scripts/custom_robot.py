@@ -71,7 +71,7 @@ class PRob3Gripper(GripperModel):
         # We use 2.0 since the action range is 2.0 units wide (in ROBOSUITE only!)
         #return 2.0 / (settings.gripper_transition_seconds * settings.dataset_fps)
 
-        return 0.002
+        return 0.003
 
     def format_action(self, action: np.ndarray):
         """Formats the passed gripper action in the convention:

@@ -2,7 +2,7 @@ import h5py
 from pathlib import Path
 import numpy as np
 
-phases = ['approach', 'descend', 'grasp', 'lift', 'transport', 'align', 'lower', 'release']
+phases = ['approach', 'descend', 'grasp', 'lift', 'transport', 'lower', 'release']
 phase_stats = {
     phase: {'num_frames': 0,'opened_grip_command': 0, 'closed_grip_command': 0} 
     for phase in phases
@@ -51,7 +51,7 @@ def main():
             obs = demo['obs']          
 
             analyze_demo(demo, obs)
-
+            
             num_samples = demo.attrs["num_samples"]
             obj_positions.append(demo.attrs["object_initial_position_m"])
             obj_rotations.append(demo.attrs["object_initial_quat_wxyz"])
@@ -71,22 +71,22 @@ def main():
             num_frames = phase_stats[phases[i]]['num_frames']
             open_grip = phase_stats[phases[i]]['opened_grip_command']
             close_grip = phase_stats[phases[i]]['closed_grip_command']
-            print(f"[{phases[i].capitalize()}] Total frames: {num_frames} | Open grip: {open_grip}, {open_grip/num_frames*100: .2f}% | Close grip: {close_grip}, {close_grip/num_frames*100: .2f}%")
+            print(f"[{phases[i].capitalize()}] Total frames: {num_frames}, {num_frames/total_frames*100: .2f}% | Open grip: {open_grip}, {open_grip/num_frames*100: .2f}% | Close grip: {close_grip}, {close_grip/num_frames*100: .2f}%")
+            
         analyzed_frames = sum(stats['num_frames'] for stats in phase_stats.values())
         total_open_grip = sum(stats['opened_grip_command'] for stats in phase_stats.values())
         total_close_grip = sum(stats['closed_grip_command'] for stats in phase_stats.values())
         print(f"Totale frames: {total_frames} | Open grip: {total_open_grip}, {total_open_grip/analyzed_frames*100: .2f}% | Close grip: {total_close_grip}, {total_close_grip/analyzed_frames*100: .2f}%")
         print(f"Analyzed all? {'YES' if total_frames == analyzed_frames else 'NO'}")
 
-
 def analyze_demo(demo, obs):
     num_frames = len(demo['states'])
 
-
     for i in range(num_frames):
-        if i == 0 or i == num_frames - 1:
+        #if i == 0 or i == num_frames - 1:
             #print(f"[Frame-{i}] Action saved: {demo['actions'][i]}")
-            print(f"[Frame-{i}] End-Effector z: {demo['actions'][i][2]}")
+            #print(f"[Frame-{i}] End-Effector z: {demo['actions'][i][2]}")
+
         phase = phases[demo['phase_id'][i]]
         grip_command = demo['gripper_command'][i]
 

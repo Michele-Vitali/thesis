@@ -84,7 +84,7 @@ def create_env(joint_config: dict | None = None, init_cond: dict | None = None) 
 def main():
     # Parse command line arguments for overfit evaluation.
     parser = argparse.ArgumentParser(description="Valutazione online in simulazione Robosuite.")
-    parser.add_argument("--overfit_hdf5", type=str, default=None, help="Path al file HDF5 per riprodurre le posizioni esatte di overfit")
+    parser.add_argument("--hdf5", type=str, default=None, help="Path al file HDF5 per riprodurre le posizioni esatte di overfit")
     parser.add_argument("--max_demos", type=int, default=5, help="Numero di episodi da testare in overfit")
     args = parser.parse_args()
 
@@ -99,8 +99,8 @@ def main():
 
     # Load stored demo names if an HDF5 path for overfitting is provided.
     overfit_demos = []
-    if args.overfit_hdf5:
-        hdf5_path = Path(args.overfit_hdf5).resolve()
+    if args.hdf5:
+        hdf5_path = Path(args.hdf5).resolve()
         with h5py.File(hdf5_path, "r") as f:
             overfit_demos = sorted(f["data"].keys())[: args.max_demos]
         n_tasks = len(overfit_demos)
@@ -130,11 +130,12 @@ def main():
     )
 
     for task_id in range(n_tasks):
-        if args.overfit_hdf5 and overfit_demos:
+        task_id += 1
+        if args.hdf5 and overfit_demos:
             demo_name = overfit_demos[task_id]
             print(f"[OVERFIT] Executing stored episode: {demo_name}")
 
-        initial_conditions = get_init_conditions(Path(args.overfit_hdf5), demo_name)
+        initial_conditions = get_init_conditions(Path(args.hdf5), demo_name)
         print("="*60)
         print(initial_conditions)
         print("="*60)
@@ -179,7 +180,7 @@ def print_final_report(n_successes: int, n_total_tasks: int, results: list[tuple
     """
 
     print("=" * 60)
-    print(f"OSC final report: {n_successes}/{n_total_tasks} successful tasks.")
+    print(f"OSC final report: {n_successes}/{n_total_tasks} successful tasks. -> Success rate: {n_successes/n_total_tasks * 100: .2f}")
     print("=" * 60)
     np_results = np.array(results)
     averages = np.mean(np_results, axis=0)
@@ -204,8 +205,6 @@ def execute_task(env: "SingleArmEnv", obs: dict, client: OpenVLAClient, max_step
     # Counter and flag variables.
     total_steps = 0
     error = 1.0
-    last_pos = np.zeros(3)
-    iterations = 0
     loop_times = []
 
     for _ in range(max_steps):
@@ -215,27 +214,13 @@ def execute_task(env: "SingleArmEnv", obs: dict, client: OpenVLAClient, max_step
 
         # Make the model predict the next action.
         prediction = client.predict(image, settings.dataset_task)
+        print(prediction)
 
         # Adapt predicted action to robot controller bounds.
         action = adapt_action(prediction)
 
-        # Measure what happens when the action is executed.
-        robot = env.robots[0]
-        eef_before = env.sim.data.site_xpos[robot.eef_site_id].copy()
-
-        #print(f"Actual z sent to robot: {action[2]}")
-        #print(f"Actual eef z: {robot._hand_pos[2]}")
         next_obs, _, _, _ = env.step(action)
         env.render()
-
-        eef_after = env.sim.data.site_xpos[robot.eef_site_id].copy()
-
-        # Actual end-effector displacement in meters.
-        eef_movement = float(np.linalg.norm(eef_after - eef_before))
-
-        # How much has the image changed.
-        next_image = prepare_rgb(next_obs)
-        image_delta = float(np.mean(np.abs(next_image.astype(np.float32) - image.astype(np.float32))))
 
         obs = next_obs
         total_steps += 1
@@ -245,9 +230,6 @@ def execute_task(env: "SingleArmEnv", obs: dict, client: OpenVLAClient, max_step
             obj = env.objects[0]
             body_id = env.sim.model.body_name2id(obj.root_body)
             obj_xy = env.sim.data.body_xpos[body_id][:2]
-            obj_pos = env.sim.data.body_xpos[body_id][:3]
-            if iterations == 0:
-                last_pos = obj_pos
             target_xy = np.asarray(settings.drop_point, dtype=float)[:2]
             error = float(np.linalg.norm(obj_xy - target_xy))
 
@@ -255,35 +237,6 @@ def execute_task(env: "SingleArmEnv", obs: dict, client: OpenVLAClient, max_step
                 # If we are within the tolerance it means we succeeded.
                 break
 
-        #print(f"End-effector position: {env.robots[0]._hand_pos}")
-
-        if total_steps % 50 == 0:
-            finger_qpos = env.sim.data.qpos[robot._ref_gripper_joint_pos_indexes].copy()
-            has_moved = False
-            if np.linalg.norm(np.abs(last_pos - obj_pos)) > 1e-3:
-                has_moved = True
-
-            last_pos = np.array([obj_pos])
-            '''
-            print(
-                f"\n[STEP {total_steps}]"
-                f"\n  Action: {np.round(action, 4)}"
-                f"\n  EEF movement: {eef_movement:.6f} m"
-                f"\n  EEF Z: {eef_after[2]:.4f} m"
-                f"\n  Finger qpos: {np.round(finger_qpos, 4)}"
-                f"\n  Image delta: {image_delta:.4f}"
-                f"\n  Center error: {error: .5f}"
-                f"\n  Has the object moved: {has_moved}"
-            )'''
-
-        # Check for table contacts...
-        table_geoms = env.mujoco_arena.table_collision
-        gripper_geoms = env.robots[0].gripper.important_geoms
-
-        if env.check_contact(geoms_1=gripper_geoms, geoms_2=table_geoms):
-            print("CONTACT BETWEEN TABLE AND GRIPPER GEOMS!")
-
-        iterations += 1
         elapsed = time.time() - start
         loop_times.append(elapsed)
 

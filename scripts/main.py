@@ -443,6 +443,8 @@ def pick_and_place_action(env: "SingleArmEnv", obj, pos: np.ndarray, quat: np.nd
     done, steps = movements_ctrl.set_gripper(target=0.0, record=record, obj=obj)
     total_steps += steps
 
+    print(f"Closing steps: {steps}")
+
     if not done:
         print("OSC failed while closing the gripper.")
         return (None, total_steps)
@@ -464,7 +466,7 @@ def pick_and_place_action(env: "SingleArmEnv", obj, pos: np.ndarray, quat: np.nd
     
     # Move diagonally above the central drop point.
     recorder.phase = "transport"
-    done, steps = movements_ctrl.move_robot_to_position(above_drop_pos, quat, payload_compensation=True, record=record, position_tolerance=transport_tol, rotation_tolerance_deg=rotation_tol, position_gain=settings.gains['position']['transport'])
+    done, steps = movements_ctrl.move_robot_to_position(above_drop_pos, payload_compensation=True, record=record, position_tolerance=transport_tol, rotation_tolerance_deg=rotation_tol, position_gain=settings.gains['position']['transport'], rotation_gain=settings.gains['rotation']['align'])
     total_steps += steps
 
     if not done:
@@ -472,13 +474,13 @@ def pick_and_place_action(env: "SingleArmEnv", obj, pos: np.ndarray, quat: np.nd
         return (None, total_steps)
 
     # Now just align the cube!
-    recorder.phase = "align"
-    done, steps = movements_ctrl.move_robot_to_position(above_drop_pos, payload_compensation=True, record=record, position_tolerance=transport_tol, rotation_tolerance_deg=rotation_tol, rotation_gain=settings.gains['rotation']['align'])
-    total_steps += steps
+    #recorder.phase = "align"
+    #done, steps = movements_ctrl.move_robot_to_position(above_drop_pos, payload_compensation=True, record=record, position_tolerance=transport_tol, rotation_tolerance_deg=rotation_tol, rotation_gain=settings.gains['rotation']['align'])
+    #total_steps += steps
 
-    if not done:
-        print("OSC failed during alignment.")
-        return (None, total_steps)
+    #if not done:
+        #print("OSC failed during alignment.")
+        #return (None, total_steps)
 
     # Descend to drop position.
     recorder.phase = "lower"
@@ -493,6 +495,8 @@ def pick_and_place_action(env: "SingleArmEnv", obj, pos: np.ndarray, quat: np.nd
     recorder.phase = "release"
     done, steps = movements_ctrl.set_gripper(target=1.0, record=record, obj=obj)
     total_steps += steps
+
+    print(f"Opening steps: {steps}")
 
     if not done:
         print("OSC failed while opening the gripper.")

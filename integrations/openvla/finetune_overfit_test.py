@@ -17,32 +17,18 @@ def main():
         raise FileNotFoundError(f"Fine-tune script not found: {OPENVLA_FINETUNE}")
 
     # Extract custom wrapper arguments before forwarding sys.argv to finetune.py
-    num_episodes = 5
     filtered_args = []
     i = 1
     while i < len(sys.argv):
         arg = sys.argv[i]
-        if arg == "--num_episodes":
-            if i + 1 < len(sys.argv):
-                num_episodes = int(sys.argv[i + 1])
-                i += 2
-                continue
-        elif arg.startswith("--num_episodes="):
-            num_episodes = int(arg.split("=")[1])
-            i += 1
-            continue
         filtered_args.append(arg)
         i += 1
-
-    print("=" * 60)
-    print(f"[OVERFIT SANITY CHECK] Overfit configuration on {num_episodes} episodes.")
-    print("=" * 60)
 
     # Register prob3_pick_place dataset in OpenVLA
     register_prob3()
 
-    # Install train-only policy limited to train[:num_episodes]
-    install_prob3_train_only_statistics(num_episodes=num_episodes)
+    # Install train-only policy
+    install_prob3_train_only_statistics()
 
     # Ensure required default CLI arguments if missing
     if "--dataset_name" not in filtered_args:

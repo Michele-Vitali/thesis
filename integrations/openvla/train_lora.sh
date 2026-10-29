@@ -27,37 +27,28 @@ NUM_GPUS=2
 
 # LoRA parameters
 USE_LORA=True
-LORA_RANK=64
-LORA_ALPHA=128
-LORA_DROPOUT=0.0
+LORA_RANK=32
+LORA_ALPHA=64
+LORA_DROPOUT=0.0    # 0.05 for generalizing!
 USE_QUANTIZATION=False
 
 # Training hyperparameters
 BATCH_SIZE=8
-GRAD_ACCUMULATION_STEPS=1
-LEARNING_RATE=5e-5
-NUM_TRAINING_EPOCHS=50
-MAX_STEPS=10000
-SAVE_STEPS=200
-WARMUP_RATIO=0.05
-IMAGE_AUG=False # Set to False for overfitting testing
-SHUFFLE_BUFFER_SIZE=64
+GRAD_ACCUMULATION_STEPS=4
+LEARNING_RATE=5e-4  # In VLA paper it is described as the optimal value!
+
+N_EPOCHS=27 # In VLA paper it is described as the optimal value!
+
+MAX_STEPS=2000 # For a 500 trajectories dataset of 180 frames per trajectory, set to 40k (~30 epochs)
+SAVE_STEPS=250  # Set to 10% of the max_steps so we get 10 checkpoints
+IMAGE_AUG=False # True for generalizing!
+SHUFFLE_BUFFER_SIZE=270 # Set to 100k on big dataset!
 SAVE_LATEST_CHECKPOINT_ONLY=False
 
-# HF-like metrics (Attenzione: definiti ma non usati dalla configurazione di OpenVLA)
-LOGGING_STEPS=10
-WEIGHT_DECAY=0.0
-MAX_GRAD_NORM=1.0
-EVAL_STRATEGY="no"
-LOAD_BEST_MODEL_AT_END=False
-
-# Number of episodes for overfit test wrapper
-NUM_EPISODES=5
-
 # Run id
-RUN_NOTE="v7_overfit_test_5_demos_second_try"
+clearRUN_NOTE="v7_overfit_smooth_second_try"
 
-# Wandb logging, offline mode
+# Wandb logging, online mode so we can track the loss!
 export WANDB_MODE=offline
 
 # HuggingFace cache directory
@@ -76,9 +67,6 @@ CMD=(
     "$NUM_GPUS"
 
     "$TRAIN_WRAPPER"
-
-    --num_episodes
-    "$NUM_EPISODES"
 
     --vla_path
     "$MODEL"
