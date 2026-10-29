@@ -8,7 +8,7 @@ env_name = "CustomTask"
 robot = "PRob3"
 gripper_types = "PRob3Gripper"
 render_on_screen = True    # Set to false for faster simulations
-record = True
+record = False
 
 # Environment variables
 max_reachable_x = 0.55 # It is 60cm, but we take a margin and set it to 55cm
@@ -34,10 +34,22 @@ radial_range = [0.35, 0.55] # Stable pre-waypoint working range
 safe_offset_gripper = [0.0, 0.0, 0.115]
 
 # OSC actions variables
-position_gain = 0.15
-rotation_gain = 0.06
-max_position_action = 0.70
-max_rotation_action = 0.70
+gains = {
+    "position": {
+        "approach": 1.0,
+        "descend": 0.14,
+        "lift": 0.36,
+        "transport": 1.0,
+        "lower": 0.14,
+    },
+    "rotation": {
+        "align": 0.57
+    }
+}
+
+max_action_delta = 0.05 # This ensures we do not "jump" too many bins (useful for ensuring smoother model jumps and predictions!) This is an implicit way of introducing a ramp action, avoids spikes in commands!
+max_position_action = 0.50  # Safe maximum output so the robot stays in a controllable speed
+max_rotation_action = 0.50
 
 gripper_transition_seconds = 1.0
 

@@ -18,21 +18,19 @@ class OSCMovementController:
         [0.0,  0.0, -1.0],
     ])
 
-    def __init__(self, env: SingleArmEnv, gripper_state: float = 1.0, recorder = None, action_smoothing: float = 0.15):
+    def __init__(self, env: SingleArmEnv, gripper_state: float = 1.0, recorder = None):
         """Initalizes an OSCMovementController.
 
         Args:
             env (SingleArmEnv): The simulation environment.
             gripper_state (float, optional): The initial gripper state. Defaults to 1.0.
             recorder (_type_, optional): The HDF5 recorder used to record the episodes. Defaults to None.
-            action_smoothing (float, optional): Temporal smoothing factor for smooth movements. Defaults to 0.3.
         """
 
         self.env = env
         self.gripper_state = gripper_state
         
-        # # Save action smoothing factor and previous action buffer for temporal filtering.
-        self.action_smoothing = action_smoothing
+        # Save previous action for action smoothing.
         self.previous_action = np.zeros(self.env.action_dim, dtype=float)
 
         # Optional HDF5 dataset recorder.
@@ -163,7 +161,7 @@ class OSCMovementController:
         # Return the candidate rotation of the first sorted candidate!
         return candidate_rotations[0][1]
 
-    def _build_osc_action(self, position_error: np.ndarray, rotation_error: np.ndarray, position_gain: float = settings.position_gain, rotation_gain: float = settings.rotation_gain,
+    def _build_osc_action(self, position_error: np.ndarray, rotation_error: np.ndarray, position_gain: float = settings.gains['position']['lift'], rotation_gain: float = settings.gains['rotation']['align'],
                           max_position_action: float = settings.max_position_action, max_rotation_action: float = settings.max_rotation_action) -> np.ndarray:
         """
         Convert Cartesian position / orientation errors into normalized OSC_POSE actions.
@@ -204,21 +202,34 @@ class OSCMovementController:
         normalized_rotation = rotation_gain * rotation_error / self.OSC_ROTATION_OUTPUT_MAX
 
         action[3:6] = np.clip(normalized_rotation, -max_rotation_action, +max_rotation_action)
+        
+        delta = action - self.previous_action
 
-        # Apply temporal smoothing (rate-limiting) to prevent sudden spikes in movement.
-        if self.action_smoothing > 0.0:
-            action[:6] = (1.0 - self.action_smoothing) * action[:6] + self.action_smoothing * self.previous_action[:6]
-
-        # # Update previous action buffer for the next step.
-        self.previous_action = action.copy()
+        delta[:6] = np.clip(delta[:6], -settings.max_action_delta, +settings.max_action_delta)
 
         # Hold the current gripper state.
         action[6] = self.gripper_state
 
-        return action
+        actual_action = self.previous_action + delta
+
+        '''
+        # RAMP DEBUG
+        print(f"Received action: {action}")
+        print(f"Ramped action: {actual_action}")
+        actual_delta = np.abs(actual_action[:6] - self.previous_action[:6])
+        print(f"Delta from previous action: {actual_delta}")
+        print(f"Is it within the fixed delta: {np.all(actual_delta <= settings.max_action_delta + 1e-9)}")
+        print(f"Was the gripper clipped: {actual_action[-1] != action[-1]}")
+        '''
+
+        # Update previous action buffer for the next step.
+        self.previous_action = actual_action.copy()        
+
+        return actual_action
 
     def move_eef_to_pose(self, target_pos: np.ndarray, target_rotation: R, max_steps: int = 500, position_tolerance: float = settings.position_tolerance,
-        rotation_tolerance_deg: float = settings.rotation_tolerance_deg, payload_compensation: bool = False, record: bool = True) -> tuple[bool, int]:
+        rotation_tolerance_deg: float = settings.rotation_tolerance_deg, position_gain: float = settings.gains['position']['lift'], rotation_gain: float = settings.gains['rotation']['align'],
+        payload_compensation: bool = False, record: bool = True) -> tuple[bool, int]:
         """
         Closed-loop Cartesian motion using OSC_POSE.
         Every executed OSC action is optionally recorded as an HDF5 frame.
@@ -287,7 +298,7 @@ class OSCMovementController:
                 return (True, step)
 
             # If we did not reach the target position/rotation, we compute the next action...
-            action = self._build_osc_action(position_error, rotation_error)
+            action = self._build_osc_action(position_error, rotation_error, position_gain, rotation_gain)
 
             # Actual integral Z component's code.
             if payload_compensation:
@@ -353,7 +364,8 @@ class OSCMovementController:
 
         return (False, step)
     
-    def move_robot_to_position(self, pos: np.ndarray, quat: np.ndarray = None, max_steps: int = 400, position_tolerance: float = settings.position_tolerance, rotation_tolerance_deg: float = settings.rotation_tolerance_deg, payload_compensation: bool = False, record: bool = True) -> tuple[bool, int]:
+    def move_robot_to_position(self, pos: np.ndarray, quat: np.ndarray = None, max_steps: int = 400, position_tolerance: float = settings.position_tolerance, rotation_tolerance_deg: float = settings.rotation_tolerance_deg, 
+                               position_gain: float = settings.gains['position']['lift'], rotation_gain: float = settings.gains['rotation']['align'], payload_compensation: bool = False, record: bool = True) -> tuple[bool, int]:
         """
         Move the EEF directly to the Cartesian pose corresponding to the passed position.
 
@@ -379,7 +391,7 @@ class OSCMovementController:
         target_rotation = self._get_top_down_rotation(quat)
 
         # Return the tuple that we receive from the move_eef_to_pose function!
-        return self.move_eef_to_pose(target_pos=target_eef_pos, target_rotation=target_rotation, max_steps=max_steps, position_tolerance=position_tolerance, rotation_tolerance_deg=rotation_tolerance_deg, payload_compensation=payload_compensation, record=record)
+        return self.move_eef_to_pose(target_pos=target_eef_pos, target_rotation=target_rotation, max_steps=max_steps, position_tolerance=position_tolerance, rotation_tolerance_deg=rotation_tolerance_deg, position_gain=position_gain, rotation_gain=rotation_gain, payload_compensation=payload_compensation, record=record)
         
     def set_gripper(self, target: int, max_steps: int = 50, record: bool = False, obj = None) -> tuple[bool, int]:
 

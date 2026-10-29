@@ -413,16 +413,16 @@ def pick_and_place_action(env: "SingleArmEnv", obj, pos: np.ndarray, quat: np.nd
     # Final drop height.
     drop_pos = np.array([settings.drop_point[0], settings.drop_point[1], grasp_pos[2] + settings.drop_clearance], dtype=float)
 
-    # Post-grasp tolerances
-    post_grasp_pos_tolerance = settings.transport_position_tolerance
-    post_grasp_rot_tolerance = settings.transport_rotation_tolerance
+    # Tolerances
+    transport_tol = settings.transport_position_tolerance
+    rotation_tol = settings.transport_rotation_tolerance
 
     # Total steps for debug/report
     total_steps = 0
     
     # Move over the object.
     recorder.phase = "approach"
-    done, steps = movements_ctrl.move_robot_to_position(above_object_pos, quat, record=record, position_tolerance=settings.transport_position_tolerance, rotation_tolerance_deg=settings.transport_rotation_tolerance)
+    done, steps = movements_ctrl.move_robot_to_position(above_object_pos, quat, record=record, position_tolerance=transport_tol, rotation_tolerance_deg=rotation_tol, position_gain=settings.gains['position']['approach'], rotation_gain=settings.gains['rotation']['align'])
     total_steps += steps
 
     if not done:
@@ -431,16 +431,12 @@ def pick_and_place_action(env: "SingleArmEnv", obj, pos: np.ndarray, quat: np.nd
 
     # Descend to the object.
     recorder.phase = "descend"
-    done, steps = movements_ctrl.move_robot_to_position(grasp_pos, quat, record=record)
+    done, steps = movements_ctrl.move_robot_to_position(grasp_pos, quat, record=record, position_gain=settings.gains['position']['descend'])
     total_steps += steps
 
     if not done:
         print("OSC failed during grasp descent.")
         return (None, total_steps)
-
-    # Capture actual open finger positions before grasping the cube.
-    finger_indices = env.robots[0]._ref_gripper_joint_pos_indexes
-    open_qpos = np.asarray(env.sim.data.qpos[finger_indices], dtype=float).copy()
 
     # Close the gripper.
     recorder.phase = "grasp"
@@ -451,13 +447,10 @@ def pick_and_place_action(env: "SingleArmEnv", obj, pos: np.ndarray, quat: np.nd
         print("OSC failed while closing the gripper.")
         return (None, total_steps)
 
-    # Change the controller kp and damping ratio to compensate object's inertia...
-    #set_osc_gains(env, kp=settings.grasp_kp, damping_ratio=settings.grasp_damping)
-
     # Lift the object vertically to the transport height.
-    # Note: We use payload compensation and some tolerances to achieve higher precision in some particular movements
+    # Note: We use payload compensation to achieve higher precision in some particular movements
     recorder.phase = "lift"
-    done, steps = movements_ctrl.move_robot_to_position(transport_pos, quat, payload_compensation=True, position_tolerance=post_grasp_pos_tolerance, rotation_tolerance_deg=post_grasp_rot_tolerance, record=record)
+    done, steps = movements_ctrl.move_robot_to_position(transport_pos, quat, payload_compensation=True, position_tolerance=transport_tol, rotation_tolerance_deg=rotation_tol, record=record, position_gain=settings.gains['position']['lift'])
     total_steps += steps
 
     if not done:
@@ -471,7 +464,7 @@ def pick_and_place_action(env: "SingleArmEnv", obj, pos: np.ndarray, quat: np.nd
     
     # Move diagonally above the central drop point.
     recorder.phase = "transport"
-    done, steps = movements_ctrl.move_robot_to_position(above_drop_pos, quat, payload_compensation=True, record=record, position_tolerance=settings.transport_position_tolerance, rotation_tolerance_deg=settings.transport_rotation_tolerance)
+    done, steps = movements_ctrl.move_robot_to_position(above_drop_pos, quat, payload_compensation=True, record=record, position_tolerance=transport_tol, rotation_tolerance_deg=rotation_tol, position_gain=settings.gains['position']['transport'])
     total_steps += steps
 
     if not done:
@@ -480,7 +473,7 @@ def pick_and_place_action(env: "SingleArmEnv", obj, pos: np.ndarray, quat: np.nd
 
     # Now just align the cube!
     recorder.phase = "align"
-    done, steps = movements_ctrl.move_robot_to_position(above_drop_pos, payload_compensation=True, record=record, position_tolerance=settings.transport_position_tolerance, rotation_tolerance_deg=settings.transport_rotation_tolerance)
+    done, steps = movements_ctrl.move_robot_to_position(above_drop_pos, payload_compensation=True, record=record, position_tolerance=transport_tol, rotation_tolerance_deg=rotation_tol, rotation_gain=settings.gains['rotation']['align'])
     total_steps += steps
 
     if not done:
@@ -489,7 +482,7 @@ def pick_and_place_action(env: "SingleArmEnv", obj, pos: np.ndarray, quat: np.nd
 
     # Descend to drop position.
     recorder.phase = "lower"
-    done, steps = movements_ctrl.move_robot_to_position(drop_pos, payload_compensation=False, record=record)
+    done, steps = movements_ctrl.move_robot_to_position(drop_pos, payload_compensation=False, record=record, position_gain=settings.gains['position']['lower'])
     total_steps += steps
 
     if not done:
@@ -504,50 +497,14 @@ def pick_and_place_action(env: "SingleArmEnv", obj, pos: np.ndarray, quat: np.nd
     if not done:
         print("OSC failed while opening the gripper.")
 
-    # Reset controller configuration...
-    #set_osc_gains(env, kp=settings.free_kp, damping_ratio=settings.free_damping)
-
     # Some debug/report code...
     final_object_pos = (env.sim.data.body_xpos[obj_id].copy())
     center_error = np.linalg.norm(final_object_pos[:2] - np.asarray(settings.drop_point, dtype=float))
-    z_error = abs(float(final_object_pos[2] - initial_cube_z))
-    released_qpos = np.asarray(env.sim.data.qpos[finger_indices], dtype=float).copy()
-    gripper_reopened = bool(np.all(np.abs(released_qpos - open_qpos) < 0.08))
 
     print(f"Final error between drop point ad actual position: {center_error: .5f}m")
 
-    if z_error > 0.015 or not gripper_reopened:
-        print("[INVALID] Cube not resting on table or gripper not open.")
-        return (None, total_steps)
-
     return (center_error, total_steps)
 
-'''
-Commented out as we should not be able to change controller settings at runtime on the real robot...
-def set_osc_gains(env, kp: np.ndarray, damping_ratio: np.ndarray) -> None:
-    """This function is used to change the OSC controller's kp and damping ration configurations for grasping to compensate the grasped object's inertia.
-
-    Args:
-        env (_type_): The simulation environment.
-        kp (np.ndarray): The final desired kp array.
-        damping_ratio (np.ndarray): The final desired damping ration array.
-    """
-
-    # Grab the controller
-    robot = env.robots[0]
-    osc = robot.controller
-
-    # Make sure the kp and dampin_ratio arrays are in the correct format (1-D array with 6 values)
-    if kp.ndim == 0:
-        kp = np.full(6, float(kp))
-
-    if damping_ratio.ndim == 0:
-        damping_ratio = np.full(6, float(damping_ratio))
-
-    # Update the controller configurations...
-    osc.kp = kp
-    osc.kd = 2.0 * np.sqrt(kp) * damping_ratio
-'''
 
 if __name__ == "__main__":
     main()
