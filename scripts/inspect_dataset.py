@@ -79,18 +79,33 @@ def main():
         print(f"Totale frames: {total_frames} | Open grip: {total_open_grip}, {total_open_grip/analyzed_frames*100: .2f}% | Close grip: {total_close_grip}, {total_close_grip/analyzed_frames*100: .2f}%")
         print(f"Analyzed all? {'YES' if total_frames == analyzed_frames else 'NO'}")
 
+already_shown = False
+
 def analyze_demo(demo, obs):
     num_frames = len(demo['states'])
 
     for i in range(num_frames):
-        #if i == 0 or i == num_frames - 1:
-            #print(f"[Frame-{i}] Action saved: {demo['actions'][i]}")
-            #print(f"[Frame-{i}] End-Effector z: {demo['actions'][i][2]}")
 
         phase = phases[demo['phase_id'][i]]
         grip_command = demo['gripper_command'][i]
 
         phase_stats[phase]['num_frames'] += 1
+
+        global already_shown
+        if not already_shown:
+            first_img = obs['agentview_rgb'][0]
+            from PIL import Image
+            img = Image.fromarray(first_img)
+            print(f"Image dimensions: {img.size}")
+            print(f"Color mode: {img.mode}")
+            min_px = first_img.min()
+            max_px = first_img.max()
+            print(f"In [0, 255] range? {'YES' if min_px >= 0 and max_px <= 255 else 'NO'}")
+            print(first_img.reshape(-1))
+            print(f"Data type: {first_img.dtype}")
+            print(f"Shape: {first_img.shape}")
+            already_shown = True
+
 
         if grip_command == 0:
             phase_stats[phase]['closed_grip_command'] += 1

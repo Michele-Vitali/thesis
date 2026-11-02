@@ -3,7 +3,7 @@ import numpy as np
 import settings
 from robosuite.environments.manipulation.single_arm_env import SingleArmEnv
 from scipy.spatial.transform import Rotation as R
-
+from action_utils import process_osc_action # <--- NUOVO IMPORT
 
 class OSCMovementController:
 
@@ -197,11 +197,13 @@ class OSCMovementController:
         normalized_position = position_gain * position_error / self.OSC_POSITION_OUTPUT_MAX
 
         # We clip the translation action between the maximum values (for safety).
-        action[0:3] = np.clip(normalized_position, -max_position_action, +max_position_action)
+        # NOTA: Rimosso np.clip qui, delegato a process_osc_action
+        action[0:3] = normalized_position # np.clip(normalized_position, -max_position_action, +max_position_action)
 
         normalized_rotation = rotation_gain * rotation_error / self.OSC_ROTATION_OUTPUT_MAX
 
-        action[3:6] = np.clip(normalized_rotation, -max_rotation_action, +max_rotation_action)
+        # NOTA: Rimosso np.clip qui, delegato a process_osc_action
+        action[3:6] = normalized_rotation # np.clip(normalized_rotation, -max_rotation_action, +max_rotation_action)
 
         # Hold the current gripper state.
         action[6] = self.gripper_state  
@@ -231,7 +233,7 @@ class OSCMovementController:
         # Convert the target position to a np.ndarray and copy it.
         target_pos = np.asarray(target_pos, dtype=float).copy()
 
-        max_steps = min(max_steps, max(1, int(np.ceil(settings.expert_max_segment_seconds * settings.dataset_fps))))
+        #max_steps = min(max_steps, max(1, int(np.ceil(settings.expert_max_segment_seconds * settings.dataset_fps))))
 
         # Integral component variables...
         dt = 1.0 /float(settings.dataset_fps)
@@ -255,12 +257,12 @@ class OSCMovementController:
             # Compute the error solely on the Z-axis.
             z_error = float(position_error[2])
 
-            '''
+        
             # Check if the absolute value of the error falls within the threshold of using the integral component...
             if abs(z_error) > settings.z_integral_deadband:
                 # Clip the value of the integral on the z axis between the defined limits
                 integral_z = float(np.clip(integral_z, -settings.z_integral_limit, +settings.z_integral_limit))
-            '''
+            
             # Compute the needed delta rotation to get closer to the goal rotation... 
             delta_rotation = (target_rotation * current_rotation.inv())
 
@@ -291,25 +293,16 @@ class OSCMovementController:
 
                 # Add the integral Z action to the normal Z action 
                 action[2] += integral_action_z
-                action[2] = float(np.clip(action[2], -0.40, +0.40))
+                # NOTA: Rimosso np.clip qui, delegato a process_osc_action
+                # action[2] = float(np.clip(action[2], -0.40, +0.40))
 
-            # Ramp limit the action!
-            delta = action - self.previous_action
-            delta[:6] = np.clip(delta[:6], -settings.max_action_delta, +settings.max_action_delta)
-            actual_action = self.previous_action + delta
-    
-            '''
-            # RAMP DEBUG
-            print(f"Received action: {action}")
-            print(f"Ramped action: {actual_action}")
-            actual_delta = np.abs(actual_action[:6] - self.previous_action[:6])
-            print(f"Delta from previous action: {actual_delta}")
-            print(f"Is it within the fixed delta: {np.all(actual_delta <= settings.max_action_delta + 1e-9)}")
-            print(f"Was the gripper clipped: {actual_action[-1] != action[-1]}")
-            '''
-    
+            # --- INIZIO BLOCCO MODIFICATO ---
+            # Elabora l'azione con la funzione centralizzata (Clipping + Rampa)
+            actual_action = process_osc_action(action, self.previous_action)
+            
             # Update previous action buffer for the next step.
-            self.previous_action = actual_action.copy()      
+            self.previous_action = actual_action.copy()
+            # --- FINE BLOCCO MODIFICATO ---
 
             # Save observation_ and action_t for dataset population...
             self._step(action=actual_action, observation=observation, record=record)
@@ -317,7 +310,7 @@ class OSCMovementController:
         # If we arrive here it means we did not reach the target in max_steps => We are sure to have failed!
         print("OSC target NOT reached!")
 
-        """DEBUG/PRINT CODE
+        # DEBUG/PRINT CODE
 
         # Grab the actual observation...
         observation = (self.env._get_observations())
@@ -354,7 +347,7 @@ class OSCMovementController:
 
         print(f"Position OK: {position_ok} (tol={position_tolerance * 1000:.2f} mm)")
         print(f"Rotation OK: {rotation_ok} (tol={rotation_tolerance_deg:.2f} deg)")
-        """
+        
 
         return (False, step)
     

@@ -9,6 +9,7 @@ import mujoco
 import numpy as np
 import robosuite as suite
 import settings
+from action_utils import process_osc_action
 from custom_osc import install_prob3_custom_osc
 from homing import prepare_episode
 from robosuite.controllers import load_controller_config
@@ -16,7 +17,8 @@ from robosuite.environments.manipulation.single_arm_env import SingleArmEnv
 from switch_controller import switch_arm_controller
 from vla_client import OpenVLAClient
 
-def get_init_conditions(hdf5_path: Path, demo_name, osc_config: dict | None = None) -> dict:
+
+def get_init_conditions(hdf5_path: Path, demo_name) -> dict:
     initial_conditions = {
         "init_obj_pos": None,
         "init_obj_quat": None,
@@ -79,6 +81,9 @@ def create_env(joint_config: dict | None = None, init_cond: dict | None = None) 
     if context is not None:
         context.vopt.flags[mujoco.mjtVisFlag.mjVIS_RANGEFINDER] = 0
 
+    env.reset()
+    env.sim.forward()
+
     return env
 
 def main():
@@ -130,7 +135,6 @@ def main():
     )
 
     for task_id in range(n_tasks):
-        task_id += 1
         if args.hdf5 and overfit_demos:
             demo_name = overfit_demos[task_id]
             print(f"[OVERFIT] Executing stored episode: {demo_name}")
@@ -141,9 +145,10 @@ def main():
         print("="*60)
 
         env = create_env(joint_config, initial_conditions)
-        observation = read_observation(env)
         env.render()
         prepare_episode(env, joint_config, osc_config)
+        observation = read_observation(env)
+
         success = False
         print(f"\n[Task-{task_id}]")
 
@@ -155,20 +160,19 @@ def main():
 
         t0 = time.monotonic()
 
-        input("Continue...")
-        error, total_steps = execute_task(env, observation, client)
+        error, total_steps = execute_task(env, task_id, observation, client)
         elapsed = time.monotonic() - t0
 
-        if error < settings.final_tolerance:
+        if error < settings.online_eval_tolerance:
             success = True
             n_successes += 1
 
         print(f"The task was a {'SUCCESS' if success else 'FAIL'}, it used {total_steps} steps and lasted a total of {elapsed: .1f} seconds.")
+        print(f"The error was: {error: .5f} and the steps were: {total_steps}")
 
         results.append((error, total_steps))
 
     print_final_report(n_successes, n_tasks, results)
-
 
 def print_final_report(n_successes: int, n_total_tasks: int, results: list[tuple[float, int]]) -> None:
     """This function prints the final report after executing N tasks.
@@ -187,15 +191,14 @@ def print_final_report(n_successes: int, n_total_tasks: int, results: list[tuple
     print(f"Average final error from the drop point: {averages[0]: 0.5f}")
     print(f"Average number of steps per episode: {averages[1]: 0.5f}")
 
-
-def execute_task(env: "SingleArmEnv", obs: dict, client: OpenVLAClient, max_steps: int = 1000) -> tuple[float, int]:
+def execute_task(env: "SingleArmEnv", task_id: int,obs: dict, client: OpenVLAClient, max_steps: int = 400) -> tuple[float, int]:
     """Executes the pick and place task.
 
     Args:
         env (SingleArmEnv): The simulation environment.
         obs (dict): The observation dictionary.
         client (OpenVLAClient): The OpenVLAClient to interrogate for the next action.
-        max_steps (int, optional): The maximum number of steps our simulation should last. Defaults to 1000.
+        max_steps (int, optional): The maximum number of steps our simulation should last. Defaults to 400.
 
     Returns:
         tuple[float, int]: A tuple where the first element is a float representing the final error norm,
@@ -205,48 +208,56 @@ def execute_task(env: "SingleArmEnv", obs: dict, client: OpenVLAClient, max_step
     # Counter and flag variables.
     total_steps = 0
     error = 1.0
-    loop_times = []
+
+    # Inizializziamo l'azione precedente a zero per la rampa di smoothing
+    previous_action = np.zeros(env.action_dim, dtype=float)
 
     for _ in range(max_steps):
-        start = time.time()
-        # Prepare the image in the correct expected format.
-        image = prepare_rgb(obs)
+        try:
+            # Prepare the image in the correct expected format.
+            image = prepare_rgb(obs)           
 
-        # Make the model predict the next action.
-        prediction = client.predict(image, settings.dataset_task)
-        print(prediction)
+            try:
+                # Make the model predict the next action.
+                prediction = client.predict(image, settings.dataset_task)
 
-        # Adapt predicted action to robot controller bounds.
-        action = adapt_action(prediction)
+                # Usiamo la STESSA IDENTICA FUNZIONE del data collector per filtrare e tagliare l'azione!
+                action = process_osc_action(prediction, previous_action)
+                
+                # Aggiorniamo il buffer interno per il frame successivo
+                previous_action = action.copy()
 
-        next_obs, _, _, _ = env.step(action)
-        env.render()
+                next_obs, _, _, _ = env.step(action)
+                env.render()
 
-        obs = next_obs
-        total_steps += 1
+                obs = next_obs
+                total_steps += 1
 
-        # Check for success.
-        if env.objects:
-            obj = env.objects[0]
-            body_id = env.sim.model.body_name2id(obj.root_body)
-            obj_xy = env.sim.data.body_xpos[body_id][:2]
-            target_xy = np.asarray(settings.drop_point, dtype=float)[:2]
-            error = float(np.linalg.norm(obj_xy - target_xy))
+                # Check for success.
+                if env.objects:
+                    obj = env.objects[0]
+                    body_id = env.sim.model.body_name2id(obj.root_body)
+                    obj_xy = env.sim.data.body_xpos[body_id][:2]
+                    obj_z = env.sim.data.body_xpos[body_id][2]
+                    target_xy = np.asarray(settings.drop_point, dtype=float)[:2]
+                    table_z = float(env.mujoco_arena.table_top_abs[2])
+                    target_z = table_z + obj.size[2]
+                    error = float(np.linalg.norm(obj_xy - target_xy))
+                    z_error = abs(obj_z - target_z)
 
-            if error < settings.final_tolerance:
-                # If we are within the tolerance it means we succeeded.
+                    if error < settings.online_eval_tolerance and z_error < 0.0005:
+                        # If we are within the tolerance it means we succeeded.
+                        break
+
+            except Exception as e:
+                print(f"Communication error with OpenVLA server: {e}\nTerminating...")
                 break
+        except Exception as e:
+            print("Trajectory terminated!")
 
-        elapsed = time.time() - start
-        loop_times.append(elapsed)
-
-        if len(loop_times) % 10 == 0:
-            avg_time = sum(loop_times[-10:]) / 10
-            actual_hz = 1.0 /avg_time
-            print(f"Loop time: {avg_time: .3f} | Actual Hz: {actual_hz: .2f}")
+    env.close()
 
     return (error, total_steps)
-
 
 def prepare_rgb(obs: dict):
     # Get the obs dict key corresponding to the camera.
@@ -280,26 +291,12 @@ def prepare_rgb(obs: dict):
     if image.shape != expected:
         raise ValueError(f"Expected image shape: {expected}, got {image.shape}")
 
+    # IMPORTANT: Flip the image! Robosutie return upside-down images!!!
+    image = np.flipud(image).copy()
+
     return np.ascontiguousarray(image)
 
-
-def adapt_action(prediction: np.ndarray):
-    prediction = np.asarray(prediction, dtype=float).reshape(-1)
-
-    if prediction.shape != (7,) or not np.all(np.isfinite(prediction)):
-        raise ValueError(f"The OpenVLA model returned a bad action: {prediction}")
-
-    #print(f"Model output z: {prediction[2]}")
-
-    # The predicted action gets clipped into the [-1.0, 1.0] range.
-    prediction[:6] = np.clip(prediction[:6], -1.0, 1.0)
-    #print(f"De-normalized z: {prediction[2]}")
-
-    # Use a threshold for deciding the action on the gripper.
-    prediction[-1] = 1.0 if prediction[-1] >= 0.5 else 0.0
-
-    return prediction
-
+# NOTA: La funzione adapt_action è stata rimossa completamente, delegata ad action_utils.py
 
 def read_observation(env: "SingleArmEnv") -> dict:
     try:

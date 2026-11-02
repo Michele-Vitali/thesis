@@ -75,7 +75,7 @@ class OpenVLAServer:
 
         print(f"Loaded server with model: {Path(openvla_path).name}")
 
-    def predict_action(self, payload: dict[str, Any]) -> str:
+    def predict_action(self, payload: dict[str, Any]) -> JSONResponse:
         try:
             if double_encode := "encoded" in payload:
                 # Support cases where `json_numpy` is hard to install, and numpy arrays are "double-encoded" as strings
@@ -89,11 +89,11 @@ class OpenVLAServer:
             # Run VLA Inference
             prompt = get_openvla_prompt(instruction, self.openvla_path)
             inputs = self.processor(prompt, Image.fromarray(image).convert("RGB")).to(self.device, dtype=torch.bfloat16)
-            action = self.vla.predict_action(**inputs, unnorm_key=unnorm_key, do_sample=False)
+            action = self.vla.predict_action(**inputs, unnorm_key=unnorm_key, temperature=0, do_sample=False)
             if double_encode:
-                return JSONResponse(json_numpy.dumps(action))
+                return JSONResponse({"action": json_numpy.dumps(action)})
             else:
-                return JSONResponse(action)
+                return JSONResponse({"action": action})
         except:  # noqa: E722
             logging.error(traceback.format_exc())
             logging.warning("Your request threw an error; make sure your request complies with the expected format:\n"

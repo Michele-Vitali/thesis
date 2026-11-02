@@ -38,9 +38,9 @@ gains = {
     "position": {
         "approach": 0.13,
         "descend": 0.1,
-        "lift": 0.1,
+        "lift": 0.08,
         "transport": 0.13,
-        "lower": 0.095,
+        "lower": 0.15,
     },
     "rotation": {
         "align": 0.12
@@ -130,13 +130,14 @@ rotation_tolerance_deg = 1.0 # 1 degree
 transport_position_tolerance = 0.005
 transport_rotation_tolerance = 2.0
 final_tolerance = 0.005
+online_eval_tolerance = 0.03 # 3 cm!
 
 # Other values
 n_objects = 1
 
 # RLDS 
 dataset_root = str(Path(__file__).resolve().parents[1] / "hdf5_data")
-dataset_name = "v8_no_randomization"
+dataset_name = "v2.0.2_no_randomization"
 
 dataset_fps = 5
 
@@ -200,4 +201,4 @@ server_port = 8000
 server_url = f"http://{server_host}:{server_port}"
 unnorm_key = "prob3_pick_place"
 server_timeout = 120 # 120 s = 2 mins
-openvla_path = "runs/openvla/openvla-7b+prob3_pick_place+b32+lr-0.0005+lora-r32+dropout-0.0--v7_overfit_smooth_second_try--2000_chkpt"
+openvla_path = "runs/openvla/openvla-7b+prob3_pick_place+b8+lr-0.0005+lora-r64+dropout-0.0--v2.0.2_no_randomization--2000_chkpt"

@@ -426,7 +426,7 @@ def pick_and_place_action(env: "SingleArmEnv", obj, pos: np.ndarray, quat: np.nd
     total_steps += steps
 
     if not done:
-        print("OSC failed during approach.")
+        print(f"OSC failed during approach. [Steps: {steps}]")
         return (None, total_steps)
 
     # Descend to the object.
@@ -435,7 +435,7 @@ def pick_and_place_action(env: "SingleArmEnv", obj, pos: np.ndarray, quat: np.nd
     total_steps += steps
 
     if not done:
-        print("OSC failed during grasp descent.")
+        print(f"OSC failed during grasp descent. [Steps: {steps}]")
         return (None, total_steps)
 
     # Close the gripper.
@@ -446,7 +446,7 @@ def pick_and_place_action(env: "SingleArmEnv", obj, pos: np.ndarray, quat: np.nd
     print(f"Closing steps: {steps}")
 
     if not done:
-        print("OSC failed while closing the gripper.")
+        print(f"OSC failed while closing the gripper. [Steps: {steps}]")
         return (None, total_steps)
 
     # Lift the object vertically to the transport height.
@@ -456,7 +456,7 @@ def pick_and_place_action(env: "SingleArmEnv", obj, pos: np.ndarray, quat: np.nd
     total_steps += steps
 
     if not done:
-        print("OSC failed during vertical lift.")
+        print(f"OSC failed during vertical lift. [Steps: {steps}]")
         return (None, total_steps)
 
     lifted_cube_z = float(env.sim.data.body_xpos[obj_id][2])
@@ -470,7 +470,7 @@ def pick_and_place_action(env: "SingleArmEnv", obj, pos: np.ndarray, quat: np.nd
     total_steps += steps
 
     if not done:
-        print("OSC failed during transport.")
+        print(f"OSC failed during transport. [Steps: {steps}]")
         return (None, total_steps)
 
     # Now just align the cube!
@@ -484,11 +484,11 @@ def pick_and_place_action(env: "SingleArmEnv", obj, pos: np.ndarray, quat: np.nd
 
     # Descend to drop position.
     recorder.phase = "lower"
-    done, steps = movements_ctrl.move_robot_to_position(drop_pos, payload_compensation=False, record=record, position_gain=settings.gains['position']['lower'])
+    done, steps = movements_ctrl.move_robot_to_position(drop_pos, record=record, position_gain=settings.gains['position']['lower'])
     total_steps += steps
 
     if not done:
-        print("OSC failed during drop descent.")
+        print(f"OSC failed during drop descent. [Steps: {steps}]")
         return (None, total_steps)
     
     # Open the gripper.
@@ -499,7 +499,7 @@ def pick_and_place_action(env: "SingleArmEnv", obj, pos: np.ndarray, quat: np.nd
     print(f"Opening steps: {steps}")
 
     if not done:
-        print("OSC failed while opening the gripper.")
+        print(f"OSC failed while opening the gripper. [Steps: {steps}]")
 
     # Some debug/report code...
     final_object_pos = (env.sim.data.body_xpos[obj_id].copy())

@@ -19,7 +19,7 @@ def project_root() -> Path:
     """Expected position: <thesis>/integrations/openvla/build_dataset.py."""
     return Path(__file__).resolve().parents[2]
 
-SPLIT_FILES = {"train": "train.hdf5", "val": "validation.hdf5", "test": "test.hdf5"}
+SPLIT_FILES = {"train": "train.hdf5", "validation": "validation.hdf5", "test": "test.hdf5"}
 
 def find_source(root: Path, source: str | None) -> Path:
     """Require a prepared directory, never infer or create split assignments."""

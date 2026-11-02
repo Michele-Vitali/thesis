@@ -111,7 +111,8 @@ class HDF5Recorder:
         if image.shape != expected_shape:
             raise ValueError(f"Unexpected image shape: {image.shape}, expected {expected_shape}.")
 
-        #image = np.flipud(image).copy()
+        # IMPORTANT: Flip the image! Robosuite return upside-down images!!!
+        image = np.flipud(image).copy()
 
         return np.ascontiguousarray(image)
 
