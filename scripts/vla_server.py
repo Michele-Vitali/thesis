@@ -113,7 +113,7 @@ class OpenVLAServer:
         uvicorn.run(self.app, host=host, port=port, access_log=False)
 
     def health(self):
-        return {"status": "OK"}
+        return {"status": "OK", "model": self.openvla_path}
 
 @dataclass
 class DeployConfig:

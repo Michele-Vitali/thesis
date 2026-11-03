@@ -11,6 +11,7 @@ export OMP_NUM_THREADS=1
 THESIS_ROOT="$HOME/Scrivania/thesis"
 OPENVLA_ENV="$THESIS_ROOT/openvla_env"
 DATA_ROOT="$THESIS_ROOT/rlds_data/rlds"
+VAL_FILE="$THESIS_ROOT/hdf5_data/v2.1_no_randomization_20261103_125141_869177/splits/validation.hdf5"   # Change this when a different datset is used for training!
 RUN_ROOT="$THESIS_ROOT/runs/openvla"
 ADAPTER_ROOT="$THESIS_ROOT/adapters/openvla"
 HF_HOME_DIR="$THESIS_ROOT/cache/huggingface"
@@ -27,26 +28,26 @@ NUM_GPUS=2
 
 # LoRA parameters
 USE_LORA=True
-LORA_RANK=64
-LORA_ALPHA=128
-LORA_DROPOUT=0.0    # 0.05 for generalizing!
+LORA_RANK=32
+LORA_ALPHA=64
+LORA_DROPOUT=0.05    # 0.05 for generalizing!
 USE_QUANTIZATION=False
 
 # Training hyperparameters
 BATCH_SIZE=4
-GRAD_ACCUMULATION_STEPS=2
+GRAD_ACCUMULATION_STEPS=4
 LEARNING_RATE=5e-4  # In VLA paper it is described as the optimal value!
 
 N_EPOCHS=27 # In VLA paper it is described as the optimal value!
 
-MAX_STEPS=2000 # For a 500 trajectories dataset of 180 frames per trajectory, set to 40k (~30 epochs)
-SAVE_STEPS=250  # Set to 10% of the max_steps so we get 10 checkpoints
-IMAGE_AUG=False # True for generalizing!
-SHUFFLE_BUFFER_SIZE=340 # Set to 100k on big dataset!
+MAX_STEPS=20000 # For a 500 trajectories dataset of 180 frames per trajectory, set to 40k (~30 epochs)
+SAVE_STEPS=5  # Set to 10% of the max_steps so we get 10 checkpoints
+IMAGE_AUG=True # True for generalizing!
+SHUFFLE_BUFFER_SIZE=100000 # Set to 100k on big dataset!
 SAVE_LATEST_CHECKPOINT_ONLY=False
 
 # Run id
-RUN_NOTE="v2.0.2_no_randomization"
+RUN_NOTE="v2.1_no_randomization"
 
 # Wandb logging, online mode so we can track the loss!
 export WANDB_MODE=offline
@@ -67,6 +68,9 @@ CMD=(
     "$NUM_GPUS"
 
     "$TRAIN_WRAPPER"
+
+    --val_file
+    "$VAL_FILE"
 
     --vla_path
     "$MODEL"

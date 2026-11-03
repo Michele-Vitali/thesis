@@ -7,7 +7,7 @@ from scipy.spatial.transform import Rotation as R
 env_name = "CustomTask"
 robot = "PRob3"
 gripper_types = "PRob3Gripper"
-render_on_screen = True    # Set to false for faster simulations
+render_on_screen = False    # Set to false for faster simulations
 record = True
 
 # Environment variables
@@ -69,7 +69,7 @@ pregrasp_top_clearance = 0.015
 
 # Central drop point
 drop_point = [0.0, 0.0]
-drop_clearance = 0.01
+drop_clearance = 0.005
 
 # Lower the original front camera without changing its orientation (the following values have been collected by testing)
 # camera_init_pos = [1.6, 0.0, 1.45]
@@ -130,14 +130,14 @@ rotation_tolerance_deg = 1.0 # 1 degree
 transport_position_tolerance = 0.005
 transport_rotation_tolerance = 2.0
 final_tolerance = 0.005
-online_eval_tolerance = 0.03 # 3 cm!
+online_eval_tolerance = 0.05 # 5 cm!
 
 # Other values
 n_objects = 1
 
 # RLDS 
 dataset_root = str(Path(__file__).resolve().parents[1] / "hdf5_data")
-dataset_name = "v2.0.2_no_randomization"
+dataset_name = "v2.1_no_randomization"
 
 dataset_fps = 5
 

@@ -47,6 +47,23 @@ def install_prob3_train_only_statistics(num_episodes: Optional[int] = None):
     original_from_rlds = dl.DLataset.from_rlds
     original_get_stats = rlds_module.get_dataset_statistics
 
+    # Hook robusto: intercetta esplicitamente `split="all"` usato da OpenVLA
+    def patched_from_rlds(*args, **kwargs):
+        if "split" in kwargs:
+            if kwargs["split"] == "all" or kwargs["split"] is None:
+                kwargs["split"] = "train"
+        elif len(args) >= 2:
+            if args[1] == "all" or args[1] is None:
+                args = list(args)
+                args[1] = "train"
+                args = tuple(args)
+        else:
+            kwargs["split"] = "train"
+
+        return original_from_rlds(*args, **kwargs)
+
+    dl.DLataset.from_rlds = patched_from_rlds
+
     def patched_get_stats(dataset, hash_dependencies, save_dir=None):
         if save_dir is None:
             raise RuntimeError(
@@ -54,8 +71,12 @@ def install_prob3_train_only_statistics(num_episodes: Optional[int] = None):
             )
 
         signature = dataset_fingerprint(save_dir)
+        
+        # AGGIUNTO "_v2" AL NOME DELLA DIPENDENZA: 
+        # Questo forza OpenVLA a cambiare l'hash finale e ricalcolare 
+        # le statistiche da zero ignorando il vecchio .json buggato!
         dependencies = tuple(hash_dependencies) + (
-            "prob3_train_only_statistics",
+            "prob3_train_only_statistics_v2",
             signature,
         )
 

@@ -34,6 +34,11 @@ class OpenVLAClient:
 
         self.session = requests.Session()
 
+        # Check for server health.
+        response = self.session.get(f"{self.server_url}/health", timeout=self.timeout)
+        self.model = response.json()['model']
+        print(f"Client initiated! The model running on the server is: {self.model.split('--', 1)[1]}")
+
     def predict(self, image: np.ndarray, instruction: str) -> np.ndarray:
         """Effectively calls the OpenVLA server and passes a payload to it to then receive the predicted action from the model.
 
@@ -104,3 +109,5 @@ class OpenVLAClient:
         """
 
         self.session.close()
+
+client = OpenVLAClient()

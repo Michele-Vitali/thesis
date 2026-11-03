@@ -16,6 +16,11 @@ from robosuite.controllers import load_controller_config
 from robosuite.environments.manipulation.single_arm_env import SingleArmEnv
 from switch_controller import switch_arm_controller
 from vla_client import OpenVLAClient
+import json
+from matplotlib import pyplot as plt
+from matplotlib.figure import Figure
+
+from plot_metrics import plot_stacked_success_rate
 
 
 def get_init_conditions(hdf5_path: Path, demo_name) -> dict:
@@ -45,7 +50,7 @@ def create_env(joint_config: dict | None = None, init_cond: dict | None = None) 
         has_offscreen_renderer=True,  # Necessary for the dataset.
         use_camera_obs=True,  # Also for dataset.
         camera_names=settings.dataset_camera_names,
-        #render_camera="sideview",
+        render_camera="sideview",
         camera_heights=settings.dataset_image_height,
         camera_widths=settings.dataset_image_width,
         camera_depths=False,
@@ -109,7 +114,7 @@ def main():
         with h5py.File(hdf5_path, "r") as f:
             overfit_demos = sorted(f["data"].keys())[: args.max_demos]
         n_tasks = len(overfit_demos)
-        print(f"[OVERFIT MODE] Loaded {n_tasks} initial positions from: {hdf5_path.name}")
+        #print(f"[OVERFIT MODE] Loaded {n_tasks} initial positions from: {hdf5_path.name}")
     else:
         n_tasks = 0
         is_good = False
@@ -125,6 +130,7 @@ def main():
     print("=" * 60)
 
     results = []
+    base_results = []
     n_successes = 0
 
     # 4. Instantiate the OpenVLAClient.
@@ -139,10 +145,14 @@ def main():
             demo_name = overfit_demos[task_id]
             print(f"[OVERFIT] Executing stored episode: {demo_name}")
 
+        with h5py.File(hdf5_path, "r") as f:
+            demo = f['data'][f'demo_{task_id}']
+            expert_steps = len(demo['obs']['agentview_rgb'][0])
+
         initial_conditions = get_init_conditions(Path(args.hdf5), demo_name)
-        print("="*60)
-        print(initial_conditions)
-        print("="*60)
+        #print("="*60)
+        #print(initial_conditions)
+        #print("="*60)
 
         env = create_env(joint_config, initial_conditions)
         env.render()
@@ -159,7 +169,6 @@ def main():
             raise RuntimeError(f"Expected robot action_dim = 7, got {env.robots[0].action_dim}")
 
         t0 = time.monotonic()
-
         error, total_steps = execute_task(env, task_id, observation, client)
         elapsed = time.monotonic() - t0
 
@@ -170,9 +179,22 @@ def main():
         print(f"The task was a {'SUCCESS' if success else 'FAIL'}, it used {total_steps} steps and lasted a total of {elapsed: .1f} seconds.")
         print(f"The error was: {error: .5f} and the steps were: {total_steps}")
 
-        results.append((error, total_steps))
+        results.append({
+            "task_id": task_id,
+            "expert_steps": expert_steps,
+            "error": error,
+            "success": success,
+            "model_steps": total_steps,
+            "step_ratio": round(expert_steps/total_steps, 3), # 3 decimal spots
+            "model": client.model,
+            "duration": elapsed,
+            })
 
-    print_final_report(n_successes, n_tasks, results)
+        base_results.append((error, total_steps))
+
+    save_results(results)
+    print_final_report(n_successes, n_tasks, base_results)
+    plot_results(results)
 
 def print_final_report(n_successes: int, n_total_tasks: int, results: list[tuple[float, int]]) -> None:
     """This function prints the final report after executing N tasks.
@@ -212,6 +234,8 @@ def execute_task(env: "SingleArmEnv", task_id: int,obs: dict, client: OpenVLACli
     # Inizializziamo l'azione precedente a zero per la rampa di smoothing
     previous_action = np.zeros(env.action_dim, dtype=float)
 
+    stable_steps = 0
+
     for _ in range(max_steps):
         try:
             # Prepare the image in the correct expected format.
@@ -246,8 +270,10 @@ def execute_task(env: "SingleArmEnv", task_id: int,obs: dict, client: OpenVLACli
                     z_error = abs(obj_z - target_z)
 
                     if error < settings.online_eval_tolerance and z_error < 0.0005:
-                        # If we are within the tolerance it means we succeeded.
-                        break
+                        stable_steps += 1
+
+                        if stable_steps >= 10:
+                            break
 
             except Exception as e:
                 print(f"Communication error with OpenVLA server: {e}\nTerminating...")
@@ -304,6 +330,46 @@ def read_observation(env: "SingleArmEnv") -> dict:
     except TypeError:
         return env._get_observations()
 
+def get_save_dir(model) -> Path:
+    models_dir = Path(__file__).resolve().parent / "../runs/openvla"
+    model_family = model.split("--")[1]
+
+    parent_model_dir = None
+    for item in models_dir.iterdir():
+        if item.is_dir() and model_family in item.name:
+            after_family = item.name.split("--", 1)[1]
+
+            if "--" not in after_family:
+                parent_model_dir = item
+                break
+
+    return parent_model_dir
+
+def save_results(results: list)-> None:
+
+    model = results[0]['model']
+    parent_model_dir = get_save_dir(model)
+
+    if parent_model_dir is not None:
+        with open(parent_model_dir / "evaluation_results.json", "w", encoding="utf-8") as f:
+            json.dump(results, f, indent=4, ensure_ascii=False)
+
+    print(f"Results file saved to location: {parent_model_dir / 'evaluation_results.json'}")
+
+def plot_results(results: list) -> None:
+
+    model = results[0]['model']
+    parent_model_dir = get_save_dir(model)
+
+    successes = sum(1 for x in results if x['success'] is True)
+    fails = sum(1 for x in results if x['success'] is False)
+    total = successes + fails
+    assert total == len(results), "More successes and fails than number of results!"
+
+    fig = plot_stacked_success_rate(successes, fails)
+    save_path = parent_model_dir / "success_rate.svg"
+    fig.savefig(save_path, dpi=300, bbox_inches="tight")
+    plt.close(fig)
 
 if __name__ == "__main__":
     main()
