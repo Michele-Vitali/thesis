@@ -9,6 +9,7 @@ robot = "PRob3"
 gripper_types = "PRob3Gripper"
 render_on_screen = False    # Set to false for faster simulations
 record = True
+base_env_rand_seed = 100  # Important: Change when we want true fresh unseenOkay randomization!
 
 # Environment variables
 max_reachable_x = 0.55 # It is 60cm, but we take a margin and set it to 55cm
@@ -137,7 +138,7 @@ n_objects = 1
 
 # RLDS 
 dataset_root = str(Path(__file__).resolve().parents[1] / "hdf5_data")
-dataset_name = "v2.1_no_randomization"
+dataset_name = "v2.1_randomized_textures"
 
 dataset_fps = 5
 
@@ -201,4 +202,5 @@ server_port = 8000
 server_url = f"http://{server_host}:{server_port}"
 unnorm_key = "prob3_pick_place"
 server_timeout = 120 # 120 s = 2 mins
-openvla_path = "runs/openvla/openvla-7b+prob3_pick_place+b8+lr-0.0005+lora-r64+dropout-0.0--v2.0.2_no_randomization--2000_chkpt"
+openvla_path = "openvla/openvla-7b"
+adapter_path = None

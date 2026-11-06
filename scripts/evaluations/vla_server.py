@@ -11,7 +11,7 @@ Dependencies:
 """
 
 import os.path
-import settings
+import scripts.expert.settings as settings
 
 # ruff: noqa: E402
 import json_numpy
@@ -31,6 +31,7 @@ from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from PIL import Image
 from transformers import AutoModelForVision2Seq, AutoProcessor
+from peft import PeftModel
 
 # === Utilities ===
 SYSTEM_PROMPT = (
@@ -48,7 +49,7 @@ def get_openvla_prompt(instruction: str, openvla_path: str | Path) -> str:
 
 # === Server Interface ===
 class OpenVLAServer:
-    def __init__(self, openvla_path: str | Path, attn_implementation: str | None = "flash_attention_2") -> Path:
+    def __init__(self, openvla_path: str | Path, adapter_path: str | Path | None = None, attn_implementation: str | None = "flash_attention_2") -> Path:
         """
         A simple server for OpenVLA models; exposes `/act` to predict an action for a given image + instruction.
             => Takes in {"image": np.ndarray, "instruction": str, "unnorm_key": Optional[str]}
@@ -59,7 +60,8 @@ class OpenVLAServer:
 
         # Load VLA Model using HF AutoClasses
         self.processor = AutoProcessor.from_pretrained(self.openvla_path, trust_remote_code=True)
-        self.vla = AutoModelForVision2Seq.from_pretrained(
+
+        base_vla = AutoModelForVision2Seq.from_pretrained(
             self.openvla_path,
             attn_implementation=attn_implementation,
             torch_dtype=torch.bfloat16,
@@ -68,12 +70,50 @@ class OpenVLAServer:
             device_map={"": str(self.device)}
         )
 
-        # [Hacky] Load Dataset Statistics from Disk (if passing a path to a fine-tuned model)
-        if os.path.isdir(self.openvla_path):
-            with open(Path(self.openvla_path) / "dataset_statistics.json", "r") as f:
-                self.vla.norm_stats = json.load(f)
+        # Merge the LoRA Adapter at runtime!
+        if adapter_path is not None:
+            print(f"[Merge] Merging the OpenVLA backbone with the adatper: {adapter_path}")
+            self.vla = PeftModel.from_pretrained(base_vla, adapter_path)
+            self.vla = self.vla.merge_and_unload()
+        else:
+            self.vla = base_vla
 
-        print(f"Loaded server with model: {Path(openvla_path).name}")
+        self.vla = self.vla.to(self.device)
+
+        stats_loaded = False
+
+        if adapter_path is not None:
+            stats_path = Path(adapter_path) / "dataset_statistics.json"
+            if stats_path.exists():
+                with open(stats_path, "r") as f:
+                    self.vla.norm_stats = json.load(f)
+                stats_loaded = True
+                print(f"[OK] Datasets statistics loaded from: {stats_path}")
+            else:
+                exp_name = Path(adapter_path).name.split("--")[0]
+
+                thesis_root = Path(__file__).resolve().parent.parent
+                run_stats_path = thesis_root / "runs" / "openvla" / exp_name / "dataset_statistics.json"
+
+                if run_stats_path.exists():
+                    with open(run_stats_path, "r") as f:
+                        self.vla.norm_stats = json.load(f)
+                    stats_loaded = True
+                    print(f"[OK] Dataset statistics loaded from: {run_stats_path}")
+
+        if not stats_loaded and os.path.isdir(self.openvla_path):
+            stats_path = Path(self.openvla_path) / "dataset_statistics.json"
+            if stats_path.exists():
+                with open(stats_path, "r") as f:
+                    self.vla.norm_stats = json.load(f)
+                stats_loaded = True
+                print(f"[OK] Datasets statistics loaded from: {stats_path}")
+
+        if not stats_loaded:
+            print("[Error] No dataset statistics file has been found!")
+
+        model_name = Path(adapter_path).name if adapter_path else Path(openvla_path).name
+        print(f"Loaded server with model: {model_name}")
 
     def predict_action(self, payload: dict[str, Any]) -> JSONResponse:
         try:
@@ -119,6 +159,7 @@ class OpenVLAServer:
 class DeployConfig:
     # fmt: off
     openvla_path: Union[str, Path] = settings.openvla_path              # If no model is passed, use the fallback model in the settings file!
+    adapter_path: Union[str, Path] = settings.adapter_path
 
     # Server Configuration
     host: str = settings.server_host                                    # Host IP Address
@@ -128,7 +169,7 @@ class DeployConfig:
 
 
 def run_server_with_cfg(cfg: DeployConfig) -> None:
-    server = OpenVLAServer(openvla_path=cfg.openvla_path)
+    server = OpenVLAServer(openvla_path=cfg.openvla_path, adapter_path=cfg.adapter_path)
     server.run(host=cfg.host, port=cfg.port)
 
 @draccus.wrap()

@@ -10,10 +10,10 @@ from pathlib import Path
 import h5py
 import numpy as np
 import requests
-import settings
-from offline_metrics import compute_metrics, save_metrics
-from vla_client import OpenVLAClient
-from vla_server import DeployConfig, run_server_with_cfg
+import scripts.expert.settings as settings
+from scripts.metrics.offline_metrics import compute_metrics, save_metrics
+from scripts.evaluations.vla_client import OpenVLAClient
+from scripts.evaluations.vla_server import DeployConfig, run_server_with_cfg
 
 
 def wait_for_server(process, timeout=600):
@@ -49,7 +49,7 @@ def wait_for_server(process, timeout=600):
 def main():
     # Parse CLI arguments for split selection and number of evaluation episodes.
     parser = argparse.ArgumentParser(description="Valutazione offline modelli OpenVLA.")
-    parser.add_argument("--split", type=str, default="val", choices=["val", "train", "dataset"], help="Split da valutare (default: val)")
+    parser.add_argument("--split", type=str, default="validation", choices=["validation", "train", "test"], help="Split da valutare (default: val)")
     parser.add_argument("--max_demos", type=int, default=None, help="Numero massimo di episodi da valutare (es. 5 per overfit)")
     parser.add_argument("--n_models", type=int, default=None, help="Numero di ultimi modelli da valutare")
     args = parser.parse_args()
@@ -146,6 +146,7 @@ def main():
                 # Create a client to allow the model to predict actions.
                 # Note: Server must already be active.
                 client = OpenVLAClient()
+                print(f"[Unnorm-key] {client.unnorm_key}")
 
                 # We use some metrics for the arm and some for the gripper.
                 # Arm: Axis-MAE, MAE translation, MAE rotation, RMSE, Action direction cosine, Zero-action baseline.

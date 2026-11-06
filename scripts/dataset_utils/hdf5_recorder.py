@@ -4,7 +4,7 @@ from pathlib import Path
 
 import h5py
 import numpy as np
-import settings
+import scripts.expert.settings as settings
 from scipy.spatial.transform import Rotation as R
 
 PHASE_NAMES = ("approach", "descend", "grasp", "lift", "transport", "lower", "release")

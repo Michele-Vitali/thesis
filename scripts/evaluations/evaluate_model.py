@@ -2,25 +2,25 @@ import argparse
 import time
 from pathlib import Path
 
-import custom_env
-import custom_robot
+import scripts.expert.custom_env as custom_env
+import scripts.expert.custom_robot as custom_robot
 import h5py
 import mujoco
 import numpy as np
 import robosuite as suite
-import settings
-from action_utils import process_osc_action
-from custom_osc import install_prob3_custom_osc
-from homing import prepare_episode
+import scripts.expert.settings as settings
+from scripts.expert.action_utils import process_osc_action
+from scripts.expert.custom_osc import install_prob3_custom_osc
+from scripts.expert.homing import prepare_episode
 from robosuite.controllers import load_controller_config
 from robosuite.environments.manipulation.single_arm_env import SingleArmEnv
-from switch_controller import switch_arm_controller
-from vla_client import OpenVLAClient
+from scripts.expert.switch_controller import switch_arm_controller
+from scripts.evaluations.vla_client import OpenVLAClient
 import json
 from matplotlib import pyplot as plt
 from matplotlib.figure import Figure
 
-from plot_metrics import plot_stacked_success_rate
+from scripts.metrics.plot_metrics import plot_stacked_success_rate
 
 
 def get_init_conditions(hdf5_path: Path, demo_name) -> dict:
@@ -50,7 +50,7 @@ def create_env(joint_config: dict | None = None, init_cond: dict | None = None) 
         has_offscreen_renderer=True,  # Necessary for the dataset.
         use_camera_obs=True,  # Also for dataset.
         camera_names=settings.dataset_camera_names,
-        render_camera="sideview",
+        #render_camera="sideview",
         camera_heights=settings.dataset_image_height,
         camera_widths=settings.dataset_image_width,
         camera_depths=False,

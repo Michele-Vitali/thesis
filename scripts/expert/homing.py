@@ -1,9 +1,9 @@
 import copy
 
 import numpy as np
-import settings
+import scripts.expert.settings as settings
 from robosuite.environments.manipulation.single_arm_env import SingleArmEnv
-from switch_controller import switch_arm_controller
+from scripts.expert.switch_controller import switch_arm_controller
 
 
 def move_to_home(env: "SingleArmEnv", home_qpos: np.ndarray = settings.starting_pose, tolerance: float = 0.02, max_steps: float = 500):

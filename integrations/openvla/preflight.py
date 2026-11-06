@@ -21,7 +21,7 @@ THESIS_ROOT = THIS_FILE.parents[2]
 DATA_ROOT = (
     THESIS_ROOT
     / "rlds_data"
-    / "rlds"
+    / "rlds_base"
 )
 
 PREFLIGHT_ROOT = (

@@ -18,9 +18,11 @@ def plot_comparisons(only_models=None, name_contains=None):
     rows = []
     confusion_matrices = {}
 
+    print(f"Folder name must contain: {name_contains}")
+
     # Load the already computed results.
     for folder in EVAL_ROOT.iterdir():
-        print(folder.name)
+        print(f"Current name: {folder.name} -> Contains: {name_contains in folder.name}")
         if not folder.is_dir():
             continue
         if only_models is not None and folder.name not in only_models:

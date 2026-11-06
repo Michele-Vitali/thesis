@@ -1,8 +1,8 @@
 import random
 
 import numpy as np
-import settings
-from radial_sampler import RadialRandomSampler
+import scripts.expert.settings as settings
+from scripts.expert.radial_sampler import RadialRandomSampler
 from robosuite.environments.base import register_env
 from robosuite.environments.manipulation.single_arm_env import SingleArmEnv
 from robosuite.models import objects

@@ -1,5 +1,5 @@
 import numpy as np
-import settings
+import scripts.expert.settings as settings
 
 
 def process_osc_action(raw_action: np.ndarray, previous_action: np.ndarray) -> np.ndarray:

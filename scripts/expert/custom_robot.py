@@ -7,7 +7,7 @@ from robosuite.models.robots.manipulators.manipulator_model import ManipulatorMo
 from robosuite.models.robots.robot_model import register_robot
 from robosuite.robots import ROBOT_CLASS_MAPPING
 from robosuite.robots.single_arm import SingleArm
-import settings
+import scripts.expert.settings as settings
 
 
 class PRob3Gripper(GripperModel):

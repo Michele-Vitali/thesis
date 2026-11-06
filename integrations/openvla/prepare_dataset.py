@@ -81,51 +81,26 @@ def inventory(files: list[Path]) -> list[dict]:
     return episodes
 
 
-def manifest_for(episodes: list[dict], seed: int, test_size: int, val_size: int, folds: int) -> dict:
-
-    # Grab the episodes count.
+def manifest_for(episodes: list[dict], seed: int, val_size: int, folds: int) -> dict:
     count = len(episodes)
+    if val_size < 0 or val_size > count:
+        raise ValueError("Invalid validation size")
 
-    # Check for dataset's splits parameters.
-    if min(test_size, val_size) < 0 or test_size + val_size > count:
-        raise ValueError("Invalid test/validation sizes")
-
-    # Grab the episodes' ids.
     ids = [ep["id"] for ep in episodes]
-
-    # Randomize the episode choice.
     random.Random(seed).shuffle(ids)
 
-    # Initialize the lists for saving the episodes in their splits accordingly.
-    test = ids[:test_size]
-    development = ids[test_size:]
-    val = development[:val_size]
-    train = development[val_size:]
-
-    if folds and not (2 <= folds <= len(development)):
-        raise ValueError("Folds must be zero or between 2 and development episode count")
-    
-    fold_entries = []
-
-    if folds and len(development) > 0:
-        # Compute the folds' sizes.
-        sizes = [len(development) // folds + (i < len(development) % folds) for i in range(folds)]
-        start = 0
-
-        for idx, size in enumerate(sizes):
-            # Populate the fold's list.
-            fold_val = development[start:start + size]
-            fold_train = development[:start] + development[start + size:]
-            fold_entries.append({"fold": idx, "train": fold_train, "validation": fold_val})
-            start += size
+    # Solo validation e train
+    val = ids[:val_size]
+    train = ids[val_size:]
+    fold_entries = [] # (Mantieni la logica dei folds se ti serve)
 
     return {
         "format": "prob3-episode-splits-v2",
         "created_utc": datetime.now(timezone.utc).isoformat(),
         "seed": seed,
-        "counts": {"total": count, "train": len(train), "validation": len(val), "test": len(test), "folds": folds},
+        "counts": {"total": count, "train": len(train), "validation": len(val), "folds": folds},
         "episodes": episodes,
-        "split": {"train": train, "validation": val, "test": test},
+        "split": {"train": train, "validation": val},
         "folds": fold_entries,
     }
 
@@ -165,7 +140,6 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source", type=Path, default=None)
     parser.add_argument("--expected", type=int, default=None, help="Assert exact number of episodes")
-    parser.add_argument("--test-size", type=int, default=30)
     parser.add_argument("--val-size", type=int, default=30)
     parser.add_argument("--folds", type=int, default=0)
     parser.add_argument("--seed", type=int, default=42)
@@ -196,7 +170,7 @@ def main() -> None:
         raise ValueError(f"Found {len(episodes)} episodes, expected {args.expected}")
 
     # Create the splits/folds.
-    manifest = manifest_for(episodes, args.seed, args.test_size, args.val_size, args.folds)
+    manifest = manifest_for(episodes, args.seed, args.val_size, args.folds)
 
     # Define the output path...
     output_root = args.output_root or files[0].parent / "splits"
@@ -212,7 +186,7 @@ def main() -> None:
         attrs = dict(h5["data"].attrs.items())
 
     # Note: The splits are just a re-buildable view computed from the full_dataset, so we do not occupy a lot of space!
-    for split in ("train", "validation", "test"):
+    for split in ("train", "validation"):
         view = destination / f"{split}.hdf5"
         create_view(view, manifest["split"][split], manifest, attrs)
         print(f"{split:5s}: {len(manifest['split'][split]):4d} episodes -> {view}")

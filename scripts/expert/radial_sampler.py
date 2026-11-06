@@ -1,5 +1,5 @@
 import numpy as np
-import settings
+import scripts.expert.settings as settings
 from robosuite.utils.placement_samplers import UniformRandomSampler
 
 

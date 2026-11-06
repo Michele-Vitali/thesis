@@ -1,7 +1,7 @@
 import json_numpy
 import numpy as np
 import requests
-import settings
+import scripts.expert.settings as settings
 
 # This line enables the serialization of numpy arrays!
 json_numpy.patch()
@@ -109,5 +109,3 @@ class OpenVLAClient:
         """
 
         self.session.close()
-
-client = OpenVLAClient()

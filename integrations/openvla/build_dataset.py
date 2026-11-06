@@ -19,7 +19,7 @@ def project_root() -> Path:
     """Expected position: <thesis>/integrations/openvla/build_dataset.py."""
     return Path(__file__).resolve().parents[2]
 
-SPLIT_FILES = {"train": "train.hdf5", "validation": "validation.hdf5", "test": "test.hdf5"}
+SPLIT_FILES = {"train": "train.hdf5", "validation": "validation.hdf5"}
 
 def find_source(root: Path, source: str | None) -> Path:
     """Require a prepared directory, never infer or create split assignments."""
@@ -187,17 +187,17 @@ def verify_rlds(dataset_dir: Path, inventories: dict[str, dict[tuple[str, str], 
 
 
 
-def publish_dataset(root: Path, staged_dataset: Path) -> tuple[Path, Path | None]:
+def publish_dataset(root: Path, staged_dataset: Path, variant: str) -> tuple[Path, Path | None]:
     """Promote only a validated dataset; move any existing version into an archive."""
-    active = root / "rlds_data" / "rlds" / "prob3_pick_place"
-    archive_root = root / "rlds_data" / "rlds_archive"
+    active = root / "rlds_data" / f"rlds_{variant}" / "prob3_pick_place"
+    archive_root = root / "rlds_data" / "rlds_archive" / f"rlds_{variant}"
     active.parent.mkdir(parents=True, exist_ok=True)
     archive_root.mkdir(parents=True, exist_ok=True)
     old_backup = None
     if active.exists():
         stamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
         old_backup = archive_root / f"prob3_pick_place_{stamp}"
-        print(f"Archivio RLDS precedente: {old_backup}", flush=True)
+        print(f"Old dataset variant: {old_backup}", flush=True)
         shutil.move(str(active), str(old_backup))
 
     try:
@@ -217,6 +217,7 @@ def main() -> int:
     parser.add_argument("--source", help="Directory containing prepared train.hdf5, val.hdf5 and test.hdf5; default: latest prepared split.")
     parser.add_argument("--publish", action="store_true", help="Attiva il dataset per OpenVLA; fa backup del precedente.")
     parser.add_argument("--dry-run", action="store_true", help="Mostra le operazioni senza convertire o spostare dati.")
+    parser.add_argument("--variant", default="base", help="Es. 'base', 'lights', 'camera'. Creates rlds_data/rlds_<variant>")
     args = parser.parse_args()
 
     root = project_root()
@@ -265,7 +266,7 @@ def main() -> int:
     verify_rlds(staged_dataset, inventories)
 
     if args.publish:
-        active, backup = publish_dataset(root, staged_dataset.parent)
+        active, backup = publish_dataset(root, staged_dataset.parent, args.variant)
         print(f"\nDATASET ATTIVO: {active / '1.0.0'}")
         if backup is not None:
             print(f"Dataset precedente salvato in: {backup}")

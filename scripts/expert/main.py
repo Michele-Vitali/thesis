@@ -1,6 +1,6 @@
 # Import our custom env and robot
-import custom_env  # noqa: F401
-import custom_robot  # noqa: F401
+import scripts.expert.custom_env as custom_env  # noqa: F401
+import scripts.expert.custom_robot as custom_robot  # noqa: F401
 
 # Import some libraries
 import mujoco
@@ -8,19 +8,27 @@ import numpy as np
 import robosuite as suite
 
 # Import the settings file
-import settings
-from custom_osc import install_prob3_custom_osc
-from hdf5_recorder import HDF5Recorder, NullRecorder
+import scripts.expert.settings as settings
+from scripts.expert.custom_osc import install_prob3_custom_osc
+from scripts.dataset_utils.hdf5_recorder import HDF5Recorder, NullRecorder
 
 # Import useful classes
-from homing import prepare_episode
-from movements import OSCMovementController
+from scripts.expert.homing import prepare_episode
+from scripts.expert.movements import OSCMovementController
 from robosuite import load_controller_config, macros
 from robosuite.environments.manipulation.single_arm_env import SingleArmEnv
 from robosuite.wrappers import DomainRandomizationWrapper
+import random
 
+def set_global_seed(seed: int):
+    # First set the randomization seed for reproducibility!
+    random.seed(seed)
+    np.random.seed(seed)
 
 def main():
+    target_seed = settings.base_env_rand_seed
+    set_global_seed(target_seed)
+
     # Load our custom OSC_POSE controller!
     install_prob3_custom_osc()
 
@@ -51,11 +59,8 @@ def main():
 
             # Loop to ensure we get N successes (and not N simulations, as failures should not be included or the model will learn on bad episodes...)
             while successes < n_tasks:
-                #if n_simulated_tasks > 0 and n_simulated_tasks % settings.recreate_env_every == 0:
-                    #print("[ENV] Recreating environment...")
-                    #env.close()
-                    #env = None
-                    #env = create_randomized_env(joint_config)
+                current_seed = target_seed + n_simulated_tasks
+                set_global_seed(current_seed)
                 env = create_randomized_env(joint_config)
                 prepare_episode(env, joint_config, osc_config)
                 configure_task(env)
@@ -75,7 +80,6 @@ def main():
                 n_simulated_tasks += 1
                 env.close()
                 env = None
-                #env = create_randomized_env(joint_config)
 
             # Print the debug report
             print_final_report(successes, n_simulated_tasks, recorder, results)
@@ -84,12 +88,15 @@ def main():
             choice = input("Want to repeat the tasks? (Y/N): ")
             task_loop = choice.upper() == "Y"
 
-    except KeyboardInterrupt:
+    except Exception as e:
         # Make the user understand he killed the process...
-        print("\n")
-        print("="*60)
-        print("Simulation killed by user...")  
-        print("="*60)      
+        if isinstance(e, KeyboardInterrupt):
+            print("\n")
+            print("="*60)
+            print("Simulation killed by user...")  
+            print("="*60)   
+        else:
+            print(f"Exception occurred: {e}")   
 
     finally:
         # If an environment was initialized we also make sure to close it!
@@ -233,7 +240,7 @@ def create_randomized_env(config: dict | None) -> DomainRandomizationWrapper:
     # We use domain randomization to create a more robust dataset
     env = DomainRandomizationWrapper(
         env,
-        randomize_color=False,
+        randomize_color=True,
         randomize_lighting=False,
         randomize_camera=False, # We first set this to False so we don't randomize the grip camera as well...
         randomize_dynamics=False, # Seems useful but for the first trainings we avoid using this...

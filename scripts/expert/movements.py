@@ -1,9 +1,9 @@
 # Import useful libraries
 import numpy as np
-import settings
+import scripts.expert.settings as settings
 from robosuite.environments.manipulation.single_arm_env import SingleArmEnv
 from scipy.spatial.transform import Rotation as R
-from action_utils import process_osc_action # <--- NUOVO IMPORT
+from scripts.expert.action_utils import process_osc_action # <--- NUOVO IMPORT
 
 class OSCMovementController:
 

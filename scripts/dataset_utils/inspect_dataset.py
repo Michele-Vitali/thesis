@@ -48,7 +48,7 @@ def main():
         # Scorriamo tutte le traiettorie per estrarre statistiche        
         for index, demo_name in enumerate(demos):
             demo = data_group[demo_name]
-            obs = demo['obs']          
+            obs = demo['obs']       
 
             analyze_demo(demo, obs)
             

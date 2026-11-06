@@ -2,19 +2,19 @@ import argparse
 import time
 from pathlib import Path
 
-import custom_env
-import custom_robot
+import scripts.expert.custom_env as custom_env
+import scripts.expert.custom_robot as custom_robot
 
 import h5py
 import mujoco
 import numpy as np
 import robosuite as suite
-import settings
-from custom_osc import install_prob3_custom_osc
-from homing import prepare_episode
+import scripts.expert.settings as settings
+from scripts.expert.custom_osc import install_prob3_custom_osc
+from scripts.expert.homing import prepare_episode
 from robosuite.controllers import load_controller_config
 from robosuite.environments.manipulation.single_arm_env import SingleArmEnv
-from switch_controller import switch_arm_controller
+from scripts.expert.switch_controller import switch_arm_controller
 
 def get_init_conditions(hdf5_path: Path, demo_name, osc_config: dict | None = None) -> dict:
     initial_conditions = {
