@@ -48,13 +48,6 @@ Thumbs.db
 # GENERATED DATASETS
 # ================================================================
 
-# New intended structure
-/data/raw/
-/data/rlds/
-
-# Old / temporary recorder location
-/scripts/data/
-
 # Dataset formats, in case they appear elsewhere
 *.hdf5
 *.h5
@@ -81,7 +74,6 @@ Thumbs.db
 # ================================================================
 
 /runs/
-/adapters/
 /preflight/
 
 wandb/
