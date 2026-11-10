@@ -247,7 +247,7 @@ class HDF5Recorder:
         self._timestamps.append(len(self._timestamps) / float(settings.dataset_fps))
         self._last_recorded_action = action.copy()
 
-    def save_episode(self):
+    def save_episode(self, rand_seed: int):
         """
         Write the buffered successful demonstration to HDF5.
         """
@@ -278,6 +278,8 @@ class HDF5Recorder:
         episode_group.attrs["num_samples"] = num_frames
 
         episode_group.attrs["language_instruction"] = settings.dataset_task
+
+        episode_group.attrs["randomization_seed"] = rand_seed
 
         obs_group = episode_group.create_group("obs")
 

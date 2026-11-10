@@ -1,0 +1,5638 @@
+{
+    "generated_at": "2026-11-10T16:03:36",
+    "runs_dir": "/home/vlabot/Scrivania/thesis/runs/openvla",
+    "policy": {
+        "thresholds": {
+            "l1": {
+                "ottima": 0.03,
+                "pessima": 0.045,
+                "direzione": "lower"
+            },
+            "xyz": {
+                "ottima": 3.5,
+                "pessima": 5.0,
+                "direzione": "lower"
+            },
+            "rpy": {
+                "ottima": 1.6,
+                "pessima": 2.5,
+                "direzione": "lower"
+            },
+            "acc": {
+                "ottima": 0.5,
+                "pessima": 0.4,
+                "direzione": "higher"
+            }
+        },
+        "SAFE_MIN_OTTIME": 2,
+        "MAYBE_MAX_PESSIME": 1
+    },
+    "counts": {
+        "SICURO": 137,
+        "POTREI": 129,
+        "NON DOVREI": 4,
+        "INCOMPLETO": 10
+    },
+    "models": [
+        {
+            "run": "v2.1.2_high_rank_LR1e-4_Acc6_R64",
+            "step": 4000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.027712418300653723,
+                "xyz": 3.4442670783996583,
+                "rpy": 1.54299574829638,
+                "acc": 0.5330476189454396
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "ottima",
+                "rpy": "ottima",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v3.0.1_LR1e-4_Acc2_R32_A16_alllinear",
+            "step": 3000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.02787441643323991,
+                "xyz": 3.187908288637797,
+                "rpy": 1.48760759472847,
+                "acc": 0.5168452356259028
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "ottima",
+                "rpy": "ottima",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_baseline_LR1e-4_Acc6_R32",
+            "step": 2500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.02811839402427653,
+                "xyz": 2.570563367207845,
+                "rpy": 1.5832702307999134,
+                "acc": 0.5330952371160189
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "ottima",
+                "rpy": "ottima",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_accum_LR1e-4_Acc2_R32",
+            "step": 5500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.02834547152194224,
+                "xyz": 2.8313327902158103,
+                "rpy": 1.465812255397439,
+                "acc": 0.5361428557435671
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "ottima",
+                "rpy": "ottima",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_baseline_LR1e-4_Acc6_R32",
+            "step": 3500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.028377217553688272,
+                "xyz": 3.2142589640220005,
+                "rpy": 1.496125049844384,
+                "acc": 0.5380476189454396
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "ottima",
+                "rpy": "ottima",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_accum_LR1e-4_Acc2_R32",
+            "step": 7500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.028388795518207378,
+                "xyz": 3.4624722120054066,
+                "rpy": 1.550690991674185,
+                "acc": 0.5359047609567642
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "ottima",
+                "rpy": "ottima",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_high_rank_LR1e-4_Acc6_R64",
+            "step": 3500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.028673389355742467,
+                "xyz": 3.3781408708890277,
+                "rpy": 1.4584760227501392,
+                "acc": 0.5343809514244398
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "ottima",
+                "rpy": "ottima",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_high_rank_LR1e-4_Acc6_R64",
+            "step": 3000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.028762278244631352,
+                "xyz": 3.012729211330414,
+                "rpy": 1.5133186717132727,
+                "acc": 0.5307142856518428
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "ottima",
+                "rpy": "ottima",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v3.0.1_LR1e-4_Acc2_R32_A16_alllinear",
+            "step": 4000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.028938375350140023,
+                "xyz": 3.4014538419246674,
+                "rpy": 1.5683326031764349,
+                "acc": 0.5200595234831175
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "ottima",
+                "rpy": "ottima",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_mid_accum_cautious_LR5e-5_Acc4_R32",
+            "step": 7500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.029047992530345616,
+                "xyz": 3.3177497340838116,
+                "rpy": 1.5795400357842446,
+                "acc": 0.5305714275836945
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "ottima",
+                "rpy": "ottima",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_accum_LR1e-4_Acc2_R32",
+            "step": 6000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.029242577030812456,
+                "xyz": 3.272715236723423,
+                "rpy": 1.5007716474351473,
+                "acc": 0.5310476180116336
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "ottima",
+                "rpy": "ottima",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_accum_LR1e-4_Acc2_R32",
+            "step": 6500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.02949990662931852,
+                "xyz": 3.417247465152914,
+                "rpy": 1.5236191105180292,
+                "acc": 0.5315238088170687
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "ottima",
+                "rpy": "ottima",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_accum_LR1e-4_Acc2_R32",
+            "step": 5000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.029654154995331628,
+                "xyz": 2.8569958175023396,
+                "rpy": 1.5040255481729594,
+                "acc": 0.5309047605792682
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "ottima",
+                "rpy": "ottima",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_high_rank_LR1e-4_Acc6_R64",
+            "step": 5500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.025726610644257762,
+                "xyz": 3.987372572263082,
+                "rpy": 1.473193088511626,
+                "acc": 0.5469523803591728
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "ottima",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_high_rank_LR1e-4_Acc6_R64",
+            "step": 6000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.026127731092437056,
+                "xyz": 4.485868037939071,
+                "rpy": 1.4791823942145954,
+                "acc": 0.5430476178924243
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "ottima",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_accum_LR1e-4_Acc2_R32",
+            "step": 12000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.026146031746031837,
+                "xyz": 4.6783710842927295,
+                "rpy": 1.5413356526245674,
+                "acc": 0.5456666659116745
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "ottima",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_accum_LR1e-4_Acc2_R32",
+            "step": 11000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.026272642390289556,
+                "xyz": 4.303931045929591,
+                "rpy": 1.5505573536852995,
+                "acc": 0.541904761771361
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "ottima",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_accum_LR1e-4_Acc2_R32",
+            "step": 13000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.026372362278244736,
+                "xyz": 4.84316814827919,
+                "rpy": 1.5639279279860785,
+                "acc": 0.5453809511462847
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "ottima",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_accum_LR1e-4_Acc2_R32",
+            "step": 10500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.026656956115779725,
+                "xyz": 4.164027862747511,
+                "rpy": 1.553721884238068,
+                "acc": 0.539285713036855
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "ottima",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_high_rank_LR1e-4_Acc6_R64",
+            "step": 5000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.026739869281045832,
+                "xyz": 3.9789591354529064,
+                "rpy": 1.48822553208222,
+                "acc": 0.5404285707473755
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "ottima",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_accum_LR1e-4_Acc2_R32",
+            "step": 11500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.026758543417367064,
+                "xyz": 4.665193695783615,
+                "rpy": 1.5461420450309913,
+                "acc": 0.5444285704692204
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "ottima",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_high_rank_LR1e-4_Acc6_R64",
+            "step": 6500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.026899346405228883,
+                "xyz": 4.764780860424041,
+                "rpy": 1.5614840931321183,
+                "acc": 0.5416190471450488
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "ottima",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_high_rank_LR1e-4_Acc6_R64",
+            "step": 4500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.026933333333333427,
+                "xyz": 3.682538951555888,
+                "rpy": 1.4947867960780858,
+                "acc": 0.5440952370564143
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "ottima",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_accum_LR1e-4_Acc2_R32",
+            "step": 8500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.026934453781512706,
+                "xyz": 3.611766899486383,
+                "rpy": 1.5101158106078705,
+                "acc": 0.5423333329757055
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "ottima",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_accum_LR1e-4_Acc2_R32",
+            "step": 12500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.02700765639589181,
+                "xyz": 4.955945494095484,
+                "rpy": 1.5692288768664002,
+                "acc": 0.5420952367981275
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "ottima",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_baseline_LR1e-4_Acc6_R32",
+            "step": 4000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.027202987861811516,
+                "xyz": 3.5796268508434297,
+                "rpy": 1.56183160890763,
+                "acc": 0.5356190466284751
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "ottima",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v3.0.1_LR1e-4_Acc2_R32_A16_alllinear",
+            "step": 5000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.027442110177404225,
+                "xyz": 3.814554170767466,
+                "rpy": 1.5230557981133461,
+                "acc": 0.5264880934357643
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "ottima",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_accum_LR1e-4_Acc2_R32",
+            "step": 9500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.027470401493931,
+                "xyz": 4.170367296218872,
+                "rpy": 1.5101799895490209,
+                "acc": 0.5390952376524607
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "ottima",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_accum_LR1e-4_Acc2_R32",
+            "step": 9000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.02748272642390303,
+                "xyz": 4.054430484453837,
+                "rpy": 1.564845622218835,
+                "acc": 0.5325714279015858
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "ottima",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_accum_LR1e-4_Acc2_R32",
+            "step": 8000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.02769635854341748,
+                "xyz": 3.5436015251477557,
+                "rpy": 1.4831407063901425,
+                "acc": 0.5405238078236579
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "ottima",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_accum_LR1e-4_Acc2_R32",
+            "step": 7000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.028521755368814305,
+                "xyz": 3.6245211258331933,
+                "rpy": 1.48339763323466,
+                "acc": 0.5348571427067121
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "ottima",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_lr_LR5e-5_Acc6_R32",
+            "step": 8500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.028758169934640664,
+                "xyz": 3.702414367278417,
+                "rpy": 1.5873266900777816,
+                "acc": 0.5403809507489205
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "ottima",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_lr_LR5e-5_Acc6_R32",
+            "step": 9500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.02879402427637738,
+                "xyz": 3.9761480615933738,
+                "rpy": 1.5813238504640759,
+                "acc": 0.5391904751857122
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "ottima",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_baseline_LR1e-4_Acc6_R32",
+            "step": 4500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.029468534080298956,
+                "xyz": 3.998579179763794,
+                "rpy": 1.5578140774331988,
+                "acc": 0.538333332280318
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "ottima",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_mid_accum_cautious_LR5e-5_Acc4_R32",
+            "step": 9500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.0295764705882354,
+                "xyz": 3.7967303373714287,
+                "rpy": 1.5834779089783988,
+                "acc": 0.5292380932966868
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "ottima",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_lr_LR5e-5_Acc6_R32",
+            "step": 6500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.029861437908496852,
+                "xyz": 3.4529089445273082,
+                "rpy": 1.6840999624115647,
+                "acc": 0.5326666654348373
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "ottima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_lr_LR5e-5_Acc6_R32",
+            "step": 6000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.03016358543417382,
+                "xyz": 3.4026737790902457,
+                "rpy": 1.5966319489876428,
+                "acc": 0.5364761897921562
+            },
+            "ratings": {
+                "l1": "buona",
+                "xyz": "ottima",
+                "rpy": "ottima",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_accum_LR1e-4_Acc2_R32",
+            "step": 4500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.03029131652661079,
+                "xyz": 2.9457259854475657,
+                "rpy": 1.5100923628807068,
+                "acc": 0.5269523805975914
+            },
+            "ratings": {
+                "l1": "buona",
+                "xyz": "ottima",
+                "rpy": "ottima",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_high_rank_LR1e-4_Acc6_R64",
+            "step": 2500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.03069393090569578,
+                "xyz": 2.8309589864412943,
+                "rpy": 1.5202070570886135,
+                "acc": 0.5273809515237808
+            },
+            "ratings": {
+                "l1": "buona",
+                "xyz": "ottima",
+                "rpy": "ottima",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_accum_LR1e-4_Acc2_R32",
+            "step": 4000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.030767507002801286,
+                "xyz": 2.651386425773303,
+                "rpy": 1.5068394759794077,
+                "acc": 0.5309523801604906
+            },
+            "ratings": {
+                "l1": "buona",
+                "xyz": "ottima",
+                "rpy": "ottima",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_lr_LR5e-5_Acc6_R32",
+            "step": 4500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.031016993464052456,
+                "xyz": 3.0462638665835065,
+                "rpy": 1.5714596608579159,
+                "acc": 0.5301904747684797
+            },
+            "ratings": {
+                "l1": "buona",
+                "xyz": "ottima",
+                "rpy": "ottima",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_mid_accum_cautious_LR5e-5_Acc4_R32",
+            "step": 5500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.031027450980392356,
+                "xyz": 3.1054248080650964,
+                "rpy": 1.5971184159008165,
+                "acc": 0.5253809511462847
+            },
+            "ratings": {
+                "l1": "buona",
+                "xyz": "ottima",
+                "rpy": "ottima",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_mid_accum_cautious_LR5e-5_Acc4_R32",
+            "step": 6000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.031136507936508132,
+                "xyz": 3.1149743554194766,
+                "rpy": 1.5935439985680084,
+                "acc": 0.5285714278419813
+            },
+            "ratings": {
+                "l1": "buona",
+                "xyz": "ottima",
+                "rpy": "ottima",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_lr_LR5e-5_Acc6_R32",
+            "step": 4000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.03234173669467806,
+                "xyz": 3.0090006291071574,
+                "rpy": 1.5948711451093356,
+                "acc": 0.5245714280605316
+            },
+            "ratings": {
+                "l1": "buona",
+                "xyz": "ottima",
+                "rpy": "ottima",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_accum_LR1e-4_Acc2_R32",
+            "step": 3500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.033077124183006755,
+                "xyz": 2.6062606093883516,
+                "rpy": 1.576923265506824,
+                "acc": 0.5165238094528516
+            },
+            "ratings": {
+                "l1": "buona",
+                "xyz": "ottima",
+                "rpy": "ottima",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_high_rank_LR1e-4_Acc6_R64",
+            "step": 2000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.03406535947712442,
+                "xyz": 2.512661107301712,
+                "rpy": 1.5792415498743455,
+                "acc": 0.5202380950252216
+            },
+            "ratings": {
+                "l1": "buona",
+                "xyz": "ottima",
+                "rpy": "ottima",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_accum_LR1e-4_Acc2_R32",
+            "step": 14000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.02613818860877692,
+                "xyz": 4.998098205486933,
+                "rpy": 1.604143112445871,
+                "acc": 0.5446190483172735
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_baseline_LR1e-4_Acc6_R32",
+            "step": 6500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.026578151260504286,
+                "xyz": 4.632776329914729,
+                "rpy": 1.6693979957922005,
+                "acc": 0.545619046707948
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_accum_LR1e-4_Acc2_R32",
+            "step": 10000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.0271499533146593,
+                "xyz": 4.212814198096593,
+                "rpy": 1.6072331755972566,
+                "acc": 0.5411428563594818
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_lr_LR5e-5_Acc6_R32",
+            "step": 12000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.02803398692810472,
+                "xyz": 4.272848471840223,
+                "rpy": 1.702637729778682,
+                "acc": 0.5395714277625084
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_lr_LR5e-5_Acc6_R32",
+            "step": 12500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.028237535014005704,
+                "xyz": 4.475719847003619,
+                "rpy": 1.706199113642176,
+                "acc": 0.5363333321809769
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_baseline_LR1e-4_Acc6_R32",
+            "step": 5000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.028273389355742435,
+                "xyz": 4.036670978625615,
+                "rpy": 1.6327974591478704,
+                "acc": 0.5349999985893568
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_lr_LR5e-5_Acc6_R32",
+            "step": 10500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.028353314659197142,
+                "xyz": 4.11478110130628,
+                "rpy": 1.6503851719796658,
+                "acc": 0.5379999989271164
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_lr_LR5e-5_Acc6_R32",
+            "step": 14500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.028393650793650936,
+                "xyz": 4.576882089853287,
+                "rpy": 1.7181514787276586,
+                "acc": 0.541666665315628
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_lr_LR5e-5_Acc6_R32",
+            "step": 16000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.028400000000000123,
+                "xyz": 4.641679079115391,
+                "rpy": 1.725615748469738,
+                "acc": 0.5419047607978185
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_lr_LR5e-5_Acc6_R32",
+            "step": 16500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.02842352941176488,
+                "xyz": 4.6996314293543495,
+                "rpy": 1.7363122405782343,
+                "acc": 0.5411428565184275
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_lr_LR5e-5_Acc6_R32",
+            "step": 15500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.028444817927171,
+                "xyz": 4.653552512248357,
+                "rpy": 1.742321009532859,
+                "acc": 0.541000000278155
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_lr_LR5e-5_Acc6_R32",
+            "step": 20500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.028509430438842343,
+                "xyz": 4.731689193646113,
+                "rpy": 1.7460619891383684,
+                "acc": 0.5410476190249125
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_lr_LR5e-5_Acc6_R32",
+            "step": 18000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.02852138188608789,
+                "xyz": 4.705292251030604,
+                "rpy": 1.7370514579514662,
+                "acc": 0.5399047601620356
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_lr_LR5e-5_Acc6_R32",
+            "step": 21000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.02852399626517288,
+                "xyz": 4.7377004198630654,
+                "rpy": 1.7453142636955405,
+                "acc": 0.5403809521993002
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_lr_LR5e-5_Acc6_R32",
+            "step": 19000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.02858860877684424,
+                "xyz": 4.730945222616196,
+                "rpy": 1.7423743082607785,
+                "acc": 0.5409523806770643
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_lr_LR5e-5_Acc6_R32",
+            "step": 21500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.028589355742297082,
+                "xyz": 4.741082390467326,
+                "rpy": 1.7468537044165036,
+                "acc": 0.54109523721536
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_lr_LR5e-5_Acc6_R32",
+            "step": 15000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.02860690943043902,
+                "xyz": 4.683840390523275,
+                "rpy": 1.7360627709118028,
+                "acc": 0.5390000002384185
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_lr_LR5e-5_Acc6_R32",
+            "step": 17000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.02862110177404312,
+                "xyz": 4.716239106178749,
+                "rpy": 1.75088168267019,
+                "acc": 0.5400952367981275
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_lr_LR5e-5_Acc6_R32",
+            "step": 19500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.02863977591036428,
+                "xyz": 4.739925553798676,
+                "rpy": 1.7440606128655685,
+                "acc": 0.5399999992648761
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_lr_LR5e-5_Acc6_R32",
+            "step": 13000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.028660317460317587,
+                "xyz": 4.389969957192739,
+                "rpy": 1.736905439754327,
+                "acc": 0.5379523800611496
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_lr_LR5e-5_Acc6_R32",
+            "step": 9000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.028670028011204603,
+                "xyz": 4.082573646386464,
+                "rpy": 1.6469702815946001,
+                "acc": 0.5350476188262304
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_lr_LR5e-5_Acc6_R32",
+            "step": 22500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.028687581699346532,
+                "xyz": 4.737195858875911,
+                "rpy": 1.7481286626309156,
+                "acc": 0.5404761898517608
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_baseline_LR1e-4_Acc6_R32",
+            "step": 6000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.028703267973856333,
+                "xyz": 4.795331060647965,
+                "rpy": 1.6403092846597234,
+                "acc": 0.5378571423490842
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_lr_LR5e-5_Acc6_R32",
+            "step": 20000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.028714845938375484,
+                "xyz": 4.72250666642189,
+                "rpy": 1.748441690136368,
+                "acc": 0.5401904755433401
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_mid_accum_cautious_LR5e-5_Acc4_R32",
+            "step": 19500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.028739495798319466,
+                "xyz": 4.298106665213902,
+                "rpy": 1.685441361057058,
+                "acc": 0.5353333325584729
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_lr_LR5e-5_Acc6_R32",
+            "step": 22000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.02874771241830083,
+                "xyz": 4.740065239350001,
+                "rpy": 1.7464787192940712,
+                "acc": 0.5395238086978594
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_lr_LR5e-5_Acc6_R32",
+            "step": 18500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.028754061624649975,
+                "xyz": 4.717516672054926,
+                "rpy": 1.754422876201958,
+                "acc": 0.5404761900107066
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_mid_accum_cautious_LR5e-5_Acc4_R32",
+            "step": 17000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.02881718020541566,
+                "xyz": 4.276937720775604,
+                "rpy": 1.687318661167992,
+                "acc": 0.5354761886397997
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_lr_LR5e-5_Acc6_R32",
+            "step": 10000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.02881755368814208,
+                "xyz": 4.059771354277928,
+                "rpy": 1.66527277135849,
+                "acc": 0.5393333327770233
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_mid_accum_cautious_LR5e-5_Acc4_R32",
+            "step": 21500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.028830625583566884,
+                "xyz": 4.2933788939118385,
+                "rpy": 1.6934209798638222,
+                "acc": 0.5339523787895838
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_mid_accum_cautious_LR5e-5_Acc4_R32",
+            "step": 13500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.02885154061624664,
+                "xyz": 4.106816342314084,
+                "rpy": 1.6689045204408466,
+                "acc": 0.5319999988476435
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_mid_accum_cautious_LR5e-5_Acc4_R32",
+            "step": 20500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.028856022408963726,
+                "xyz": 4.285000222524007,
+                "rpy": 1.6939493499994278,
+                "acc": 0.5335238085985183
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_mid_accum_cautious_LR5e-5_Acc4_R32",
+            "step": 16000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.02886050420168079,
+                "xyz": 4.21838921503226,
+                "rpy": 1.6878213418324788,
+                "acc": 0.5349999988277753
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_mid_accum_cautious_LR5e-5_Acc4_R32",
+            "step": 12500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.028882166199813417,
+                "xyz": 3.9770292613307636,
+                "rpy": 1.6280449225952227,
+                "acc": 0.5301428572734197
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_lr_LR5e-5_Acc6_R32",
+            "step": 7000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.028899719887955352,
+                "xyz": 3.5215234643618265,
+                "rpy": 1.6071495627847683,
+                "acc": 0.5360952381292979
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_mid_accum_cautious_LR5e-5_Acc4_R32",
+            "step": 22500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.02890084033613461,
+                "xyz": 4.29730268963178,
+                "rpy": 1.6911731671268742,
+                "acc": 0.5342380941907565
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_mid_accum_cautious_LR5e-5_Acc4_R32",
+            "step": 22000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.028905695611578117,
+                "xyz": 4.293973891417186,
+                "rpy": 1.693481477587964,
+                "acc": 0.5341428571542104
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_mid_accum_cautious_LR5e-5_Acc4_R32",
+            "step": 19000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.028916153127917996,
+                "xyz": 4.272467487494151,
+                "rpy": 1.6935826521063306,
+                "acc": 0.5352857138713201
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_mid_accum_cautious_LR5e-5_Acc4_R32",
+            "step": 21000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.028918767507002934,
+                "xyz": 4.291790844281515,
+                "rpy": 1.692933210896949,
+                "acc": 0.534238093872865
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_mid_accum_cautious_LR5e-5_Acc4_R32",
+            "step": 10000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.028922875816993616,
+                "xyz": 3.7786587657928465,
+                "rpy": 1.6267553829600414,
+                "acc": 0.5299999997019768
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_mid_accum_cautious_LR5e-5_Acc4_R32",
+            "step": 17500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.028925863678805015,
+                "xyz": 4.268576740264892,
+                "rpy": 1.6808267752410193,
+                "acc": 0.5347619030872981
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_lr_LR5e-5_Acc6_R32",
+            "step": 17500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.02894528478057904,
+                "xyz": 4.778281182179849,
+                "rpy": 1.7486317543975018,
+                "acc": 0.5405714276432991
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_mid_accum_cautious_LR5e-5_Acc4_R32",
+            "step": 12000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.028954248366013218,
+                "xyz": 3.9031686198711397,
+                "rpy": 1.6690625536342463,
+                "acc": 0.5323333320816358
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_mid_accum_cautious_LR5e-5_Acc4_R32",
+            "step": 20000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.028955742296918923,
+                "xyz": 4.300276687622071,
+                "rpy": 1.690147510277961,
+                "acc": 0.5337142852346103
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_mid_accum_cautious_LR5e-5_Acc4_R32",
+            "step": 15000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.028976283846872196,
+                "xyz": 4.2086275686422985,
+                "rpy": 1.6782117363719928,
+                "acc": 0.5343809521396955
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_lr_LR5e-5_Acc6_R32",
+            "step": 14000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.02899122315592919,
+                "xyz": 4.650863913615544,
+                "rpy": 1.7369736784249543,
+                "acc": 0.537047617594401
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_mid_accum_cautious_LR5e-5_Acc4_R32",
+            "step": 18500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.029002801120448334,
+                "xyz": 4.282974257071813,
+                "rpy": 1.6960368912170332,
+                "acc": 0.5338571421901385
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_lr_LR5e-5_Acc6_R32",
+            "step": 11500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.029002801120448344,
+                "xyz": 4.319691872437795,
+                "rpy": 1.656925557066997,
+                "acc": 0.5382857137123743
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_mid_accum_cautious_LR5e-5_Acc4_R32",
+            "step": 16500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.029050606909430617,
+                "xyz": 4.264403250217438,
+                "rpy": 1.6886799646690487,
+                "acc": 0.5347619044780731
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_mid_accum_cautious_LR5e-5_Acc4_R32",
+            "step": 11000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.029051353874883445,
+                "xyz": 3.884263713379701,
+                "rpy": 1.6541595240086318,
+                "acc": 0.5326666655739148
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_lr_LR5e-5_Acc6_R32",
+            "step": 11000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.029060317460317606,
+                "xyz": 4.272376899786294,
+                "rpy": 1.6762566873542613,
+                "acc": 0.536857141216596
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_lr_LR5e-5_Acc6_R32",
+            "step": 8000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.029077497665733094,
+                "xyz": 3.789800788005193,
+                "rpy": 1.6639432012538116,
+                "acc": 0.5376190470854442
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_mid_accum_cautious_LR5e-5_Acc4_R32",
+            "step": 15500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.02911447245564906,
+                "xyz": 4.270879893342654,
+                "rpy": 1.6741194120782117,
+                "acc": 0.5328571428656578
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_baseline_LR1e-4_Acc6_R32",
+            "step": 5500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.029130158730158853,
+                "xyz": 4.572922337532043,
+                "rpy": 1.6373847689338146,
+                "acc": 0.5370952368577321
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_mid_accum_cautious_LR5e-5_Acc4_R32",
+            "step": 14500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.029133146591970277,
+                "xyz": 4.250632544835408,
+                "rpy": 1.7140220809231201,
+                "acc": 0.5312857127388319
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_mid_accum_cautious_LR5e-5_Acc4_R32",
+            "step": 11500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.02914547152194226,
+                "xyz": 3.9965173475344975,
+                "rpy": 1.6448711581168076,
+                "acc": 0.5332380951841672
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_mid_accum_cautious_LR5e-5_Acc4_R32",
+            "step": 18000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.02916825396825413,
+                "xyz": 4.309250102440516,
+                "rpy": 1.6969023745854697,
+                "acc": 0.5342380939920743
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_lr_LR5e-5_Acc6_R32",
+            "step": 13500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.029207469654528632,
+                "xyz": 4.610149599234263,
+                "rpy": 1.6943874844710032,
+                "acc": 0.5388095232049624
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_mid_accum_cautious_LR5e-5_Acc4_R32",
+            "step": 13000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.029318020541550107,
+                "xyz": 4.037596222956975,
+                "rpy": 1.6888336269259452,
+                "acc": 0.5322380943497022
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_mid_accum_cautious_LR5e-5_Acc4_R32",
+            "step": 14000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.029387114845938513,
+                "xyz": 4.1478763441840805,
+                "rpy": 1.693647899925054,
+                "acc": 0.530904760758082
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_mid_accum_cautious_LR5e-5_Acc4_R32",
+            "step": 9000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.02950289449112994,
+                "xyz": 3.6408682994445165,
+                "rpy": 1.6114136076221863,
+                "acc": 0.5291904748280843
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_mid_accum_cautious_LR5e-5_Acc4_R32",
+            "step": 8000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.029627637721755515,
+                "xyz": 3.5134113301436107,
+                "rpy": 1.6151661606033643,
+                "acc": 0.5245714284181595
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_lr_LR5e-5_Acc6_R32",
+            "step": 7500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.029851727357609888,
+                "xyz": 3.8905417822996777,
+                "rpy": 1.605858291854461,
+                "acc": 0.538380952278773
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_mid_accum_cautious_LR5e-5_Acc4_R32",
+            "step": 8500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.029905882352941327,
+                "xyz": 3.6884607292016347,
+                "rpy": 1.643278262965381,
+                "acc": 0.5278571426868439
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_mid_accum_cautious_LR5e-5_Acc4_R32",
+            "step": 10500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.029945845004668688,
+                "xyz": 3.9068123979568483,
+                "rpy": 1.6847995397051176,
+                "acc": 0.5309047603011131
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "buona",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_mid_accum_cautious_LR5e-5_Acc4_R32",
+            "step": 7000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.03003958916900109,
+                "xyz": 3.391364234209061,
+                "rpy": 1.610084070393544,
+                "acc": 0.5283809514840444
+            },
+            "ratings": {
+                "l1": "buona",
+                "xyz": "ottima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_lr_LR5e-5_Acc6_R32",
+            "step": 5500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.030112044817927345,
+                "xyz": 3.192939942399661,
+                "rpy": 1.6115274609184513,
+                "acc": 0.5351904748479526
+            },
+            "ratings": {
+                "l1": "buona",
+                "xyz": "ottima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_lr_LR5e-5_Acc6_R32",
+            "step": 5000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.030805602240896516,
+                "xyz": 3.0458788974285125,
+                "rpy": 1.63115326076746,
+                "acc": 0.5282380944490432
+            },
+            "ratings": {
+                "l1": "buona",
+                "xyz": "ottima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_baseline_LR1e-4_Acc6_R32",
+            "step": 3000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.030954995331466107,
+                "xyz": 3.0347549879550932,
+                "rpy": 1.6068164941171805,
+                "acc": 0.533476189215978
+            },
+            "ratings": {
+                "l1": "buona",
+                "xyz": "ottima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v3.0.1_LR1e-4_Acc2_R32_A16_alllinear",
+            "step": 2000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.03103127917833797,
+                "xyz": 2.7075675654411318,
+                "rpy": 1.646649063229561,
+                "acc": 0.5098809504508972
+            },
+            "ratings": {
+                "l1": "buona",
+                "xyz": "ottima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_mid_accum_cautious_LR5e-5_Acc4_R32",
+            "step": 6500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.03116862745098057,
+                "xyz": 3.3780245560805002,
+                "rpy": 1.622150883356381,
+                "acc": 0.5270476182897885
+            },
+            "ratings": {
+                "l1": "buona",
+                "xyz": "ottima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_mid_accum_cautious_LR5e-5_Acc4_R32",
+            "step": 5000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.03123510737628403,
+                "xyz": 2.916680000940959,
+                "rpy": 1.6032739607592423,
+                "acc": 0.5253333323995273
+            },
+            "ratings": {
+                "l1": "buona",
+                "xyz": "ottima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_mid_accum_cautious_LR5e-5_Acc4_R32",
+            "step": 4500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.03153837535014022,
+                "xyz": 2.8752564240694047,
+                "rpy": 1.6276730526089669,
+                "acc": 0.5163809514045715
+            },
+            "ratings": {
+                "l1": "buona",
+                "xyz": "ottima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_lr_LR5e-5_Acc6_R32",
+            "step": 3500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.03320149393090591,
+                "xyz": 2.875034711718559,
+                "rpy": 1.6094753965811106,
+                "acc": 0.5214285708268483
+            },
+            "ratings": {
+                "l1": "buona",
+                "xyz": "ottima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v3.0.1_LR3e-5_Acc4_R32",
+            "step": 22500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.03447058823529407,
+                "xyz": 2.6397616410255433,
+                "rpy": 1.6564776694774628,
+                "acc": 0.5041071408987046
+            },
+            "ratings": {
+                "l1": "buona",
+                "xyz": "ottima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_lr_LR5e-5_Acc6_R32",
+            "step": 3000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.03451652661064444,
+                "xyz": 2.8389834456443785,
+                "rpy": 1.6523285199503104,
+                "acc": 0.5089999995827675
+            },
+            "ratings": {
+                "l1": "buona",
+                "xyz": "ottima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_mid_accum_cautious_LR5e-5_Acc4_R32",
+            "step": 4000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.03452324929972013,
+                "xyz": 2.9118105455140273,
+                "rpy": 1.6264771511157354,
+                "acc": 0.5189047612547875
+            },
+            "ratings": {
+                "l1": "buona",
+                "xyz": "ottima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_accum_LR1e-4_Acc2_R32",
+            "step": 3000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.035015126050420425,
+                "xyz": 2.7376122179428735,
+                "rpy": 1.666929301743318,
+                "acc": 0.5073809516231219
+            },
+            "ratings": {
+                "l1": "buona",
+                "xyz": "ottima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v3.0.1_LR3e-5_Acc4_R32",
+            "step": 10500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.03514985994397756,
+                "xyz": 2.5342351722717287,
+                "rpy": 1.664242269396782,
+                "acc": 0.5062499955296517
+            },
+            "ratings": {
+                "l1": "buona",
+                "xyz": "ottima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v3.0.1_LR3e-5_Acc4_R32",
+            "step": 13500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.03526750700280108,
+                "xyz": 2.638548021316528,
+                "rpy": 1.6962366229295731,
+                "acc": 0.5044642826914787
+            },
+            "ratings": {
+                "l1": "buona",
+                "xyz": "ottima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_baseline_LR1e-4_Acc6_R32",
+            "step": 2000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.03529187675070052,
+                "xyz": 2.9019508575201036,
+                "rpy": 1.6247633089919884,
+                "acc": 0.5165714275240898
+            },
+            "ratings": {
+                "l1": "buona",
+                "xyz": "ottima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_mid_accum_cautious_LR5e-5_Acc4_R32",
+            "step": 3500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.03611727357609736,
+                "xyz": 2.908414459705353,
+                "rpy": 1.6165414618104696,
+                "acc": 0.5156666654745737
+            },
+            "ratings": {
+                "l1": "buona",
+                "xyz": "ottima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_lr_LR5e-5_Acc6_R32",
+            "step": 2500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.037512605042017054,
+                "xyz": 2.7317310891151427,
+                "rpy": 1.6880215062140487,
+                "acc": 0.5079523805379867
+            },
+            "ratings": {
+                "l1": "buona",
+                "xyz": "ottima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_accum_LR1e-4_Acc2_R32",
+            "step": 2500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.03811876750700306,
+                "xyz": 2.615556649208069,
+                "rpy": 1.667923445512851,
+                "acc": 0.5076666656335195
+            },
+            "ratings": {
+                "l1": "buona",
+                "xyz": "ottima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_mid_accum_cautious_LR5e-5_Acc4_R32",
+            "step": 3000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.03956862745098068,
+                "xyz": 2.8505305745601652,
+                "rpy": 1.7331176052888235,
+                "acc": 0.5065238081812858
+            },
+            "ratings": {
+                "l1": "buona",
+                "xyz": "ottima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_mid_accum_cautious_LR5e-5_Acc4_R32",
+            "step": 2500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.040863865546218785,
+                "xyz": 2.5817152070999145,
+                "rpy": 1.7433086513032516,
+                "acc": 0.5044761897921562
+            },
+            "ratings": {
+                "l1": "buona",
+                "xyz": "ottima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "ft+openvla-7b+prob3_pick_place+b24+lr-2e-05+lora-r32+dropout-0.05--v2.1.2_no_randomization--image_aug",
+            "step": 15000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.04181437908496767,
+                "xyz": 3.059555517276128,
+                "rpy": 1.6397652604567508,
+                "acc": 0.5022380941708883
+            },
+            "ratings": {
+                "l1": "buona",
+                "xyz": "ottima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_high_rank_LR1e-4_Acc6_R64",
+            "step": 1500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.04183641456582662,
+                "xyz": 2.424717809975147,
+                "rpy": 1.7214016950850686,
+                "acc": 0.5086190469463666
+            },
+            "ratings": {
+                "l1": "buona",
+                "xyz": "ottima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_baseline_LR1e-4_Acc6_R32",
+            "step": 1500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.04190252100840365,
+                "xyz": 2.6429331470330557,
+                "rpy": 1.7240909064966254,
+                "acc": 0.5037142851352692
+            },
+            "ratings": {
+                "l1": "buona",
+                "xyz": "ottima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "ft+openvla-7b+prob3_pick_place+b24+lr-2e-05+lora-r32+dropout-0.05--v2.1.2_no_randomization--image_aug",
+            "step": 22000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.04215873015873041,
+                "xyz": 3.058134777466456,
+                "rpy": 1.795229852169752,
+                "acc": 0.5002857139706611
+            },
+            "ratings": {
+                "l1": "buona",
+                "xyz": "ottima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_accum_LR1e-4_Acc2_R32",
+            "step": 2000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "SICURO",
+            "metrics": {
+                "l1": 0.043005788982259846,
+                "xyz": 2.564328910271327,
+                "rpy": 1.7515931948522727,
+                "acc": 0.5016190465092659
+            },
+            "ratings": {
+                "l1": "buona",
+                "xyz": "ottima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_high_rank_LR1e-4_Acc6_R64",
+            "step": 7500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.025511858076563986,
+                "xyz": 5.379394435594479,
+                "rpy": 1.4782240140302432,
+                "acc": 0.5469523811737697
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "ottima",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_high_rank_LR1e-4_Acc6_R64",
+            "step": 9000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.026250606909430502,
+                "xyz": 6.156328261852265,
+                "rpy": 1.5724495259250204,
+                "acc": 0.5409047614336013
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "ottima",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_accum_LR1e-4_Acc2_R32",
+            "step": 13500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.026409337068160704,
+                "xyz": 5.091645268360773,
+                "rpy": 1.5849558057884374,
+                "acc": 0.5440952380498251
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "ottima",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_high_rank_LR1e-4_Acc6_R64",
+            "step": 8500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.026513165266106548,
+                "xyz": 5.740633356571197,
+                "rpy": 1.5777182700733343,
+                "acc": 0.5458571421702703
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "ottima",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_accum_LR1e-4_Acc2_R32",
+            "step": 15000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.02664388422035487,
+                "xyz": 5.214221062978109,
+                "rpy": 1.5926030636566382,
+                "acc": 0.544428569873174
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "ottima",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_high_rank_LR1e-4_Acc6_R64",
+            "step": 7000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.027016993464052362,
+                "xyz": 5.233742360273997,
+                "rpy": 1.5645342662744224,
+                "acc": 0.5378095227281252
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "ottima",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_high_rank_LR1e-4_Acc6_R64",
+            "step": 9500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.025470028011204567,
+                "xyz": 5.897049717108408,
+                "rpy": 1.6076403748809172,
+                "acc": 0.547380950987339
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_high_rank_LR1e-4_Acc6_R64",
+            "step": 11000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.025610084033613513,
+                "xyz": 6.599716748197873,
+                "rpy": 1.6538854699482521,
+                "acc": 0.5469047605395317
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_high_rank_LR1e-4_Acc6_R64",
+            "step": 10000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.025657889822595762,
+                "xyz": 6.266253898938497,
+                "rpy": 1.6964250979249675,
+                "acc": 0.5464761896928152
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_high_rank_LR1e-4_Acc6_R64",
+            "step": 8000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.0256646125116714,
+                "xyz": 5.461918728907903,
+                "rpy": 1.603704292178154,
+                "acc": 0.5436666658322017
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_high_rank_LR1e-4_Acc6_R64",
+            "step": 12000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.02582894491129791,
+                "xyz": 7.177057073129962,
+                "rpy": 1.7042210797886832,
+                "acc": 0.5451904748678207
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_high_rank_LR1e-4_Acc6_R64",
+            "step": 13000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.02584687208216625,
+                "xyz": 7.5795416347980495,
+                "rpy": 1.7358890006480117,
+                "acc": 0.5481904755830764
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_baseline_LR1e-4_Acc6_R32",
+            "step": 9500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.026223716153127994,
+                "xyz": 6.045491863648096,
+                "rpy": 1.8225235903986468,
+                "acc": 0.5439999993642172
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_high_rank_LR1e-4_Acc6_R64",
+            "step": 16000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.026224836601307266,
+                "xyz": 8.203226425148546,
+                "rpy": 1.8354643998133882,
+                "acc": 0.545666664938132
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_accum_LR1e-4_Acc2_R32",
+            "step": 14500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.026225210084033706,
+                "xyz": 5.154941387812297,
+                "rpy": 1.605950446024537,
+                "acc": 0.5452857138911883
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_accum_LR1e-4_Acc2_R32",
+            "step": 15500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.02636190476190484,
+                "xyz": 5.28848587667942,
+                "rpy": 1.6090911029544417,
+                "acc": 0.5431904745896657
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_high_rank_LR1e-4_Acc6_R64",
+            "step": 17500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.026483660130719053,
+                "xyz": 8.539197462240855,
+                "rpy": 1.846209499269724,
+                "acc": 0.5464285705089569
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_high_rank_LR1e-4_Acc6_R64",
+            "step": 14000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.026488515406162552,
+                "xyz": 7.854443762600422,
+                "rpy": 1.7547120565374692,
+                "acc": 0.5465238096117974
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_high_rank_LR1e-4_Acc6_R64",
+            "step": 15500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.026508683473389482,
+                "xyz": 8.224801248073577,
+                "rpy": 1.7976405939572717,
+                "acc": 0.5452857134342194
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_high_rank_LR1e-4_Acc6_R64",
+            "step": 19000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.026515779645191476,
+                "xyz": 8.509706938107808,
+                "rpy": 1.8536917212144473,
+                "acc": 0.5454285713632901
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_high_rank_LR1e-4_Acc6_R64",
+            "step": 18000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.026540056022409036,
+                "xyz": 8.514838810284932,
+                "rpy": 1.8572561645445724,
+                "acc": 0.544809522330761
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_accum_LR1e-4_Acc2_R32",
+            "step": 17500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.026569934640522992,
+                "xyz": 5.41350345480442,
+                "rpy": 1.613084122856458,
+                "acc": 0.5452380944093068
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_accum_LR1e-4_Acc2_R32",
+            "step": 22500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.02659010270774986,
+                "xyz": 5.466465941985448,
+                "rpy": 1.627236218472322,
+                "acc": 0.5442857131958008
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_high_rank_LR1e-4_Acc6_R64",
+            "step": 21500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.02660130718954258,
+                "xyz": 8.566892453948658,
+                "rpy": 1.865793760927394,
+                "acc": 0.5448571414748827
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_accum_LR1e-4_Acc2_R32",
+            "step": 18500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.02661251167133531,
+                "xyz": 5.420491468747457,
+                "rpy": 1.6253758399536213,
+                "acc": 0.5433333330353101
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_accum_LR1e-4_Acc2_R32",
+            "step": 16000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.0266222222222223,
+                "xyz": 5.35981910999616,
+                "rpy": 1.6320963385999203,
+                "acc": 0.5432857130567232
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_accum_LR1e-4_Acc2_R32",
+            "step": 21000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.026624463118580882,
+                "xyz": 5.468503488699596,
+                "rpy": 1.6280811983570456,
+                "acc": 0.5443333323001862
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_accum_LR1e-4_Acc2_R32",
+            "step": 18000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.026633800186741437,
+                "xyz": 5.46711609951655,
+                "rpy": 1.6168030172946553,
+                "acc": 0.5442857137123743
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_high_rank_LR1e-4_Acc6_R64",
+            "step": 20500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.026646872082166293,
+                "xyz": 8.542872479756673,
+                "rpy": 1.8655812984909863,
+                "acc": 0.5446666661699613
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_high_rank_LR1e-4_Acc6_R64",
+            "step": 18500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.026649859943977693,
+                "xyz": 8.524592413504918,
+                "rpy": 1.8590191530833642,
+                "acc": 0.5448571424682935
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_accum_LR1e-4_Acc2_R32",
+            "step": 19500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.026656956115779746,
+                "xyz": 5.468769129814959,
+                "rpy": 1.6281793610670254,
+                "acc": 0.54409523665905
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_baseline_LR1e-4_Acc6_R32",
+            "step": 8000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.026666666666666748,
+                "xyz": 5.406546061635018,
+                "rpy": 1.7398527081296198,
+                "acc": 0.543285713771979
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_high_rank_LR1e-4_Acc6_R64",
+            "step": 12500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.02668347338935583,
+                "xyz": 7.611098070859909,
+                "rpy": 1.7351794322867258,
+                "acc": 0.5455238084594408
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_high_rank_LR1e-4_Acc6_R64",
+            "step": 22500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.02668646125116725,
+                "xyz": 8.566249584039053,
+                "rpy": 1.8634621332883834,
+                "acc": 0.5453333330949147
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_baseline_LR1e-4_Acc6_R32",
+            "step": 10500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.026688702147525768,
+                "xyz": 6.478076914906501,
+                "rpy": 1.8968018725172926,
+                "acc": 0.5413809514045715
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_baseline_LR1e-4_Acc6_R32",
+            "step": 11000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.026709243697479092,
+                "xyz": 6.559638918240865,
+                "rpy": 1.8681985558976109,
+                "acc": 0.546904760380586
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_accum_LR1e-4_Acc2_R32",
+            "step": 21500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.026711858076564027,
+                "xyz": 5.468545412977536,
+                "rpy": 1.6278599488635859,
+                "acc": 0.5438095223704974
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_high_rank_LR1e-4_Acc6_R64",
+            "step": 13500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.026713725490196145,
+                "xyz": 7.935503240982691,
+                "rpy": 1.8010805924552649,
+                "acc": 0.5441428562204043
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_high_rank_LR1e-4_Acc6_R64",
+            "step": 19500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.02671447245564905,
+                "xyz": 8.538740856528282,
+                "rpy": 1.8583177761991199,
+                "acc": 0.5444285714626312
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_accum_LR1e-4_Acc2_R32",
+            "step": 22000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.026720821661998226,
+                "xyz": 5.467942313810189,
+                "rpy": 1.6273387445092278,
+                "acc": 0.5447142844398817
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_accum_LR1e-4_Acc2_R32",
+            "step": 20000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.026734267040149477,
+                "xyz": 5.471252761059751,
+                "rpy": 1.6239915697326264,
+                "acc": 0.5440476180116336
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_high_rank_LR1e-4_Acc6_R64",
+            "step": 16500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.026743604108310084,
+                "xyz": 8.397719409386317,
+                "rpy": 1.8431790757576625,
+                "acc": 0.5453809514045715
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_accum_LR1e-4_Acc2_R32",
+            "step": 19000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.026751820728291405,
+                "xyz": 5.480129554351171,
+                "rpy": 1.6190547749698163,
+                "acc": 0.5443333320617676
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_accum_LR1e-4_Acc2_R32",
+            "step": 20500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.02675294117647069,
+                "xyz": 5.471320454637209,
+                "rpy": 1.624303728001813,
+                "acc": 0.5440476181308428
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_high_rank_LR1e-4_Acc6_R64",
+            "step": 21000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.026771615312791857,
+                "xyz": 8.559148911794027,
+                "rpy": 1.8631198168244834,
+                "acc": 0.544523807922999
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_high_rank_LR1e-4_Acc6_R64",
+            "step": 15000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.026797385620915142,
+                "xyz": 8.167096463998158,
+                "rpy": 1.8376222211538504,
+                "acc": 0.5448571413954099
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_baseline_LR1e-4_Acc6_R32",
+            "step": 9000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.026806722689075708,
+                "xyz": 5.8596061018308,
+                "rpy": 1.8675054288382331,
+                "acc": 0.5436190465291341
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_high_rank_LR1e-4_Acc6_R64",
+            "step": 20000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.02682016806722697,
+                "xyz": 8.550455380598704,
+                "rpy": 1.8580976930718034,
+                "acc": 0.5443333321213722
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_high_rank_LR1e-4_Acc6_R64",
+            "step": 22000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.026822035480859104,
+                "xyz": 8.559225297580056,
+                "rpy": 1.8644203222716842,
+                "acc": 0.5448095232844353
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_baseline_LR1e-4_Acc6_R32",
+            "step": 7000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.0268235294117648,
+                "xyz": 5.0092435294787085,
+                "rpy": 1.6869108100434145,
+                "acc": 0.545952380379041
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_accum_LR1e-4_Acc2_R32",
+            "step": 17000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.02684407096171813,
+                "xyz": 5.451150598049164,
+                "rpy": 1.6329229169599713,
+                "acc": 0.5427619039217632
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_baseline_LR1e-4_Acc6_R32",
+            "step": 11500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.026859383753501515,
+                "xyz": 7.0519244164625805,
+                "rpy": 1.9880972486666093,
+                "acc": 0.5435238087177277
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_accum_LR1e-4_Acc2_R32",
+            "step": 16500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.026863492063492173,
+                "xyz": 5.409484168171883,
+                "rpy": 1.6272561123222113,
+                "acc": 0.5422857129772504
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_high_rank_LR1e-4_Acc6_R64",
+            "step": 17000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.026936694677871263,
+                "xyz": 8.592947874704997,
+                "rpy": 1.8704135004598648,
+                "acc": 0.5439999988079071
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_baseline_LR1e-4_Acc6_R32",
+            "step": 16000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.027018487394958095,
+                "xyz": 8.126912770032883,
+                "rpy": 2.1586616794814666,
+                "acc": 0.5412380936940511
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_high_rank_LR1e-4_Acc6_R64",
+            "step": 14500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.027039775910364227,
+                "xyz": 8.180032039006552,
+                "rpy": 1.8364515148599942,
+                "acc": 0.5419047616918882
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_baseline_LR1e-4_Acc6_R32",
+            "step": 16500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.027111858076564056,
+                "xyz": 8.100723293066025,
+                "rpy": 2.1331326249142486,
+                "acc": 0.5419523805777232
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_baseline_LR1e-4_Acc6_R32",
+            "step": 18000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.02719402427637735,
+                "xyz": 8.25842853307724,
+                "rpy": 2.17934783610071,
+                "acc": 0.5406190467675527
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_baseline_LR1e-4_Acc6_R32",
+            "step": 18500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.02722464985994407,
+                "xyz": 8.283166121482848,
+                "rpy": 2.1680667625498415,
+                "acc": 0.5421428559422493
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_high_rank_LR1e-4_Acc6_R64",
+            "step": 11500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.027260130718954376,
+                "xyz": 7.237213849623998,
+                "rpy": 1.7462275335769397,
+                "acc": 0.543857142051061
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_baseline_LR1e-4_Acc6_R32",
+            "step": 12500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.027268347338935673,
+                "xyz": 7.377173318465551,
+                "rpy": 2.0304695342613397,
+                "acc": 0.5425238081614177
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_baseline_LR1e-4_Acc6_R32",
+            "step": 20000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.02728216619981332,
+                "xyz": 8.338517246643702,
+                "rpy": 2.1730478394747093,
+                "acc": 0.5412857132355372
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_high_rank_LR1e-4_Acc6_R64",
+            "step": 10500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.027293744164332504,
+                "xyz": 6.781629429085801,
+                "rpy": 1.6862803337375265,
+                "acc": 0.5438571411172549
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_baseline_LR1e-4_Acc6_R32",
+            "step": 17000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.027298225957049577,
+                "xyz": 8.250949039330084,
+                "rpy": 2.1537955440016523,
+                "acc": 0.5429047605196635
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_baseline_LR1e-4_Acc6_R32",
+            "step": 22000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.02731839402427652,
+                "xyz": 8.33522735595703,
+                "rpy": 2.17174050432342,
+                "acc": 0.540761904100577
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_baseline_LR1e-4_Acc6_R32",
+            "step": 19500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.0273198879551822,
+                "xyz": 8.34026673968633,
+                "rpy": 2.1708937061424174,
+                "acc": 0.5414761889974277
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_baseline_LR1e-4_Acc6_R32",
+            "step": 15000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.02732175536881431,
+                "xyz": 8.005247630914052,
+                "rpy": 2.0812324285705883,
+                "acc": 0.5423809521198273
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_baseline_LR1e-4_Acc6_R32",
+            "step": 21000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.027324369747899275,
+                "xyz": 8.341735132614772,
+                "rpy": 2.1719132600724698,
+                "acc": 0.5404285696148873
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_baseline_LR1e-4_Acc6_R32",
+            "step": 10000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.027336694677871285,
+                "xyz": 6.462915178775788,
+                "rpy": 1.8666264340331158,
+                "acc": 0.5440476181109747
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_baseline_LR1e-4_Acc6_R32",
+            "step": 15500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.02734192343604117,
+                "xyz": 8.120341082493464,
+                "rpy": 2.1117879637684673,
+                "acc": 0.5405714277823767
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_baseline_LR1e-4_Acc6_R32",
+            "step": 12000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.02734229691876764,
+                "xyz": 7.334132591724396,
+                "rpy": 2.0253734220415356,
+                "acc": 0.5412380932768186
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_baseline_LR1e-4_Acc6_R32",
+            "step": 14000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.027360224089635964,
+                "xyz": 7.768150356849034,
+                "rpy": 2.0982890789295174,
+                "acc": 0.5416666657129924
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_baseline_LR1e-4_Acc6_R32",
+            "step": 21500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.027376283846872202,
+                "xyz": 8.331261398712794,
+                "rpy": 2.170535035682221,
+                "acc": 0.5416666659514109
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_baseline_LR1e-4_Acc6_R32",
+            "step": 17500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.02738823529411773,
+                "xyz": 8.304581804672877,
+                "rpy": 2.171476090302063,
+                "acc": 0.5411428563594818
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_baseline_LR1e-4_Acc6_R32",
+            "step": 20500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.027416993464052398,
+                "xyz": 8.341035324573516,
+                "rpy": 2.175962340409557,
+                "acc": 0.5409999993244807
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_baseline_LR1e-4_Acc6_R32",
+            "step": 8500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.027422222222222337,
+                "xyz": 5.780513713121414,
+                "rpy": 1.8140667179895253,
+                "acc": 0.5401428561806679
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_baseline_LR1e-4_Acc6_R32",
+            "step": 13000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.027431932773109343,
+                "xyz": 7.52008189980189,
+                "rpy": 2.0823032687507106,
+                "acc": 0.541380952000618
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_baseline_LR1e-4_Acc6_R32",
+            "step": 19000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.027436414565826454,
+                "xyz": 8.349204196135203,
+                "rpy": 2.1774374171247084,
+                "acc": 0.5406666656533877
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_baseline_LR1e-4_Acc6_R32",
+            "step": 22500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.027442016806722806,
+                "xyz": 8.333907228549322,
+                "rpy": 2.171680106837026,
+                "acc": 0.5409047602812449
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_baseline_LR1e-4_Acc6_R32",
+            "step": 14500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.02754211017740439,
+                "xyz": 7.950795151074727,
+                "rpy": 2.1282471365829307,
+                "acc": 0.5415714275638263
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_baseline_LR1e-4_Acc6_R32",
+            "step": 13500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.027636227824463268,
+                "xyz": 7.710480674664179,
+                "rpy": 2.095950803666065,
+                "acc": 0.5424285707871119
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v2.1.2_baseline_LR1e-4_Acc6_R32",
+            "step": 7500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.027822595704948782,
+                "xyz": 5.395075051148733,
+                "rpy": 1.7434483190154035,
+                "acc": 0.5444761898914973
+            },
+            "ratings": {
+                "l1": "ottima",
+                "xyz": "pessima",
+                "rpy": "buona",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "v3.0.1_LR3e-5_Acc4_R32",
+            "step": 16500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.034061624649859915,
+                "xyz": 2.6870367586612702,
+                "rpy": 1.6958792895078658,
+                "acc": 0.4964285698533058
+            },
+            "ratings": {
+                "l1": "buona",
+                "xyz": "ottima",
+                "rpy": "buona",
+                "acc": "buona"
+            }
+        },
+        {
+            "run": "v3.0.1_LR3e-5_Acc4_R32",
+            "step": 21000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.03433333333333327,
+                "xyz": 2.6838764119148255,
+                "rpy": 1.7143651542067528,
+                "acc": 0.4894642838835716
+            },
+            "ratings": {
+                "l1": "buona",
+                "xyz": "ottima",
+                "rpy": "buona",
+                "acc": "buona"
+            }
+        },
+        {
+            "run": "v3.0.1_LR3e-5_Acc4_R32",
+            "step": 18000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.035761904761904724,
+                "xyz": 2.6947020530700683,
+                "rpy": 1.7400897717475892,
+                "acc": 0.48660714089870455
+            },
+            "ratings": {
+                "l1": "buona",
+                "xyz": "ottima",
+                "rpy": "buona",
+                "acc": "buona"
+            }
+        },
+        {
+            "run": "v3.0.1_LR3e-5_Acc4_R32",
+            "step": 25500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.036121848739495754,
+                "xyz": 2.6739646899700165,
+                "rpy": 1.6571820259094239,
+                "acc": 0.49964285343885423
+            },
+            "ratings": {
+                "l1": "buona",
+                "xyz": "ottima",
+                "rpy": "buona",
+                "acc": "buona"
+            }
+        },
+        {
+            "run": "v3.0.1_LR3e-5_Acc4_R32",
+            "step": 24000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.03649299719887951,
+                "xyz": 2.697636730670929,
+                "rpy": 1.7287046748399735,
+                "acc": 0.48964285612106323
+            },
+            "ratings": {
+                "l1": "buona",
+                "xyz": "ottima",
+                "rpy": "buona",
+                "acc": "buona"
+            }
+        },
+        {
+            "run": "v3.0.1_LR3e-5_Acc4_R32",
+            "step": 15000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.03689495798319322,
+                "xyz": 2.717222123146057,
+                "rpy": 1.7268302339315413,
+                "acc": 0.49285713970661166
+            },
+            "ratings": {
+                "l1": "buona",
+                "xyz": "ottima",
+                "rpy": "buona",
+                "acc": "buona"
+            }
+        },
+        {
+            "run": "v3.0.1_LR3e-5_Acc4_R32",
+            "step": 27000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.037403361344537776,
+                "xyz": 2.6499970972537996,
+                "rpy": 1.7145049148797988,
+                "acc": 0.49714285582304
+            },
+            "ratings": {
+                "l1": "buona",
+                "xyz": "ottima",
+                "rpy": "buona",
+                "acc": "buona"
+            }
+        },
+        {
+            "run": "v3.0.1_LR3e-5_Acc4_R32",
+            "step": 12000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.03764705882352936,
+                "xyz": 2.625777895450592,
+                "rpy": 1.768915780186653,
+                "acc": 0.48892856925725936
+            },
+            "ratings": {
+                "l1": "buona",
+                "xyz": "ottima",
+                "rpy": "buona",
+                "acc": "buona"
+            }
+        },
+        {
+            "run": "v3.0.1_LR1e-4_Acc2_R32_A16_alllinear",
+            "step": 1000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.03842250233426709,
+                "xyz": 2.727577491203944,
+                "rpy": 1.808851906855901,
+                "acc": 0.4822619033853213
+            },
+            "ratings": {
+                "l1": "buona",
+                "xyz": "ottima",
+                "rpy": "buona",
+                "acc": "buona"
+            }
+        },
+        {
+            "run": "v3.0.1_LR3e-5_Acc4_R32",
+            "step": 19500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.0385182072829131,
+                "xyz": 2.7205447125434876,
+                "rpy": 1.714444461464882,
+                "acc": 0.4971428552269936
+            },
+            "ratings": {
+                "l1": "buona",
+                "xyz": "ottima",
+                "rpy": "buona",
+                "acc": "buona"
+            }
+        },
+        {
+            "run": "v3.0.1_LR3e-5_Acc4_R32",
+            "step": 7500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.03879271708683468,
+                "xyz": 2.635658723115921,
+                "rpy": 1.7957726556062699,
+                "acc": 0.4819642847776413
+            },
+            "ratings": {
+                "l1": "buona",
+                "xyz": "ottima",
+                "rpy": "buona",
+                "acc": "buona"
+            }
+        },
+        {
+            "run": "v3.0.1_LR3e-5_Acc4_R32",
+            "step": 9000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.03902941176470584,
+                "xyz": 2.577825512886047,
+                "rpy": 1.7647683462500572,
+                "acc": 0.47874999791383743
+            },
+            "ratings": {
+                "l1": "buona",
+                "xyz": "ottima",
+                "rpy": "buona",
+                "acc": "buona"
+            }
+        },
+        {
+            "run": "v3.0.1_LR3e-5_Acc4_R32",
+            "step": 6000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.039054621848739444,
+                "xyz": 2.627043654918671,
+                "rpy": 1.7466623055934907,
+                "acc": 0.47982142627239227
+            },
+            "ratings": {
+                "l1": "buona",
+                "xyz": "ottima",
+                "rpy": "buona",
+                "acc": "buona"
+            }
+        },
+        {
+            "run": "ft+openvla-7b+prob3_pick_place+b24+lr-2e-05+lora-r32+dropout-0.05--v2.1.2_no_randomization--image_aug",
+            "step": 10000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.042336134453781864,
+                "xyz": 2.9284428377946217,
+                "rpy": 1.8074953280289967,
+                "acc": 0.4896190461119016
+            },
+            "ratings": {
+                "l1": "buona",
+                "xyz": "ottima",
+                "rpy": "buona",
+                "acc": "buona"
+            }
+        },
+        {
+            "run": "v3.0.1_LR3e-5_Acc4_R32",
+            "step": 4500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.04244117647058819,
+                "xyz": 2.597302733659744,
+                "rpy": 1.797774195075035,
+                "acc": 0.4767857137322426
+            },
+            "ratings": {
+                "l1": "buona",
+                "xyz": "ottima",
+                "rpy": "buona",
+                "acc": "buona"
+            }
+        },
+        {
+            "run": "ft+openvla-7b+prob3_pick_place+b24+lr-2e-05+lora-r32+dropout-0.05--v2.1.2_no_randomization--image_aug",
+            "step": 20000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.04263865546218521,
+                "xyz": 2.9812296223243075,
+                "rpy": 1.7888843872494375,
+                "acc": 0.4931904755632083
+            },
+            "ratings": {
+                "l1": "buona",
+                "xyz": "ottima",
+                "rpy": "buona",
+                "acc": "buona"
+            }
+        },
+        {
+            "run": "v2.1.2_low_lr_LR5e-5_Acc6_R32",
+            "step": 2000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.04304276377217581,
+                "xyz": 2.629174851576487,
+                "rpy": 1.7762086865007878,
+                "acc": 0.49657142798105874
+            },
+            "ratings": {
+                "l1": "buona",
+                "xyz": "ottima",
+                "rpy": "buona",
+                "acc": "buona"
+            }
+        },
+        {
+            "run": "ft+openvla-7b+prob3_pick_place+b24+lr-2e-05+lora-r32+dropout-0.05--v2.1.2_no_randomization--image_aug",
+            "step": 13000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.04357759103641491,
+                "xyz": 3.1148897484143574,
+                "rpy": 1.7109333496023902,
+                "acc": 0.4925714276830355
+            },
+            "ratings": {
+                "l1": "buona",
+                "xyz": "ottima",
+                "rpy": "buona",
+                "acc": "buona"
+            }
+        },
+        {
+            "run": "ft+openvla-7b+prob3_pick_place+b24+lr-2e-05+lora-r32+dropout-0.05--v2.1.2_no_randomization--image_aug",
+            "step": 8000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.04385658263305355,
+                "xyz": 3.042039133707682,
+                "rpy": 1.765506928463777,
+                "acc": 0.4877142866253853
+            },
+            "ratings": {
+                "l1": "buona",
+                "xyz": "ottima",
+                "rpy": "buona",
+                "acc": "buona"
+            }
+        },
+        {
+            "run": "ft+openvla-7b+prob3_pick_place+b24+lr-2e-05+lora-r32+dropout-0.05--v2.1.2_no_randomization--image_aug",
+            "step": 19000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.04450196078431402,
+                "xyz": 3.1464558363755546,
+                "rpy": 1.8264893429378668,
+                "acc": 0.48895238000154495
+            },
+            "ratings": {
+                "l1": "buona",
+                "xyz": "ottima",
+                "rpy": "buona",
+                "acc": "buona"
+            }
+        },
+        {
+            "run": "ft+openvla-7b+prob3_pick_place+b24+lr-2e-05+lora-r32+dropout-0.05--v2.1.2_no_randomization--image_aug",
+            "step": 17000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.04494640522875844,
+                "xyz": 3.0851283333301542,
+                "rpy": 1.789701154850113,
+                "acc": 0.4885714268485705
+            },
+            "ratings": {
+                "l1": "buona",
+                "xyz": "ottima",
+                "rpy": "buona",
+                "acc": "buona"
+            }
+        },
+        {
+            "run": "ft+openvla-7b+prob3_pick_place+b24+lr-2e-05+lora-r32+dropout-0.05--v2.1.2_no_randomization--image_aug",
+            "step": 16000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.04523958916900127,
+                "xyz": 3.1053366785049437,
+                "rpy": 1.8208338314152013,
+                "acc": 0.49057142704725265
+            },
+            "ratings": {
+                "l1": "pessima",
+                "xyz": "ottima",
+                "rpy": "buona",
+                "acc": "buona"
+            }
+        },
+        {
+            "run": "ft+openvla-7b+prob3_pick_place+b24+lr-2e-05+lora-r32+dropout-0.05--v2.1.2_no_randomization--image_aug",
+            "step": 11000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.045447245564892935,
+                "xyz": 3.024329168876012,
+                "rpy": 1.8041061498324076,
+                "acc": 0.49395238012075426
+            },
+            "ratings": {
+                "l1": "pessima",
+                "xyz": "ottima",
+                "rpy": "buona",
+                "acc": "buona"
+            }
+        },
+        {
+            "run": "ft+openvla-7b+prob3_pick_place+b24+lr-2e-05+lora-r32+dropout-0.05--v2.1.2_no_randomization--image_aug",
+            "step": 12000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.045614939309057335,
+                "xyz": 2.9977902838786443,
+                "rpy": 1.817734368236367,
+                "acc": 0.4852857132554054
+            },
+            "ratings": {
+                "l1": "pessima",
+                "xyz": "ottima",
+                "rpy": "buona",
+                "acc": "buona"
+            }
+        },
+        {
+            "run": "ft+openvla-7b+prob3_pick_place+b24+lr-2e-05+lora-r32+dropout-0.05--v2.1.2_no_randomization--image_aug",
+            "step": 18000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.045685154061624926,
+                "xyz": 3.0917055157025657,
+                "rpy": 1.842093326886495,
+                "acc": 0.49390476057926813
+            },
+            "ratings": {
+                "l1": "pessima",
+                "xyz": "ottima",
+                "rpy": "buona",
+                "acc": "buona"
+            }
+        },
+        {
+            "run": "ft+openvla-7b+prob3_pick_place+b24+lr-2e-05+lora-r32+dropout-0.05--v2.1.2_no_randomization--image_aug",
+            "step": 21000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.045817366946779015,
+                "xyz": 3.1145821414788566,
+                "rpy": 1.8087580269980243,
+                "acc": 0.49290476153294244
+            },
+            "ratings": {
+                "l1": "pessima",
+                "xyz": "ottima",
+                "rpy": "buona",
+                "acc": "buona"
+            }
+        },
+        {
+            "run": "ft+openvla-7b+prob3_pick_place+b24+lr-2e-05+lora-r32+dropout-0.05--v2.1.2_no_randomization--image_aug",
+            "step": 9000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.045895798319328066,
+                "xyz": 2.9692784701983133,
+                "rpy": 1.8547605589665472,
+                "acc": 0.4903333326975505
+            },
+            "ratings": {
+                "l1": "pessima",
+                "xyz": "ottima",
+                "rpy": "buona",
+                "acc": "buona"
+            }
+        },
+        {
+            "run": "ft+openvla-7b+prob3_pick_place+b24+lr-2e-05+lora-r32+dropout-0.05--v2.1.2_no_randomization--image_aug",
+            "step": 6000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.04615126050420204,
+                "xyz": 2.9662706934611003,
+                "rpy": 1.774249190022548,
+                "acc": 0.486523808936278
+            },
+            "ratings": {
+                "l1": "pessima",
+                "xyz": "ottima",
+                "rpy": "buona",
+                "acc": "buona"
+            }
+        },
+        {
+            "run": "v3.0.1_LR3e-5_Acc4_R32",
+            "step": 3000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.046219887955182004,
+                "xyz": 2.749676922559738,
+                "rpy": 1.9160798072814942,
+                "acc": 0.4505357152223587
+            },
+            "ratings": {
+                "l1": "pessima",
+                "xyz": "ottima",
+                "rpy": "buona",
+                "acc": "buona"
+            }
+        },
+        {
+            "run": "ft+openvla-7b+prob3_pick_place+b24+lr-2e-05+lora-r32+dropout-0.05--v2.1.2_no_randomization--image_aug",
+            "step": 7000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.04632679738562123,
+                "xyz": 2.884237390374144,
+                "rpy": 1.8492086897992994,
+                "acc": 0.4823809513847033
+            },
+            "ratings": {
+                "l1": "pessima",
+                "xyz": "ottima",
+                "rpy": "buona",
+                "acc": "buona"
+            }
+        },
+        {
+            "run": "ft+openvla-7b+prob3_pick_place+b24+lr-2e-05+lora-r32+dropout-0.05--v2.1.2_no_randomization--image_aug",
+            "step": 14000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.047287021475257075,
+                "xyz": 3.0972713410456976,
+                "rpy": 1.8238442738205194,
+                "acc": 0.48942857078711194
+            },
+            "ratings": {
+                "l1": "pessima",
+                "xyz": "ottima",
+                "rpy": "buona",
+                "acc": "buona"
+            }
+        },
+        {
+            "run": "v2.1.2_mid_accum_cautious_LR5e-5_Acc4_R32",
+            "step": 2000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.048857516339869636,
+                "xyz": 2.7194923758506775,
+                "rpy": 1.847153833548228,
+                "acc": 0.48919047552347183
+            },
+            "ratings": {
+                "l1": "pessima",
+                "xyz": "ottima",
+                "rpy": "buona",
+                "acc": "buona"
+            }
+        },
+        {
+            "run": "ft+openvla-7b+prob3_pick_place+b24+lr-2e-05+lora-r32+dropout-0.05--v2.1.2_no_randomization--image_aug",
+            "step": 4000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.05009038281979488,
+                "xyz": 2.9360321334600448,
+                "rpy": 1.860345696647962,
+                "acc": 0.48123809442917503
+            },
+            "ratings": {
+                "l1": "pessima",
+                "xyz": "ottima",
+                "rpy": "buona",
+                "acc": "buona"
+            }
+        },
+        {
+            "run": "ft+openvla-7b+prob3_pick_place+b24+lr-2e-05+lora-r32+dropout-0.05--v2.1.2_no_randomization--image_aug",
+            "step": 5000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.05036676003734861,
+                "xyz": 2.914993367989858,
+                "rpy": 1.867164454624057,
+                "acc": 0.4796190470655759
+            },
+            "ratings": {
+                "l1": "pessima",
+                "xyz": "ottima",
+                "rpy": "buona",
+                "acc": "buona"
+            }
+        },
+        {
+            "run": "v2.1.2_low_accum_LR1e-4_Acc2_R32",
+            "step": 1500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.052638281979458856,
+                "xyz": 2.626243345975876,
+                "rpy": 1.912050571044286,
+                "acc": 0.481666665494442
+            },
+            "ratings": {
+                "l1": "pessima",
+                "xyz": "ottima",
+                "rpy": "buona",
+                "acc": "buona"
+            }
+        },
+        {
+            "run": "v2.1.2_high_rank_LR1e-4_Acc6_R64",
+            "step": 1000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.05501774042950557,
+                "xyz": 2.626930052955945,
+                "rpy": 1.914525815963745,
+                "acc": 0.47785714209079744
+            },
+            "ratings": {
+                "l1": "pessima",
+                "xyz": "ottima",
+                "rpy": "buona",
+                "acc": "buona"
+            }
+        },
+        {
+            "run": "v2.1.2_baseline_LR1e-4_Acc6_R32",
+            "step": 1000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.055327731092437375,
+                "xyz": 2.6452339109579723,
+                "rpy": 1.9149920454422633,
+                "acc": 0.48180952296654384
+            },
+            "ratings": {
+                "l1": "pessima",
+                "xyz": "ottima",
+                "rpy": "buona",
+                "acc": "buona"
+            }
+        },
+        {
+            "run": "v2.1.2_low_lr_LR5e-5_Acc6_R32",
+            "step": 1500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.055601120448179726,
+                "xyz": 2.647100723584493,
+                "rpy": 1.8755373341431745,
+                "acc": 0.4821428568959236
+            },
+            "ratings": {
+                "l1": "pessima",
+                "xyz": "ottima",
+                "rpy": "buona",
+                "acc": "buona"
+            }
+        },
+        {
+            "run": "ft+openvla-7b+prob3_pick_place+b24+lr-2e-05+lora-r32+dropout-0.05--v2.1.2_no_randomization--image_aug",
+            "step": 3000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.05620989729225066,
+                "xyz": 2.9017378636201223,
+                "rpy": 1.9730153707464535,
+                "acc": 0.4712380938132604
+            },
+            "ratings": {
+                "l1": "pessima",
+                "xyz": "ottima",
+                "rpy": "buona",
+                "acc": "buona"
+            }
+        },
+        {
+            "run": "v3.0.1_LR3e-5_Acc4_R32",
+            "step": 1500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.0593277310924369,
+                "xyz": 2.840777767896652,
+                "rpy": 2.0294695621728898,
+                "acc": 0.4474999989569187
+            },
+            "ratings": {
+                "l1": "pessima",
+                "xyz": "ottima",
+                "rpy": "buona",
+                "acc": "buona"
+            }
+        },
+        {
+            "run": "ft+openvla-7b+prob3_pick_place+b24+lr-2e-05+lora-r32+dropout-0.05--v2.1.2_no_randomization--image_aug",
+            "step": 2000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.05998281979458489,
+                "xyz": 2.935525722106298,
+                "rpy": 2.009243381222089,
+                "acc": 0.46290476191043856
+            },
+            "ratings": {
+                "l1": "pessima",
+                "xyz": "ottima",
+                "rpy": "buona",
+                "acc": "buona"
+            }
+        },
+        {
+            "run": "v2.1.2_mid_accum_cautious_LR5e-5_Acc4_R32",
+            "step": 1500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.0610819794584504,
+                "xyz": 2.9033697121143343,
+                "rpy": 1.9713561544418334,
+                "acc": 0.4740952375928561
+            },
+            "ratings": {
+                "l1": "pessima",
+                "xyz": "ottima",
+                "rpy": "buona",
+                "acc": "buona"
+            }
+        },
+        {
+            "run": "ft+openvla-7b+prob3_pick_place+b24+lr-2e-05+lora-r32+dropout-0.05--v2.1.2_no_randomization--image_aug",
+            "step": 1000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.06862110177404335,
+                "xyz": 2.9643092978000642,
+                "rpy": 2.0520680852631727,
+                "acc": 0.44557142845789593
+            },
+            "ratings": {
+                "l1": "pessima",
+                "xyz": "ottima",
+                "rpy": "buona",
+                "acc": "buona"
+            }
+        },
+        {
+            "run": "v2.1.2_low_accum_LR1e-4_Acc2_R32",
+            "step": 1000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.07303977591036459,
+                "xyz": 2.8847187634309135,
+                "rpy": 2.0799955875674883,
+                "acc": 0.45547619038820264
+            },
+            "ratings": {
+                "l1": "pessima",
+                "xyz": "ottima",
+                "rpy": "buona",
+                "acc": "buona"
+            }
+        },
+        {
+            "run": "v2.1.2_mid_accum_cautious_LR5e-5_Acc4_R32",
+            "step": 1000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.08361381886087813,
+                "xyz": 3.038500680287679,
+                "rpy": 2.2086228477160135,
+                "acc": 0.44419047542413076
+            },
+            "ratings": {
+                "l1": "pessima",
+                "xyz": "ottima",
+                "rpy": "buona",
+                "acc": "buona"
+            }
+        },
+        {
+            "run": "v2.1.2_low_lr_LR5e-5_Acc6_R32",
+            "step": 1000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.08640746965452877,
+                "xyz": 2.9886773571968077,
+                "rpy": 2.1793218417366345,
+                "acc": 0.44157142825921375
+            },
+            "ratings": {
+                "l1": "pessima",
+                "xyz": "ottima",
+                "rpy": "buona",
+                "acc": "buona"
+            }
+        },
+        {
+            "run": "v2.1.2_baseline_LR1e-4_Acc6_R32",
+            "step": 500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "POTREI",
+            "metrics": {
+                "l1": 0.10991447245564936,
+                "xyz": 3.3091154487927756,
+                "rpy": 2.408641663875431,
+                "acc": 0.41885714292526244
+            },
+            "ratings": {
+                "l1": "pessima",
+                "xyz": "ottima",
+                "rpy": "buona",
+                "acc": "buona"
+            }
+        },
+        {
+            "run": "v2.1.2_low_accum_LR1e-4_Acc2_R32",
+            "step": 500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "NON DOVREI",
+            "metrics": {
+                "l1": 0.13237422969187704,
+                "xyz": 3.56582058707873,
+                "rpy": 2.6260107512076694,
+                "acc": 0.39400000069538754
+            },
+            "ratings": {
+                "l1": "pessima",
+                "xyz": "buona",
+                "rpy": "pessima",
+                "acc": "pessima"
+            }
+        },
+        {
+            "run": "v2.1.2_high_rank_LR1e-4_Acc6_R64",
+            "step": 500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "NON DOVREI",
+            "metrics": {
+                "l1": 0.1422013071895428,
+                "xyz": 3.503703680753708,
+                "rpy": 2.607597763299942,
+                "acc": 0.399047619064649
+            },
+            "ratings": {
+                "l1": "pessima",
+                "xyz": "buona",
+                "rpy": "pessima",
+                "acc": "pessima"
+            }
+        },
+        {
+            "run": "v2.1.2_low_lr_LR5e-5_Acc6_R32",
+            "step": 500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "NON DOVREI",
+            "metrics": {
+                "l1": 0.16517609710550915,
+                "xyz": 4.065189384142558,
+                "rpy": 3.093600001613299,
+                "acc": 0.3671904772321383
+            },
+            "ratings": {
+                "l1": "pessima",
+                "xyz": "buona",
+                "rpy": "pessima",
+                "acc": "pessima"
+            }
+        },
+        {
+            "run": "v2.1.2_mid_accum_cautious_LR5e-5_Acc4_R32",
+            "step": 500,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "NON DOVREI",
+            "metrics": {
+                "l1": 0.17084668534080313,
+                "xyz": 4.198179463545482,
+                "rpy": 3.2138259045282997,
+                "acc": 0.36171428698301317
+            },
+            "ratings": {
+                "l1": "pessima",
+                "xyz": "buona",
+                "rpy": "pessima",
+                "acc": "pessima"
+            }
+        },
+        {
+            "run": "ft+openvla-7b+prob3_pick_place+b16+lr-0.0005+lora-r32+dropout-0.05--v2.1.2_no_randomization--image_aug",
+            "step": 2000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "INCOMPLETO",
+            "metrics": {
+                "l1": null,
+                "xyz": null,
+                "rpy": null,
+                "acc": 0.6214285761117935
+            },
+            "ratings": {
+                "l1": "n/d",
+                "xyz": "n/d",
+                "rpy": "n/d",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "ft+openvla-7b+prob3_pick_place+b16+lr-0.0005+lora-r32+dropout-0.05--v2.1.2_no_randomization--image_aug",
+            "step": 4000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "INCOMPLETO",
+            "metrics": {
+                "l1": null,
+                "xyz": null,
+                "rpy": null,
+                "acc": 0.5714285731315613
+            },
+            "ratings": {
+                "l1": "n/d",
+                "xyz": "n/d",
+                "rpy": "n/d",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "ft+openvla-7b+prob3_pick_place+b16+lr-0.0005+lora-r32+dropout-0.05--v2.1.2_no_randomization--image_aug",
+            "step": 6000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "INCOMPLETO",
+            "metrics": {
+                "l1": null,
+                "xyz": null,
+                "rpy": null,
+                "acc": 0.5964285761117936
+            },
+            "ratings": {
+                "l1": "n/d",
+                "xyz": "n/d",
+                "rpy": "n/d",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "ft+openvla-7b+prob3_pick_place+b16+lr-0.0005+lora-r32+dropout-0.05--v2.1.2_no_randomization--image_aug",
+            "step": 8000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "INCOMPLETO",
+            "metrics": {
+                "l1": null,
+                "xyz": null,
+                "rpy": null,
+                "acc": 0.6642857074737549
+            },
+            "ratings": {
+                "l1": "n/d",
+                "xyz": "n/d",
+                "rpy": "n/d",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "ft+openvla-7b+prob3_pick_place+b16+lr-0.0005+lora-r32+dropout-0.05--v2.1.2_no_randomization--image_aug",
+            "step": 10000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "INCOMPLETO",
+            "metrics": {
+                "l1": null,
+                "xyz": null,
+                "rpy": null,
+                "acc": 0.7178571403026581
+            },
+            "ratings": {
+                "l1": "n/d",
+                "xyz": "n/d",
+                "rpy": "n/d",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "ft+openvla-7b+prob3_pick_place+b16+lr-0.0005+lora-r32+dropout-0.05--v2.1.2_no_randomization--image_aug",
+            "step": 12000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "INCOMPLETO",
+            "metrics": {
+                "l1": null,
+                "xyz": null,
+                "rpy": null,
+                "acc": 0.6892857134342194
+            },
+            "ratings": {
+                "l1": "n/d",
+                "xyz": "n/d",
+                "rpy": "n/d",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "ft+openvla-7b+prob3_pick_place+b16+lr-0.0005+lora-r32+dropout-0.05--v2.1.2_no_randomization--image_aug",
+            "step": 14000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "INCOMPLETO",
+            "metrics": {
+                "l1": null,
+                "xyz": null,
+                "rpy": null,
+                "acc": 0.7321428596973419
+            },
+            "ratings": {
+                "l1": "n/d",
+                "xyz": "n/d",
+                "rpy": "n/d",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "ft+openvla-7b+prob3_pick_place+b16+lr-0.0005+lora-r32+dropout-0.05--v2.1.2_no_randomization--image_aug",
+            "step": 16000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "INCOMPLETO",
+            "metrics": {
+                "l1": null,
+                "xyz": null,
+                "rpy": null,
+                "acc": 0.7499999940395355
+            },
+            "ratings": {
+                "l1": "n/d",
+                "xyz": "n/d",
+                "rpy": "n/d",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "ft+openvla-7b+prob3_pick_place+b16+lr-0.0005+lora-r32+dropout-0.05--v2.1.2_no_randomization--image_aug",
+            "step": 18000,
+            "name": null,
+            "adapter_path": null,
+            "on_disk": false,
+            "verdict": "INCOMPLETO",
+            "metrics": {
+                "l1": null,
+                "xyz": null,
+                "rpy": null,
+                "acc": 0.7250000059604644
+            },
+            "ratings": {
+                "l1": "n/d",
+                "xyz": "n/d",
+                "rpy": "n/d",
+                "acc": "ottima"
+            }
+        },
+        {
+            "run": "ft+openvla-7b+prob3_pick_place+b16+lr-0.0005+lora-r32+dropout-0.05--v2.1.2_no_randomization--image_aug",
+            "step": 20000,
+            "name": "openvla-7b+prob3_pick_place+b16+lr-0.0005+lora-r32+dropout-0.05--v2.1.2_no_randomization--image_aug--20000_chkpt",
+            "adapter_path": "/home/vlabot/Scrivania/thesis/runs/openvla/openvla-7b+prob3_pick_place+b16+lr-0.0005+lora-r32+dropout-0.05--v2.1.2_no_randomization--image_aug--20000_chkpt",
+            "on_disk": true,
+            "verdict": "INCOMPLETO",
+            "metrics": {
+                "l1": null,
+                "xyz": null,
+                "rpy": null,
+                "acc": 0.7750000059604645
+            },
+            "ratings": {
+                "l1": "n/d",
+                "xyz": "n/d",
+                "rpy": "n/d",
+                "acc": "ottima"
+            }
+        }
+    ]
+}

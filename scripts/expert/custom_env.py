@@ -58,6 +58,11 @@ class CustomTask(SingleArmEnv):
             table_offset=(0, 0, settings.table_height)
         )
 
+        '''
+        floor_geom = self.mujoco_arena.floor
+        floor_geom.attrib.pop("material", None)
+        floor_geom.set("rgba", "0.7 0.7 0.7 1.0")
+        '''
         # Set the origin of the arena in the origin of the world.
         self.mujoco_arena.set_origin([0.0, 0.0, 0.0])
 
@@ -119,12 +124,14 @@ class CustomTask(SingleArmEnv):
                 kwargs = {
                     "name": name,
                     "size_min": list(np.full(3, settings.object_half_size_min)),
-                    "size_max": list(np.full(3, settings.object_half_size_max))
+                    "size_max": list(np.full(3, settings.object_half_size_max)),
+                    #"rgba": [0.82, 0.71, 0.55, 1.0]
                 }
             else:
                 kwargs = {
                     "name": name,
                     "size": self.initial_conditions["init_obj_size"],
+                    #"rgba": [0.82, 0.71, 0.55, 1.0]
                 }
 
             obj_instance = obj_class(**kwargs)

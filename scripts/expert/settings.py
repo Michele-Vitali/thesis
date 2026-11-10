@@ -9,7 +9,8 @@ robot = "PRob3"
 gripper_types = "PRob3Gripper"
 render_on_screen = False    # Set to false for faster simulations
 record = True
-base_env_rand_seed = 100  # Important: Change when we want true fresh unseenOkay randomization!
+base_env_rand_collect_seed = 200  # Important: Change when we want true fresh unseenOkay randomization!
+base_env_rand_test_seed = 5000
 
 # Environment variables
 max_reachable_x = 0.55 # It is 60cm, but we take a margin and set it to 55cm
@@ -38,7 +39,7 @@ safe_offset_gripper = [0.0, 0.0, 0.115]
 gains = {
     "position": {
         "approach": 0.13,
-        "descend": 0.1,
+        "descend": 0.08,
         "lift": 0.08,
         "transport": 0.13,
         "lower": 0.15,
@@ -57,9 +58,9 @@ gripper_transition_seconds = 1.0
 expert_max_segment_seconds = 20.0
 
 # Integral Z payload compensation
-z_integral_gain = 0.36
+z_integral_gain = 0.14
 z_integral_limit = 0.025
-z_integral_deadband = 0.001
+z_integral_deadband = 0.003
 z_integral_action_limit = 0.09
 
 # After some testing we found out that some ideal z values are:
@@ -137,8 +138,8 @@ online_eval_tolerance = 0.05 # 5 cm!
 n_objects = 1
 
 # RLDS 
-dataset_root = str(Path(__file__).resolve().parents[1] / "hdf5_data")
-dataset_name = "v2.1_randomized_textures"
+dataset_root = str(Path(__file__).resolve().parents[2] / "hdf5_data")
+dataset_name = "v3.0_no_randomization"
 
 dataset_fps = 5
 
@@ -186,8 +187,8 @@ osc_config = {
     "control_delta": True,
     "input_min": -1.0,
     "input_max": 1.0,
-    "output_min": np.array([-0.05, -0.05, -0.05, -0.5, -0.5, -0.5]),
-    "output_max": np.array([+0.05, +0.05, +0.05, +0.5, +0.5, +0.5]),
+    "output_min": np.array([-0.05, -0.05, -0.02, -0.5, -0.5, -0.5]),
+    "output_max": np.array([+0.05, +0.05, +0.02, +0.5, +0.5, +0.5]),
     # P-Rob3 q5 joint-limit avoidance
     "q5_index": 4,
     "q5_avoidance_start": 1.94,
@@ -202,5 +203,5 @@ server_port = 8000
 server_url = f"http://{server_host}:{server_port}"
 unnorm_key = "prob3_pick_place"
 server_timeout = 120 # 120 s = 2 mins
-openvla_path = "openvla/openvla-7b"
+openvla_path = "runs/openvla/openvla-7b+prob3_pick_place+b16+lr-0.0005+lora-r32+dropout-0.05--v2.1.2_no_randomization--image_aug--20000_chkpt"
 adapter_path = None

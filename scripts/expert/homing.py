@@ -92,6 +92,6 @@ def prepare_episode(env: "SingleArmEnv", joint_config: dict | None = None, osc_c
     except TypeError:
         observation = env._get_observations()
 
-    print("[HOMING] P-Rob3 is ready for the task.")
+    #print("[HOMING] P-Rob3 is ready for the task.")
 
     return observation

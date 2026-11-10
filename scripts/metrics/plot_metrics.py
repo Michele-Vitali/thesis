@@ -155,9 +155,9 @@ def plot_stacked_success_rate(successes, fails) -> Figure:
     ax.bar('Model', successes, color='#2ec4b6', label=f'Successes ({successes})', width=0.4)
     ax.bar('Model', fails, color='#e71d36', label=f'Fails ({fails})', width=0.4)
 
-    ax.title('Rapporto Successi / Fallimenti', fontsize=14, fontweight='bold', pad=15)
-    ax.ylabel('Numero di Task (Unità)', fontsize=12)
-    ax.ylim(0, total * 1.1)  # Spazio in alto per il testo del totale
+    ax.set_title('Rapporto Successi / Fallimenti', fontsize=14, fontweight='bold', pad=15)
+    ax.set_ylabel('Numero di Task (Unità)', fontsize=12)
+    ax.set_ylim(0, total * 1.1)  # Spazio in alto per il testo del totale
     ax.grid(axis='y', linestyle='--', alpha=0.4)
     ax.legend(loc='upper right')
 

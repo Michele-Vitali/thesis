@@ -25,10 +25,7 @@ class PRob3Gripper(GripperModel):
         """
 
         # Define and use the xml which defines the gripper.
-        path = os.path.join(
-            os.path.dirname(__file__),
-            "../assets/robots/PRob3/PGripper.xml",
-        )
+        path = os.path.join(os.path.dirname(__file__), "../../assets/robots/PRob3/PGripper.xml")
         super().__init__(fname=path, idn=idn)
 
     @property
@@ -132,9 +129,7 @@ class PRob3(ManipulatorModel):
 
         # Define and use the xml which defines the robot.
         path = os.path.join(
-            os.path.dirname(__file__),
-            "../assets/robots/PRob3/PRob3.xml",
-        )
+            os.path.dirname(__file__), "../../assets/robots/PRob3/PRob3.xml")
         super().__init__(fname=path, idn=idn)
 
     @property

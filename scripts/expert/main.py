@@ -20,13 +20,23 @@ from robosuite.environments.manipulation.single_arm_env import SingleArmEnv
 from robosuite.wrappers import DomainRandomizationWrapper
 import random
 
+current_seed = None
+
 def set_global_seed(seed: int):
     # First set the randomization seed for reproducibility!
     random.seed(seed)
     np.random.seed(seed)
+    global current_seed
+    current_seed = seed
+
+def get_global_seed() -> int:
+    if current_seed is None:
+        raise ValueError("Global seed not initialized yet!")
+    else:
+        return current_seed
 
 def main():
-    target_seed = settings.base_env_rand_seed
+    target_seed = settings.base_env_rand_collect_seed
     set_global_seed(target_seed)
 
     # Load our custom OSC_POSE controller!
@@ -98,6 +108,7 @@ def main():
         else:
             print(f"Exception occurred: {e}")   
 
+    '''
     finally:
         # If an environment was initialized we also make sure to close it!
         if env is not None:
@@ -105,7 +116,8 @@ def main():
 
         # Make sure to finalize the HDF5 dataset...
         recorder.finalize()
-
+    '''
+        
 def check_task_success(error_norm: float) -> bool:
     """Checks for task success by comparing the passed task error with the tolerance defined in the 'settings' file.
 
@@ -240,7 +252,7 @@ def create_randomized_env(config: dict | None) -> DomainRandomizationWrapper:
     # We use domain randomization to create a more robust dataset
     env = DomainRandomizationWrapper(
         env,
-        randomize_color=True,
+        randomize_color=False,
         randomize_lighting=False,
         randomize_camera=False, # We first set this to False so we don't randomize the grip camera as well...
         randomize_dynamics=False, # Seems useful but for the first trainings we avoid using this...
@@ -363,7 +375,7 @@ def pick_and_place_task(env: "SingleArmEnv", recorder: HDF5Recorder, record: boo
 
             # If the action was successfull we save it...
             if error is not None and error <= settings.final_tolerance:
-                recorder.save_episode()
+                recorder.save_episode(get_global_seed())
             else:
                 recorder.discard_episode()
     except Exception:
@@ -450,7 +462,7 @@ def pick_and_place_action(env: "SingleArmEnv", obj, pos: np.ndarray, quat: np.nd
     done, steps = movements_ctrl.set_gripper(target=0.0, record=record, obj=obj)
     total_steps += steps
 
-    print(f"Closing steps: {steps}")
+    #print(f"Closing steps: {steps}")
 
     if not done:
         print(f"OSC failed while closing the gripper. [Steps: {steps}]")
@@ -503,7 +515,7 @@ def pick_and_place_action(env: "SingleArmEnv", obj, pos: np.ndarray, quat: np.nd
     done, steps = movements_ctrl.set_gripper(target=1.0, record=record, obj=obj)
     total_steps += steps
 
-    print(f"Opening steps: {steps}")
+    #print(f"Opening steps: {steps}")
 
     if not done:
         print(f"OSC failed while opening the gripper. [Steps: {steps}]")

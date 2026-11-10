@@ -1,375 +1,335 @@
 import argparse
+import json
+import random
 import time
+import multiprocessing
 from pathlib import Path
 
-import scripts.expert.custom_env as custom_env
-import scripts.expert.custom_robot as custom_robot
 import h5py
 import mujoco
 import numpy as np
 import robosuite as suite
+import requests
+from matplotlib import pyplot as plt
+from PIL import Image
+
+from robosuite.controllers import load_controller_config
+from robosuite.environments.manipulation.single_arm_env import SingleArmEnv
+
+# Import dal tuo ambiente locale
 import scripts.expert.settings as settings
+from scripts.evaluations.vla_client import OpenVLAClient
+from scripts.evaluations.vla_server import DeployConfig, run_server_with_cfg
 from scripts.expert.action_utils import process_osc_action
 from scripts.expert.custom_osc import install_prob3_custom_osc
 from scripts.expert.homing import prepare_episode
-from robosuite.controllers import load_controller_config
-from robosuite.environments.manipulation.single_arm_env import SingleArmEnv
-from scripts.expert.switch_controller import switch_arm_controller
-from scripts.evaluations.vla_client import OpenVLAClient
-import json
-from matplotlib import pyplot as plt
-from matplotlib.figure import Figure
-
 from scripts.metrics.plot_metrics import plot_stacked_success_rate
 
+def set_global_seed(seed: int):
+    random.seed(seed)
+    np.random.seed(seed)
 
 def get_init_conditions(hdf5_path: Path, demo_name) -> dict:
-    initial_conditions = {
-        "init_obj_pos": None,
-        "init_obj_quat": None,
-        "init_obj_size": None
-    }
+    initial_conditions = {"init_obj_pos": None, "init_obj_quat": None, "init_obj_size": None}
     with h5py.File(hdf5_path, "r") as f:
         demo = f["data"][demo_name]
-
         initial_conditions["init_obj_pos"] = demo.attrs['object_initial_position_m']
-        init_obj_quat = np.asarray(demo.attrs['object_initial_quat_wxyz'])
-        initial_conditions["init_obj_quat"] = init_obj_quat #[[1,2,3,0]]
+        initial_conditions["init_obj_quat"] = np.asarray(demo.attrs['object_initial_quat_wxyz'])
         initial_conditions["init_obj_size"] = demo.attrs['object_size_parameters_m']
-
     return initial_conditions
 
 def create_env(joint_config: dict | None = None, init_cond: dict | None = None) -> SingleArmEnv:
-    # 3. Create the actual env.
     env = suite.make(
         env_name=settings.env_name,
         init_conditions=init_cond,
         robots=settings.robot,
         gripper_types=settings.gripper_types,
-        has_renderer=True,  # On-screen renderer, useful for debug, but slow for dataset gathering.
-        has_offscreen_renderer=True,  # Necessary for the dataset.
-        use_camera_obs=True,  # Also for dataset.
+        has_renderer=True,
+        has_offscreen_renderer=True,
+        use_camera_obs=True,
         camera_names=settings.dataset_camera_names,
-        #render_camera="sideview",
         camera_heights=settings.dataset_image_height,
         camera_widths=settings.dataset_image_width,
         camera_depths=False,
         control_freq=settings.dataset_fps,
         controller_configs=joint_config,
-        hard_reset=False,  # Avoids segfault on macos or glfw error on Linux (per docs).
-        horizon=1000,  # So we are sure that all the pick and places terminate.
-        reward_shaping=True,  # Not useful in our case but had implemented it anyway.
+        hard_reset=False,
+        horizon=1000,
     )
 
-    # Sposta la telecamera sideview a livello del tavolo.
     table_z = float(env.mujoco_arena.table_top_abs[2])
     cam_id = env.sim.model.camera_name2id("sideview")
-    
-    # Posizionala sul lato (y=-0.6) a +5cm dal piano del tavolo.
     env.sim.model.cam_pos[cam_id] = [0.0, -0.6, table_z]
-    
-    # Ruotala per guardare dritto verso il centro del tavolo (asse +Y).
     env.sim.model.cam_quat[cam_id] = [0.7071068, 0.7071068, 0.0, 0.0]
-    '''
-    # Enable shadows (like in training!).
-    model = env.sim.model
-    if model.nlight > 0:
-        model.light_castshadow[:] = int(settings.camera_shadows)
-        active_lights = model.light_active.astype(bool)
 
-        model.light_ambient[active_lights] = settings.camera_shadow_ambient
-        model.light_diffuse[active_lights] = settings.camera_shadow_diffuse
-    '''
-    # 3.1 Remove rangefinders visualization.
     context = getattr(env.sim, "_render_context_offscreen", None)
-
     if context is not None:
         context.vopt.flags[mujoco.mjtVisFlag.mjVIS_RANGEFINDER] = 0
 
     env.reset()
     env.sim.forward()
-
     return env
 
+def wait_for_server(process, timeout=600):
+    url = f"{settings.server_url}/health"
+    start = time.monotonic()
+    while time.monotonic() - start < timeout:
+        if not process.is_alive():
+            raise RuntimeError(f"OpenVLA Server crashed: {process.exitcode}")
+        try:
+            response = requests.get(url, timeout=2)
+            if response.status_code == 200 and response.json().get("status") == "OK":
+                print("[SERVER] Server ready to receive requests!")
+                return
+        except (requests.RequestException, ValueError, RuntimeError):
+            pass
+        time.sleep(1)
+    raise TimeoutError("Timeout avvio server OpenVLA!")
+
 def main():
-    # Parse command line arguments for overfit evaluation.
-    parser = argparse.ArgumentParser(description="Valutazione online in simulazione Robosuite.")
-    parser.add_argument("--hdf5", type=str, default=None, help="Path al file HDF5 per riprodurre le posizioni esatte di overfit")
-    parser.add_argument("--max_demos", type=int, default=5, help="Numero di episodi da testare in overfit")
+    target_seed = settings.base_env_rand_test_seed
+    
+    parser = argparse.ArgumentParser(description="Valutazione online automatizzata su N modelli.")
+    parser.add_argument("--hdf5", type=str, default=None, help="Path HDF5 per overfit")
+    parser.add_argument("--max_demos", type=int, default=5, help="Numero episodi")
+    parser.add_argument("--n_models", type=int, default=1, help="Numero di ultimi modelli da valutare")
+    parser.add_argument("--queue", type=str, default=None,
+                        help="JSON generato da analyze_checkpoints.py: valuta i modelli della coda (ignora --n_models)")
+    parser.add_argument("--categories", nargs="+", default=["SICURO", "POTREI"],
+                        choices=["SICURO", "POTREI", "NON DOVREI", "INCOMPLETO"],
+                        help="Categorie della coda da valutare (default: SICURO POTREI)")
+    parser.add_argument("--skip_done", action=argparse.BooleanOptionalAction, default=True,
+                        help="Con --queue, salta i modelli che hanno già evaluation_results.json (default: sì)")
     args = parser.parse_args()
 
-    # First we must re-create the same environment we used in dataset gathering.
-    # 1. Initialize our custom OSC_POSE controller.
     install_prob3_custom_osc()
-
-    # 2. Grab the controllers' configurations.
     joint_config = load_controller_config(default_controller="JOINT_POSITION")
     osc_config = load_controller_config(default_controller="OSC_POSE")
     osc_config.update(settings.osc_config)
 
-    # Load stored demo names if an HDF5 path for overfitting is provided.
     overfit_demos = []
     if args.hdf5:
         hdf5_path = Path(args.hdf5).resolve()
         with h5py.File(hdf5_path, "r") as f:
-            overfit_demos = sorted(f["data"].keys())[: args.max_demos]
+            overfit_demos = sorted(f["data"].keys(), key=lambda n: int(n.split("_")[-1]))[: args.max_demos]
         n_tasks = len(overfit_demos)
-        #print(f"[OVERFIT MODE] Loaded {n_tasks} initial positions from: {hdf5_path.name}")
     else:
-        n_tasks = 0
-        is_good = False
-        while not is_good:
-            try:
-                n_tasks = int(input("How many tasks you want to evaluate? "))
-                is_good = True
-            except Exception:
-                print("You must insert a valid number!")
+        n_tasks = int(input("How many tasks you want to evaluate? "))
+
+    # Find the models
+    script_dir = Path(__file__).resolve().parent
+    checkpoints_base_dir = script_dir / "../../runs/openvla"
+    
+    if args.queue:
+        models = load_queue(Path(args.queue), args.categories, checkpoints_base_dir, args.skip_done)
+    else:
+        models = sorted(
+            [p for p in checkpoints_base_dir.iterdir() if p.is_dir() and "chkpt" in p.name],
+            key=lambda p: p.stat().st_mtime,
+            reverse=True,
+        )[:args.n_models]
+    
+    if not models:
+        print("No model to evaluate was found" + (f" in the queue {args.queue}" if args.queue else f" at: {checkpoints_base_dir}"))
+        return
 
     print("=" * 60)
-    print("Starting OpenVLA model evaluation...")
+    print(f"Starting evaluation on {len(models)} models")
     print("=" * 60)
 
-    results = []
-    base_results = []
-    n_successes = 0
+    # Models loop
+    for model_path in models:
+        print(f"\n>>> Starting evalaution of: {model_path.name} <<<")
+        
+        # 1. Start the server in an independent process
+        current_config = DeployConfig(adapter_path=model_path)
+        server_process = multiprocessing.Process(target=run_server_with_cfg, args=(current_config,))
+        server_process.start()
 
-    # 4. Instantiate the OpenVLAClient.
-    client = OpenVLAClient(
-        server_url=settings.server_url,
-        unnorm_key=settings.unnorm_key,
-        timeout=settings.server_timeout,
-    )
+        try:
+            wait_for_server(server_process)
+            
+            client = OpenVLAClient(
+                server_url=settings.server_url,
+                unnorm_key=settings.unnorm_key,
+                timeout=settings.server_timeout,
+            )
+            
+            results = []
+            base_results = []
+            n_successes = 0
 
-    for task_id in range(n_tasks):
-        if args.hdf5 and overfit_demos:
-            demo_name = overfit_demos[task_id]
-            print(f"[OVERFIT] Executing stored episode: {demo_name}")
+            # Task loop
+            for task_id in range(n_tasks):
+                current_seed = target_seed + task_id
+                set_global_seed(current_seed)
+                
+                if args.hdf5 and overfit_demos:
+                    demo_name = overfit_demos[task_id]
+                    with h5py.File(hdf5_path, "r") as f:
+                        expert_steps = len(f['data'][demo_name]['obs']['agentview_rgb'])
+                    initial_conditions = get_init_conditions(hdf5_path, demo_name)
+                    env = create_env(joint_config, initial_conditions)
+                else:
+                    env = create_env(joint_config)
 
-        with h5py.File(hdf5_path, "r") as f:
-            demo = f['data'][f'demo_{task_id}']
-            expert_steps = len(demo['obs']['agentview_rgb'][0])
+                prepare_episode(env, joint_config, osc_config)
+                observation = read_observation(env)
 
-        initial_conditions = get_init_conditions(Path(args.hdf5), demo_name)
-        #print("="*60)
-        #print(initial_conditions)
-        #print("="*60)
+                t0 = time.monotonic()
+                error, total_steps, placed = execute_task(env, observation, client)
+                elapsed = time.monotonic() - t0
 
-        env = create_env(joint_config, initial_conditions)
-        env.render()
-        prepare_episode(env, joint_config, osc_config)
-        observation = read_observation(env)
+                success = False
+                if error < settings.online_eval_tolerance:
+                    success = bool(placed)
+                    if success: n_successes += 1
 
-        success = False
-        print(f"\n[Task-{task_id}]")
+                print(f"[Task-{task_id}] {'SUCCESS' if success else 'FAIL'} | Err: {error:.4f} | Steps: {total_steps} | Time: {elapsed:.1f}s")
 
-        if env.robots[0].controller.name != "OSC_POSE":
-            raise RuntimeError("OSC_POSE controller not active after homing!")
+                res = {
+                    "task_id": task_id,
+                    "error": error,
+                    "success": success,
+                    "model_steps": total_steps,
+                    "model": model_path.name,
+                    "duration": elapsed,
+                }
+                if args.hdf5 and overfit_demos:
+                    res["expert_steps"] = expert_steps
+                    res["step_ratio"] = round(expert_steps/total_steps, 3) if total_steps > 0 else 0
+                
+                results.append(res)
+                base_results.append((error, total_steps))
 
-        if env.robots[0].action_dim != 7:
-            raise RuntimeError(f"Expected robot action_dim = 7, got {env.robots[0].action_dim}")
+            # Save the results for this model
+            save_results(results, model_path)
+            print_final_report(n_successes, n_tasks)
+            plot_results(results, model_path)
+            client.close()
 
-        t0 = time.monotonic()
-        error, total_steps = execute_task(env, task_id, observation, client)
-        elapsed = time.monotonic() - t0
+        finally:
+            # 2. Destroy the model to flush the VRAM
+            print(f"Chiudo il server per liberare VRAM ({model_path.name})...")
+            server_process.kill()
+            server_process.join()
+            time.sleep(3)  # Pause for safety
 
-        if error < settings.online_eval_tolerance:
-            success = True
-            n_successes += 1
+def load_queue(queue_path: Path, categories: list, checkpoints_base_dir: Path, skip_done: bool = True) -> list:
+    """Legge la coda creata da analyze_checkpoints.py e ritorna i Path degli adapter da valutare,
+    già in ordine di priorità (SICURO -> POTREI -> ...)."""
+    with open(queue_path, encoding="utf-8") as f:
+        queue = json.load(f)
 
-        print(f"The task was a {'SUCCESS' if success else 'FAIL'}, it used {total_steps} steps and lasted a total of {elapsed: .1f} seconds.")
-        print(f"The error was: {error: .5f} and the steps were: {total_steps}")
+    wanted = set(categories)
+    models = []
+    for entry in queue["models"]:
+        if entry["verdict"] not in wanted:
+            continue
 
-        results.append({
-            "task_id": task_id,
-            "expert_steps": expert_steps,
-            "error": error,
-            "success": success,
-            "model_steps": total_steps,
-            "step_ratio": round(expert_steps/total_steps, 3), # 3 decimal spots
-            "model": client.model,
-            "duration": elapsed,
-            })
+        path = Path(entry["adapter_path"]) if entry.get("adapter_path") else None
+        if (path is None or not path.is_dir()) and entry.get("name"):
+            path = checkpoints_base_dir / entry["name"]      # fallback se la coda arriva da un'altra macchina
+        if path is None or not path.is_dir():
+            print(f"[Queue] Checkpoint non trovato su disco, salto: {entry['run']} step {entry['step']}")
+            continue
+        if skip_done and (path / "evaluation_results.json").is_file():
+            print(f"[Queue] Già valutato, salto: {path.name}")
+            continue
 
-        base_results.append((error, total_steps))
+        models.append(path)
+        print(f"[Queue] {entry['verdict']:<7} {path.name}")
 
-    save_results(results)
-    print_final_report(n_successes, n_tasks, base_results)
-    plot_results(results)
+    print(f"[Queue] {len(models)} modelli da valutare ({', '.join(categories)})")
+    return models
 
-def print_final_report(n_successes: int, n_total_tasks: int, results: list[tuple[float, int]]) -> None:
-    """This function prints the final report after executing N tasks.
-
-    Args:
-        n_successes (int): The number of successes we achieved.
-        n_total_tasks (int): The number of total tasks we simulated.
-        results (list[tuple[float, int]]): A list of 'n_total_tasks' tuples, where each tuple contains the final error norm of the executed task and the number of total steps it has lasted.
-    """
-
-    print("=" * 60)
-    print(f"OSC final report: {n_successes}/{n_total_tasks} successful tasks. -> Success rate: {n_successes/n_total_tasks * 100: .2f}")
-    print("=" * 60)
-    np_results = np.array(results)
-    averages = np.mean(np_results, axis=0)
-    print(f"Average final error from the drop point: {averages[0]: 0.5f}")
-    print(f"Average number of steps per episode: {averages[1]: 0.5f}")
-
-def execute_task(env: "SingleArmEnv", task_id: int,obs: dict, client: OpenVLAClient, max_steps: int = 400) -> tuple[float, int]:
-    """Executes the pick and place task.
-
-    Args:
-        env (SingleArmEnv): The simulation environment.
-        obs (dict): The observation dictionary.
-        client (OpenVLAClient): The OpenVLAClient to interrogate for the next action.
-        max_steps (int, optional): The maximum number of steps our simulation should last. Defaults to 400.
-
-    Returns:
-        tuple[float, int]: A tuple where the first element is a float representing the final error norm,
-                           the second element indicates the number of steps the simulation lasted.
-    """
-
-    # Counter and flag variables.
+def execute_task(env: "SingleArmEnv", obs: dict, client: OpenVLAClient, max_steps: int = 400) -> tuple[float, int]:
     total_steps = 0
     error = 1.0
-
-    # Inizializziamo l'azione precedente a zero per la rampa di smoothing
     previous_action = np.zeros(env.action_dim, dtype=float)
-
+    placed = False
     stable_steps = 0
 
     for _ in range(max_steps):
         try:
-            # Prepare the image in the correct expected format.
-            image = prepare_rgb(obs)           
+            image = prepare_rgb(obs)
+            prediction = client.predict(image, settings.dataset_task)
+            action = process_osc_action(prediction, previous_action)
+            previous_action = action.copy()
 
-            try:
-                # Make the model predict the next action.
-                prediction = client.predict(image, settings.dataset_task)
+            next_obs, _, _, _ = env.step(action)
+            env.render()
+            obs = next_obs
+            total_steps += 1
 
-                # Usiamo la STESSA IDENTICA FUNZIONE del data collector per filtrare e tagliare l'azione!
-                action = process_osc_action(prediction, previous_action)
+            if env.objects:
+                obj = env.objects[0]
+                body_id = env.sim.model.body_name2id(obj.root_body)
+                obj_xy = env.sim.data.body_xpos[body_id][:2]
+                obj_z = env.sim.data.body_xpos[body_id][2]
+                target_xy = np.asarray(settings.drop_point, dtype=float)[:2]
+                table_z = float(env.mujoco_arena.table_top_abs[2])
                 
-                # Aggiorniamo il buffer interno per il frame successivo
-                previous_action = action.copy()
+                error = float(np.linalg.norm(obj_xy - target_xy))
+                z_error = abs(obj_z - (table_z + obj.size[2]))
 
-                next_obs, _, _, _ = env.step(action)
-                env.render()
+                if error < settings.online_eval_tolerance and z_error < 0.002:
+                    stable_steps += 1
+                    if stable_steps >= 10:
+                        placed = True
+                        break
+                else:
+                    stable_steps = 0
 
-                obs = next_obs
-                total_steps += 1
-
-                # Check for success.
-                if env.objects:
-                    obj = env.objects[0]
-                    body_id = env.sim.model.body_name2id(obj.root_body)
-                    obj_xy = env.sim.data.body_xpos[body_id][:2]
-                    obj_z = env.sim.data.body_xpos[body_id][2]
-                    target_xy = np.asarray(settings.drop_point, dtype=float)[:2]
-                    table_z = float(env.mujoco_arena.table_top_abs[2])
-                    target_z = table_z + obj.size[2]
-                    error = float(np.linalg.norm(obj_xy - target_xy))
-                    z_error = abs(obj_z - target_z)
-
-                    if error < settings.online_eval_tolerance and z_error < 0.0005:
-                        stable_steps += 1
-
-                        if stable_steps >= 10:
-                            break
-
-            except Exception as e:
-                print(f"Communication error with OpenVLA server: {e}\nTerminating...")
-                break
-        except Exception as e:
-            print("Trajectory terminated!")
-
+        except requests.RequestException as e:
+            print(f"Errore di rete con il server: {e}")
+            break
+        except Exception:
+            break
+            
     env.close()
-
-    return (error, total_steps)
-
-def prepare_rgb(obs: dict):
-    # Get the obs dict key corresponding to the camera.
-    camera_obs_key = settings.dataset_external_camera_observation_key
-
-    # Check if the key is valid.
-    if camera_obs_key not in obs:
-        raise KeyError(f"Camera observation key: {camera_obs_key} is missing from the observation dict! Available keys: {list(obs)}")
-
-    # Ensure the value is an np.ndarray.
-    image = np.asarray(obs[camera_obs_key])
-
-    # Check for image format/shape.
-    if image.ndim == 3 and image.shape[0] == 3 and image.shape[-1] != 3:
-        image = np.transpose(image, (1, 2, 0))
-
-    if image.dtype != np.uint8:
-        image = image.astype(np.float32)
-
-        # If the image was passed with the pixels' range of [0, 1], we rescale the range.
-        if np.max(image) <= 1.0:
-            image *= 255.0
-
-        # Clip for safety.
-        image = np.clip(image, 0, 255).astype(np.uint8)
-
-    # Grab the expected image format (H, W, 3).
-    expected = (settings.dataset_image_height, settings.dataset_image_width, 3)
-
-    # Last check on image format.
-    if image.shape != expected:
-        raise ValueError(f"Expected image shape: {expected}, got {image.shape}")
-
-    # IMPORTANT: Flip the image! Robosutie return upside-down images!!!
-    image = np.flipud(image).copy()
-
-    return np.ascontiguousarray(image)
-
-# NOTA: La funzione adapt_action è stata rimossa completamente, delegata ad action_utils.py
+    return (error, total_steps, placed)
 
 def read_observation(env: "SingleArmEnv") -> dict:
-    try:
-        return env._get_observations(force_update=True)
-    except TypeError:
-        return env._get_observations()
+    try: return env._get_observations(force_update=True)
+    except TypeError: return env._get_observations()
 
-def get_save_dir(model) -> Path:
-    models_dir = Path(__file__).resolve().parent / "../runs/openvla"
-    model_family = model.split("--")[1]
+def prepare_rgb(obs: dict):
+    key = settings.dataset_external_camera_observation_key
+    image = np.asarray(obs[key])
+    if image.dtype != np.uint8:
+        image = image.astype(np.float32)
+        if np.max(image) <= 1.0: image *= 255.0
+        image = np.clip(image, 0, 255).astype(np.uint8)
+    
+    image = np.flipud(image).copy()
+    
+    # Important! Add the center crop!
+    out_size = 224
+    area_scale = 0.9
+    side = np.sqrt(area_scale)
+    off = (1.0 - side) / 2.0
+    pil = Image.fromarray(image).resize((out_size, out_size), Image.LANCZOS)
+    box = (off * out_size, off * out_size, (off + side) * out_size, (off + side) * out_size)
+    pil = pil.resize((out_size, out_size), Image.BILINEAR, box=box)
+    
+    return np.ascontiguousarray(np.asarray(pil))
 
-    parent_model_dir = None
-    for item in models_dir.iterdir():
-        if item.is_dir() and model_family in item.name:
-            after_family = item.name.split("--", 1)[1]
+def save_results(results: list, model_path: Path)-> None:
+    with open(model_path / "evaluation_results.json", "w", encoding="utf-8") as f:
+        json.dump(results, f, indent=4, ensure_ascii=False)
 
-            if "--" not in after_family:
-                parent_model_dir = item
-                break
-
-    return parent_model_dir
-
-def save_results(results: list)-> None:
-
-    model = results[0]['model']
-    parent_model_dir = get_save_dir(model)
-
-    if parent_model_dir is not None:
-        with open(parent_model_dir / "evaluation_results.json", "w", encoding="utf-8") as f:
-            json.dump(results, f, indent=4, ensure_ascii=False)
-
-    print(f"Results file saved to location: {parent_model_dir / 'evaluation_results.json'}")
-
-def plot_results(results: list) -> None:
-
-    model = results[0]['model']
-    parent_model_dir = get_save_dir(model)
-
+def plot_results(results: list, model_path: Path) -> None:
     successes = sum(1 for x in results if x['success'] is True)
     fails = sum(1 for x in results if x['success'] is False)
-    total = successes + fails
-    assert total == len(results), "More successes and fails than number of results!"
-
     fig = plot_stacked_success_rate(successes, fails)
-    save_path = parent_model_dir / "success_rate.svg"
-    fig.savefig(save_path, dpi=300, bbox_inches="tight")
+    fig.savefig(model_path / "success_rate.svg", dpi=300, bbox_inches="tight")
     plt.close(fig)
+
+def print_final_report(n_successes, n_total):
+    print("=" * 60)
+    print(f"Success rate: {n_successes/n_total * 100: .2f}% ({n_successes}/{n_total})")
+    print("=" * 60)
 
 if __name__ == "__main__":
     main()

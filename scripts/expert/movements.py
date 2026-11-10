@@ -8,7 +8,7 @@ from scripts.expert.action_utils import process_osc_action # <--- NUOVO IMPORT
 class OSCMovementController:
 
     # These define the maximum position and rotation outputs our robot is able to erogate
-    OSC_POSITION_OUTPUT_MAX = np.array([0.05, 0.05, 0.05], dtype=float)
+    OSC_POSITION_OUTPUT_MAX = np.array([0.05, 0.05, 0.02], dtype=float)
     OSC_ROTATION_OUTPUT_MAX = np.array([0.5, 0.5, 0.5], dtype=float)
 
     # Top-down rotation matrix.
@@ -402,7 +402,7 @@ class OSCMovementController:
         # # Reset previous action buffer for gripper operations.
         self.previous_action = np.zeros(self.env.action_dim, dtype=float)
         
-        for _ in range(max_steps):
+        for step in range(max_steps):
 
             # Grab the current observation.
             observation = self.env._get_observations()

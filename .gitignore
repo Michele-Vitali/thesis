@@ -17,8 +17,8 @@ htmlcov/
 # VIRTUAL ENVIRONMENTS
 # ================================================================
 
-/venv/
-/openvla_env/
+/venv_openvla/
+/venv_robosuite/
 
 .env
 .env.*

@@ -66,7 +66,7 @@ def download_data(run_choice, run_list, api, entity, selected_proj):
 
 def save_data(folder: str, data) -> None:
 
-    save_path = Path(ADAPTER_ROOT) / f"{folder}" / "log_data.json"   
+    save_path = Path(ADAPTER_ROOT) / f"{folder}" / f"{folder}_log.json"   
 
     folder_path = save_path.parent
 

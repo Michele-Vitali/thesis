@@ -11,10 +11,11 @@ Dependencies:
 """
 
 import os.path
-import scripts.expert.settings as settings
 
 # ruff: noqa: E402
 import json_numpy
+
+import scripts.expert.settings as settings
 
 json_numpy.patch()
 import json
