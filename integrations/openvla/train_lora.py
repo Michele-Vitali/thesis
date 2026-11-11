@@ -31,7 +31,7 @@ RUN_ROOT = str(THESIS_ROOT / "runs" / "openvla")
 ADAPTER_ROOT = str(THESIS_ROOT / "adapters" / "openvla")
 os.environ["HF_HOME"] = str(THESIS_ROOT / "cache" / "huggingface")
 
-VAL_FILE = str(THESIS_ROOT / "hdf5_data" / "v3.0_no_randomization_20261109_142456_559122" / "splits" / "validation.hdf5")
+VAL_FILE = str(THESIS_ROOT / "hdf5_data" / "v4.0_no_randomization_fixed_ramp_20261111_133304_230811" / "splits" / "validation.hdf5")
 TRAIN_WRAPPER = str(THESIS_ROOT / "integrations" / "openvla" / "finetune.py")
 
 # --- 3. IPERPARAMETRI FISSI ---
@@ -49,14 +49,15 @@ SAVE_LATEST_CHECKPOINT_ONLY = "False"
 TARGET_MODULES = "all-linear"
 
 MAX_STEPS = "30000"
-WARMUP_STEPS = "500"
-SAVE_STEPS = "1000"
+WARMUP_STEPS = "100"
+SAVE_STEPS = "1500"
 
 # --- 4. GRIGLIA DI CONFIGURAZIONI (Variabili nel loop) ---
 # Ogni tupla contiene: (learning_rate, grad_accumulation, lora_rank, note)
 CONFIGURATIONS = [
-    ("1e-4", "2", 32, "v3.0.1_LR1e-4_Acc2_R32_A16_alllinear"),
-    ("4e-4", "2", 32, "v3.0.1_LR4e-4_Acc4_R32_A16-alllinear")
+    ("2e-4", "2", 32, "v4.0_LR2e_4_Acc2_R32_A16_alllinear"),
+    ("1e-4", "2", 64, "v4.0_LR1e_4_Acc2_R64_A16_alllinear"),
+    ("3e-5", "2", 32, "v4.0_LR3e_5_Acc2_R32_A16_alllinear")
 ]
 
 # --- 5. LOOP DI TRAINING ---

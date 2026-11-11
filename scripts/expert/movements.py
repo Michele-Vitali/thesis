@@ -7,16 +7,15 @@ from scripts.expert.action_utils import process_osc_action # <--- NUOVO IMPORT
 
 class OSCMovementController:
 
-    # These define the maximum position and rotation outputs our robot is able to erogate
-    OSC_POSITION_OUTPUT_MAX = np.array([0.05, 0.05, 0.02], dtype=float)
-    OSC_ROTATION_OUTPUT_MAX = np.array([0.5, 0.5, 0.5], dtype=float)
-
     # Top-down rotation matrix.
     R_TOP_GRASP = np.array([
         [1.0,  0.0,  0.0],
         [0.0, -1.0,  0.0],
         [0.0,  0.0, -1.0],
     ])
+
+    OSC_POSITION_OUTPUT_MAX = np.asarray(settings.osc_config["output_max"][:3], dtype=float)
+    OSC_ROTATION_OUTPUT_MAX = np.asarray(settings.osc_config["output_max"][3:], dtype=float)
 
     def __init__(self, env: SingleArmEnv, gripper_state: float = 1.0, recorder = None):
         """Initalizes an OSCMovementController.
@@ -31,7 +30,7 @@ class OSCMovementController:
         self.gripper_state = gripper_state
         
         # Save previous action for action smoothing.
-        self.previous_action = np.zeros(self.env.action_dim, dtype=float)
+        # self.previous_action = np.zeros(self.env.action_dim, dtype=float)
 
         # Optional HDF5 dataset recorder.
         self.recorder = recorder
@@ -172,7 +171,7 @@ class OSCMovementController:
             +/- 1.0 translation -> +/- 0.05 m
             +/- 1.0 rotation    -> +/- 0.5 rad
 
-        We intentionally limit the normalized commands to +/- 0.40:
+        We intentionally limit the normalized commands to +/- 0.50:
             translation -> maximum +/- 0.02 m per action
             rotation    -> maximum +/- 0.05 rad per action
 
@@ -193,25 +192,29 @@ class OSCMovementController:
         # Initialized a "blank" action
         action = np.zeros(self.env.action_dim, dtype=float)
 
-        # We compute the normalized translation action needed to minimize the position error.
-        normalized_position = position_gain * position_error / self.OSC_POSITION_OUTPUT_MAX
+         # Position: metres to move this step.
+        dist = float(np.linalg.norm(position_error))
+        if dist > 1e-9:
+            step = min(max(position_gain * dist, settings.min_pos_step), dist)
+            action[0:3] = position_error / dist * step / self.OSC_POSITION_OUTPUT_MAX
 
-        # We clip the translation action between the maximum values (for safety).
-        # NOTA: Rimosso np.clip qui, delegato a process_osc_action
-        action[0:3] = normalized_position # np.clip(normalized_position, -max_position_action, +max_position_action)
+        # Rotation: radians to rotate this step, based on the ROTATION error.
+        angle = float(np.linalg.norm(rotation_error))
+        if angle > 1e-9:
+            rstep = min(max(rotation_gain * angle, np.radians(settings.min_rot_step_deg)), angle)
+            action[3:6] = rotation_error / angle * rstep / self.OSC_ROTATION_OUTPUT_MAX
 
-        normalized_rotation = rotation_gain * rotation_error / self.OSC_ROTATION_OUTPUT_MAX
+        # Guard against this class of bug coming back
+        assert np.linalg.norm(action[3:6] * self.OSC_ROTATION_OUTPUT_MAX) <= angle + 1e-9
 
-        # NOTA: Rimosso np.clip qui, delegato a process_osc_action
-        action[3:6] = normalized_rotation # np.clip(normalized_rotation, -max_rotation_action, +max_rotation_action)
 
         # Hold the current gripper state.
         action[6] = self.gripper_state  
 
         return action
 
-    def move_eef_to_pose(self, target_pos: np.ndarray, target_rotation: R, max_steps: int = 500, position_tolerance: float = settings.position_tolerance,
-        rotation_tolerance_deg: float = settings.rotation_tolerance_deg, position_gain: float = settings.gains['position']['lift'], rotation_gain: float = settings.gains['rotation']['align'],
+    def move_eef_to_pose(self, target_pos: np.ndarray, target_rotation: R, max_steps: int = 500, position_tolerance: float = settings.phase_tolerances['approach'][0],
+        rotation_tolerance_deg: float = settings.phase_tolerances['approach'][1], position_gain: float = settings.gains['position']['lift'], rotation_gain: float = settings.gains['rotation']['align'],
         payload_compensation: bool = False, record: bool = True) -> tuple[bool, int]:
         """
         Closed-loop Cartesian motion using OSC_POSE.
@@ -286,7 +289,6 @@ class OSCMovementController:
                 if abs(z_error) > settings.z_integral_deadband:
                     # Compute the new value for the Z integral component and clip it between the bounds.
                     integral_z += z_error * dt
-                    integral_z = float(np.clip(integral_z, -settings.z_integral_limit, +settings.z_integral_limit))
                 # Integral Z action
                 integral_action_z = settings.z_integral_gain * integral_z / self.OSC_POSITION_OUTPUT_MAX[2]
                 integral_action_z = float(np.clip(integral_action_z, -settings.z_integral_action_limit, +settings.z_integral_action_limit))
@@ -298,10 +300,10 @@ class OSCMovementController:
 
             # --- INIZIO BLOCCO MODIFICATO ---
             # Elabora l'azione con la funzione centralizzata (Clipping + Rampa)
-            actual_action = process_osc_action(action, self.previous_action)
+            actual_action = process_osc_action(action) # It was (action, self.previous_action)
             
             # Update previous action buffer for the next step.
-            self.previous_action = actual_action.copy()
+            #self.previous_action = actual_action.copy()
             # --- FINE BLOCCO MODIFICATO ---
 
             # Save observation_ and action_t for dataset population...
@@ -351,7 +353,7 @@ class OSCMovementController:
 
         return (False, step)
     
-    def move_robot_to_position(self, pos: np.ndarray, quat: np.ndarray = None, max_steps: int = 400, position_tolerance: float = settings.position_tolerance, rotation_tolerance_deg: float = settings.rotation_tolerance_deg, 
+    def move_robot_to_position(self, pos: np.ndarray, quat: np.ndarray = None, max_steps: int = 400, position_tolerance: float = settings.phase_tolerances['approach'][0], rotation_tolerance_deg: float = settings.phase_tolerances['approach'][1], 
                                position_gain: float = settings.gains['position']['lift'], rotation_gain: float = settings.gains['rotation']['align'], payload_compensation: bool = False, record: bool = True) -> tuple[bool, int]:
         """
         Move the EEF directly to the Cartesian pose corresponding to the passed position.
@@ -379,6 +381,34 @@ class OSCMovementController:
 
         # Return the tuple that we receive from the move_eef_to_pose function!
         return self.move_eef_to_pose(target_pos=target_eef_pos, target_rotation=target_rotation, max_steps=max_steps, position_tolerance=position_tolerance, rotation_tolerance_deg=rotation_tolerance_deg, position_gain=position_gain, rotation_gain=rotation_gain, payload_compensation=payload_compensation, record=record)
+
+    
+    @staticmethod
+    def is_noop(action: np.ndarray, previous_action: np.ndarray | None, finger_delta: float | None, action_threshold: float = 1e-4, finger_threshold: float = 1e-4) -> bool:
+        """
+        Return True only when:
+        - the arm action is effectively zero;
+        - the gripper command has not changed;
+        - the gripper fingers are no longer moving.
+
+        This prevents valid gripper transitions from being discarded.
+        """
+
+        if previous_action is None or finger_delta is None:
+            return False
+
+        action = np.asarray(action, dtype=float)
+        previous_action = np.asarray(previous_action, dtype=float)
+
+        arm_is_idle = np.all(np.abs(action[:6]) <= action_threshold)
+
+        gripper_command_unchanged = abs(action[-1] - previous_action[-1]) <= action_threshold
+
+        fingers_are_idle = finger_delta <= finger_threshold
+
+        return arm_is_idle and gripper_command_unchanged and fingers_are_idle
+
+
         
     def set_gripper(self, target: int, max_steps: int = 50, record: bool = False, obj = None) -> tuple[bool, int]:
 
@@ -387,46 +417,81 @@ class OSCMovementController:
             raise ValueError(f"Invalid gripper target! Must be in [0, 1], got {target}")
         
         # Remember the target for next OSC movements.
+        previous_gripper_state = self.gripper_state
         self.gripper_state = float(target)
-
-        # Initialize empty action and set the gripper state to the desired one.
-        action = np.zeros(self.env.action_dim, dtype=float)
-        action[-1] = self.gripper_state
 
         stable_steps = 0
         steps = 0
-        gripper = self.env.robots[0].gripper
 
+        gripper = self.env.robots[0].gripper
         finger_indices = self.env.robots[0]._ref_gripper_joint_pos_indexes
-        
-        # # Reset previous action buffer for gripper operations.
-        self.previous_action = np.zeros(self.env.action_dim, dtype=float)
-        
-        for step in range(max_steps):
+
+        # Previous action and finger movement.
+        previous_action = np.zeros(self.env.action_dim, dtype=float)
+        previous_action[-1] = previous_gripper_state
+
+        previous_finger_delta = None
+        previous_is_grasped = False
+
+        recorded_steps = 0
+        skipped_steps = 0
+            
+        for _ in range(1, max_steps + 1):
+
+            raw_action = np.zeros(self.env.action_dim, dtype=float)
+            raw_action[-1] = self.gripper_state
+
+            actual_action = process_osc_action(raw_action) # It was (action, self.previous_action)
+            #self.previous_action = actual_action.copy()
 
             # Grab the current observation.
             observation = self.env._get_observations()
 
+            qpos_before = np.asarray(self.env.sim.data.qpos[finger_indices]).copy()
+
+            record_this_step = record
+
+            if target == 0 and obj is not None:
+                noop = self.is_noop(actual_action, previous_action, previous_finger_delta)
+
+                if noop:
+                    record_this_step = False
+
+            if record_this_step:
+                recorded_steps += 1
+            elif record:
+                skipped_steps += 1
+
             # Execute the step and eventually record it.
-            self._step(action=action, observation=observation, record=record)
+            self._step(action=actual_action, observation=observation, record=record_this_step)
+
             steps += 1
+
+            qpos_after = np.asarray(self.env.sim.data.qpos[finger_indices]).copy()
+
+            finger_delta = float(np.max(np.abs(qpos_after - qpos_before)))
 
             # Check if we're grasping the object.
             is_grasped = self.env._check_grasp(gripper=gripper, object_geoms=obj)
 
             if target == 0 and obj is not None:
                 if is_grasped:
-                    stable_steps += 1
-                else:
-                    stable_steps = 0
+                    stable_steps +=1
+                else: stable_steps = 0
 
                 if stable_steps >= 5:
-                    # We can assume the gripper is firmly closed...
+                    print(
+                    f"[GRIPPER CLOSE] "
+                    f"steps={steps} | "
+                    f"recorded={recorded_steps} | "
+                    f"skipped={skipped_steps}"
+                )
                     return (True, steps)
 
             if target == 1 and obj is not None:
                 current_qpos = np.asarray(self.env.sim.data.qpos[finger_indices]).copy()
-                is_open = np.all(np.abs(current_qpos > 0.5236))
+
+                is_open = np.all(np.abs(current_qpos) > 0.5236)
 
                 if not is_grasped and is_open:
                     stable_steps += 1
@@ -434,8 +499,23 @@ class OSCMovementController:
                     stable_steps = 0
 
                 if stable_steps >= 7:
-                    # This means we're not controlling the object anymore!
+                    print(
+                    f"[GRIPPER OPEN] "
+                    f"steps={steps} | "
+                    f"recorded={recorded_steps} | "
+                    f"skipped={skipped_steps}"
+                )
                     return (True, steps)
+
+            previous_action = actual_action.copy()
+            previous_finger_delta = finger_delta
+            previous_is_grasped = is_grasped
+
+        print(
+        f"[GRIPPER] steps={steps} | "
+        f"recorded={recorded_steps} | "
+        f"skipped={skipped_steps}"
+        )
 
         # If the target was to be closed but we finished max_steps we failed...
         if target == 0 and obj is not None:

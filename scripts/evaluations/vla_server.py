@@ -81,40 +81,36 @@ class OpenVLAServer:
 
         self.vla = self.vla.to(self.device)
 
-        stats_loaded = False
+        self.vla.norm_stats = self._load_norm_stats(adapter_path, self.openvla_path)
 
-        if adapter_path is not None:
-            stats_path = Path(adapter_path) / "dataset_statistics.json"
-            if stats_path.exists():
-                with open(stats_path, "r") as f:
-                    self.vla.norm_stats = json.load(f)
-                stats_loaded = True
-                print(f"[OK] Datasets statistics loaded from: {stats_path}")
-            else:
-                exp_name = Path(adapter_path).name.split("--")[0]
+        if settings.unnorm_key not in self.vla.norm_stats:
+            raise RuntimeError(f"unnorm_key '{settings.unnorm_key}' not in {list(self.vla.norm_stats)}")
 
-                thesis_root = Path(__file__).resolve().parent.parent
-                run_stats_path = thesis_root / "runs" / "openvla" / exp_name / "dataset_statistics.json"
-
-                if run_stats_path.exists():
-                    with open(run_stats_path, "r") as f:
-                        self.vla.norm_stats = json.load(f)
-                    stats_loaded = True
-                    print(f"[OK] Dataset statistics loaded from: {run_stats_path}")
-
-        if not stats_loaded and os.path.isdir(self.openvla_path):
-            stats_path = Path(self.openvla_path) / "dataset_statistics.json"
-            if stats_path.exists():
-                with open(stats_path, "r") as f:
-                    self.vla.norm_stats = json.load(f)
-                stats_loaded = True
-                print(f"[OK] Datasets statistics loaded from: {stats_path}")
-
-        if not stats_loaded:
-            print("[Error] No dataset statistics file has been found!")
+        self.adapter_path = adapter_path
 
         model_name = Path(adapter_path).name if adapter_path else Path(openvla_path).name
         print(f"Loaded server with model: {model_name}")
+
+    def _load_norm_stats(self, adapter_path, base_path) -> dict:
+        candidates = []
+        if adapter_path is not None:
+            adapter_path = Path(adapter_path)
+            exp_id = adapter_path.name.rsplit("--", 1)[0]
+            candidates += [adapter_path / "dataset_statistics.json",
+                           settings.runs_root / exp_id / "dataset_statistics.json"]
+
+        if os.path.isdir(base_path):
+            candidates.append(Path(base_path) / "dataset_statistics.json")
+
+        for p in candidates:
+            if p.is_file():
+                with open(p) as f:
+                    stats = json.load(f)
+
+                print(f"[OK] Dataset statistics loaded from: {p}")
+                return stats
+
+        raise RuntimeError("No dataset_statistics.json found. Looked in:\n " + "\n ".join(map(str, candidates)))
 
     def predict_action(self, payload: dict[str, Any]) -> JSONResponse:
         try:
@@ -135,13 +131,14 @@ class OpenVLAServer:
                 return JSONResponse({"action": json_numpy.dumps(action)})
             else:
                 return JSONResponse({"action": action})
-        except:  # noqa: E722
+        except Exception as e:
             logging.error(traceback.format_exc())
             logging.warning("Your request threw an error; make sure your request complies with the expected format:\n"
                 "{'image': np.ndarray, 'instruction': str}\nYou can optionally an `unnorm_key: str` to specific the dataset statistics you want to use for "
                 "de-normalizing the output actions."
             )
-            return "error"
+
+            return JSONResponse({"error": f"{type(e).__name__}: {e}"}, status_code=500)
 
     def run(self, host: str = settings.server_host, port: int = settings.server_port) -> None:
         self.app = FastAPI()
@@ -154,13 +151,13 @@ class OpenVLAServer:
         uvicorn.run(self.app, host=host, port=port, access_log=False)
 
     def health(self):
-        return {"status": "OK", "model": self.openvla_path}
+        return {"status": "OK", "model": str(self.openvla_path), "adapter": str(self.adapter_path) if self.adapter_path else None}
 
 @dataclass
 class DeployConfig:
     # fmt: off
     openvla_path: Union[str, Path] = settings.openvla_path              # If no model is passed, use the fallback model in the settings file!
-    adapter_path: Union[str, Path] = settings.adapter_path
+    adapter_path: Union[str, Path] = settings.adapters_root
 
     # Server Configuration
     host: str = settings.server_host                                    # Host IP Address

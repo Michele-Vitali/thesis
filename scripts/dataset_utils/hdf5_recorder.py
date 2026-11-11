@@ -186,7 +186,7 @@ class HDF5Recorder:
         wrist_camera_keys = [key for key in observation if key.endswith(wrist_suffix)]
 
         if len(wrist_camera_keys) != 1:
-            raise KeyboardInterrupt(f"Expected one wrist camera observation ending with '{wrist_suffix}', found: {wrist_camera_keys}")
+            raise KeyError(f"Expected one wrist camera observation ending with '{wrist_suffix}', found: {wrist_camera_keys}")
 
         wrist_image = self._prepare_image(observation[wrist_camera_keys[0]])
 
@@ -386,7 +386,7 @@ class NullRecorder:
     def record_frame(self, *args, **kwargs):
         pass
 
-    def save_episode(self):
+    def save_episode(self, rand_seed = None):
         pass
 
     def discard_episode(self):

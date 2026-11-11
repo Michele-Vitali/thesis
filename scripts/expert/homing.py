@@ -1,12 +1,14 @@
 import copy
 
 import numpy as np
-import scripts.expert.settings as settings
 from robosuite.environments.manipulation.single_arm_env import SingleArmEnv
+
+from scripts.expert import settings
+from scripts.expert.custom_osc import PRob3OperationalSpaceController
 from scripts.expert.switch_controller import switch_arm_controller
 
 
-def move_to_home(env: "SingleArmEnv", home_qpos: np.ndarray = settings.starting_pose, tolerance: float = 0.02, max_steps: float = 500):
+def move_to_home(env: "SingleArmEnv", home_qpos: np.ndarray = settings.starting_pose, tolerance: float = 0.02, max_steps: int = 500):
     """Move the P-Rob3 to HOME using JOINT_POSITION."""
 
     # Grab the controller instance.
@@ -81,6 +83,11 @@ def prepare_episode(env: "SingleArmEnv", joint_config: dict | None = None, osc_c
 
     # Switch to the same custom OSC used for data collection.
     switch_arm_controller(env, osc_config)
+
+    #print(robot.controller.q5_avoidance_start, robot.controller.q5_avoidance_max_torque)
+
+    #if not isinstance(robot.controller, PRob3OperationalSpaceController):
+    #    raise TypeError(f"Wrong OSC class: {type(robot.controller)}")
 
     if robot.controller.name != "OSC_POSE":
         raise RuntimeError("OSC_POSE was not activated after homing.")

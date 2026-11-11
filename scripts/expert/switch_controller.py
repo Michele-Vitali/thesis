@@ -57,6 +57,8 @@ def switch_arm_controller(env: "SingleArmEnv", controller_config: dict):
         robot.controller = old_controller
         robot.controller_config = old_config
 
+        raise RuntimeError(f"Could not switch controller from: {old_controller}!")
+
     # Grab the post-switch situation.
     qpos_after = np.array(env.sim.data.qpos[robot._ref_joint_pos_indexes], copy=True)
     qvel_after = np.array(env.sim.data.qvel[robot._ref_joint_vel_indexes], copy=True)

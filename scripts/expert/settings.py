@@ -38,20 +38,22 @@ safe_offset_gripper = [0.0, 0.0, 0.115]
 # OSC actions variables
 gains = {
     "position": {
-        "approach": 0.13,
-        "descend": 0.08,
-        "lift": 0.08,
-        "transport": 0.13,
-        "lower": 0.15,
+        "approach": 0.09,
+        "descend": 0.11,
+        "lift": 0.11,
+        "transport": 0.09,
+        "lower": 0.20,
     },
     "rotation": {
-        "align": 0.12
+        "align": 0.15
     }
 }
 
-max_action_delta = 0.03 # This ensures we do not "jump" too many bins (useful for ensuring smoother model jumps and predictions!) This is an implicit way of introducing a ramp action, avoids spikes in commands!
+#max_action_delta = 0.03  This ensures we do not "jump" too many bins (useful for ensuring smoother model jumps and predictions!) This is an implicit way of introducing a ramp action, avoids spikes in commands!
 max_position_action = 0.50  # Safe maximum output so the robot stays in a controllable speed
 max_rotation_action = 0.50
+min_pos_step = 0.002
+min_rot_step_deg = 0.5
 
 gripper_transition_seconds = 1.0
 
@@ -127,19 +129,22 @@ sudden_movements_penalty = 0.02
 z_target = 0.3
 
 # Tolerances
-position_tolerance = 0.003 # 3mm
-rotation_tolerance_deg = 1.0 # 1 degree
-transport_position_tolerance = 0.005
-transport_rotation_tolerance = 2.0
-final_tolerance = 0.005
-online_eval_tolerance = 0.05 # 5 cm!
+phase_tolerances = {
+    "approach": (0.005, 5.0),
+    "descend": (0.003, 1.0),
+    "lift": (0.005, 5.0),
+    "transport": (0.005, 5.0),
+    "lower": (0.003, 2.0),
+    "drop": (0.005, 1.0),
+    "online": (0.03, 3.0)
+}
 
 # Other values
 n_objects = 1
 
 # RLDS 
 dataset_root = str(Path(__file__).resolve().parents[2] / "hdf5_data")
-dataset_name = "v3.0_no_randomization"
+dataset_name = "v4.0_no_randomization_fixed_ramp"
 
 dataset_fps = 5
 
@@ -187,8 +192,8 @@ osc_config = {
     "control_delta": True,
     "input_min": -1.0,
     "input_max": 1.0,
-    "output_min": np.array([-0.05, -0.05, -0.02, -0.5, -0.5, -0.5]),
-    "output_max": np.array([+0.05, +0.05, +0.02, +0.5, +0.5, +0.5]),
+    "output_min": np.array([-0.05, -0.05, -0.05, -0.5, -0.5, -0.5]),
+    "output_max": np.array([+0.05, +0.05, +0.05, +0.5, +0.5, +0.5]),
     # P-Rob3 q5 joint-limit avoidance
     "q5_index": 4,
     "q5_avoidance_start": 1.94,
@@ -203,5 +208,10 @@ server_port = 8000
 server_url = f"http://{server_host}:{server_port}"
 unnorm_key = "prob3_pick_place"
 server_timeout = 120 # 120 s = 2 mins
-openvla_path = "runs/openvla/openvla-7b+prob3_pick_place+b16+lr-0.0005+lora-r32+dropout-0.05--v2.1.2_no_randomization--image_aug--20000_chkpt"
-adapter_path = None
+
+thesis_root = Path(__file__).resolve().parents[2]
+openvla_path = "openvla/openvla-7b"
+adapters_root = thesis_root /"adapters" / "openvla"
+runs_root = thesis_root / "runs" / "openvla"
+
+eval_jpeg_quality = 95

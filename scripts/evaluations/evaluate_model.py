@@ -1,29 +1,30 @@
 import argparse
+import io
 import json
+import multiprocessing
 import random
 import time
-import multiprocessing
+import traceback
 from pathlib import Path
 
 import h5py
 import mujoco
 import numpy as np
-import robosuite as suite
 import requests
+import robosuite as suite
 from matplotlib import pyplot as plt
 from PIL import Image
-
 from robosuite.controllers import load_controller_config
 from robosuite.environments.manipulation.single_arm_env import SingleArmEnv
 
-# Import dal tuo ambiente locale
-import scripts.expert.settings as settings
 from scripts.evaluations.vla_client import OpenVLAClient
 from scripts.evaluations.vla_server import DeployConfig, run_server_with_cfg
+from scripts.expert import settings
 from scripts.expert.action_utils import process_osc_action
 from scripts.expert.custom_osc import install_prob3_custom_osc
 from scripts.expert.homing import prepare_episode
 from scripts.metrics.plot_metrics import plot_stacked_success_rate
+
 
 def set_global_seed(seed: int):
     random.seed(seed)
@@ -86,10 +87,20 @@ def wait_for_server(process, timeout=600):
         time.sleep(1)
     raise TimeoutError("Timeout avvio server OpenVLA!")
 
+def resolve_deploy_config(path: Path) -> DeployConfig:
+    if (path / "adapter_config.json").is_file():
+        return DeployConfig(openvla_path=settings.openvla_path, adapter_path=path.resolve())
+
+    if (path /"config.json").is_file():
+        return DeployConfig(openvla_path=path.resolve(), adapter_path=None)
+
+    raise FileNotFoundError(f"Neither adapter nor merge model were found at: {path}")
+
 def main():
     target_seed = settings.base_env_rand_test_seed
     
     parser = argparse.ArgumentParser(description="Valutazione online automatizzata su N modelli.")
+    parser.add_argument("--checkpoint_dir", type=str, default=settings.adapters_root, help="Specifies the checkpoints dir where we have our adapters.")
     parser.add_argument("--hdf5", type=str, default=None, help="Path HDF5 per overfit")
     parser.add_argument("--max_demos", type=int, default=5, help="Numero episodi")
     parser.add_argument("--n_models", type=int, default=1, help="Numero di ultimi modelli da valutare")
@@ -156,7 +167,6 @@ def main():
             )
             
             results = []
-            base_results = []
             n_successes = 0
 
             # Task loop
@@ -180,10 +190,9 @@ def main():
                 error, total_steps, placed = execute_task(env, observation, client)
                 elapsed = time.monotonic() - t0
 
-                success = False
-                if error < settings.online_eval_tolerance:
-                    success = bool(placed)
-                    if success: n_successes += 1
+                success = bool(placed)
+                if success: 
+                    n_successes += 1
 
                 print(f"[Task-{task_id}] {'SUCCESS' if success else 'FAIL'} | Err: {error:.4f} | Steps: {total_steps} | Time: {elapsed:.1f}s")
 
@@ -200,7 +209,6 @@ def main():
                     res["step_ratio"] = round(expert_steps/total_steps, 3) if total_steps > 0 else 0
                 
                 results.append(res)
-                base_results.append((error, total_steps))
 
             # Save the results for this model
             save_results(results, model_path)
@@ -243,22 +251,28 @@ def load_queue(queue_path: Path, categories: list, checkpoints_base_dir: Path, s
     print(f"[Queue] {len(models)} modelli da valutare ({', '.join(categories)})")
     return models
 
-def execute_task(env: "SingleArmEnv", obs: dict, client: OpenVLAClient, max_steps: int = 400) -> tuple[float, int]:
+def execute_task(env: "SingleArmEnv", obs: dict, client: OpenVLAClient, max_steps: int = 400) -> tuple[float, int, bool]:
     total_steps = 0
     error = 1.0
-    previous_action = np.zeros(env.action_dim, dtype=float)
+    #previous_action = np.zeros(env.action_dim, dtype=float)
     placed = False
     stable_steps = 0
 
     for _ in range(max_steps):
         try:
-            image = prepare_rgb(obs)
-            prediction = client.predict(image, settings.dataset_task)
-            action = process_osc_action(prediction, previous_action)
-            previous_action = action.copy()
+            image1 = prepare_rgb(obs, jpeg=True)
+            image2 = prepare_rgb(obs, jpeg=False)
+            prediction1 = client.predict(image1, settings.dataset_task)
+            prediction2 = client.predict(image2, settings.dataset_task)
+
+            print(np.abs(prediction1 - prediction2).max())
+
+            action = process_osc_action(prediction1) # It was (prediction, previous_action)
+            #previous_action = action.copy()
 
             next_obs, _, _, _ = env.step(action)
-            env.render()
+            if env.has_renderer:
+                env.render()
             obs = next_obs
             total_steps += 1
 
@@ -282,9 +296,11 @@ def execute_task(env: "SingleArmEnv", obs: dict, client: OpenVLAClient, max_step
                     stable_steps = 0
 
         except requests.RequestException as e:
-            print(f"Errore di rete con il server: {e}")
+            print(f"[Task] Network error at step {total_steps}: {e}")
             break
         except Exception:
+            print(f"[Task] Unexpected error at step {total_steps}:")
+            traceback.print_exc()
             break
             
     env.close()
@@ -294,15 +310,21 @@ def read_observation(env: "SingleArmEnv") -> dict:
     try: return env._get_observations(force_update=True)
     except TypeError: return env._get_observations()
 
-def prepare_rgb(obs: dict):
+def prepare_rgb(obs: dict, jpeg: bool = True):
     key = settings.dataset_external_camera_observation_key
     image = np.asarray(obs[key])
     if image.dtype != np.uint8:
         image = image.astype(np.float32)
-        if np.max(image) <= 1.0: image *= 255.0
+        if np.max(image) <= 1.0: 
+            image *= 255.0
         image = np.clip(image, 0, 255).astype(np.uint8)
     
     image = np.flipud(image).copy()
+
+    if jpeg:
+        buf = io.BytesIO()
+        Image.fromarray(image).save(buf, format="JPEG", quality=settings.eval_jpeg_quality)
+        image = np.asarray(Image.open(buf).convert("RGB"))
     
     # Important! Add the center crop!
     out_size = 224

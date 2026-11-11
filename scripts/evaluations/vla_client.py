@@ -1,7 +1,10 @@
+from pathlib import Path
+
 import json_numpy
 import numpy as np
 import requests
-import scripts.expert.settings as settings
+
+from scripts.expert import settings
 
 # This line enables the serialization of numpy arrays!
 json_numpy.patch()
@@ -36,8 +39,8 @@ class OpenVLAClient:
 
         # Check for server health.
         response = self.session.get(f"{self.server_url}/health", timeout=self.timeout)
-        self.model = response.json()['model']
-        print(f"Client initiated! The model running on the server is: {self.model.split('--', 1)[1]}")
+        info = response.json()
+        print(f"Client initiated! Model: {Path(info.get('adapter') or info['model']).name}")
 
     def predict(self, image: np.ndarray, instruction: str) -> np.ndarray:
         """Effectively calls the OpenVLA server and passes a payload to it to then receive the predicted action from the model.
@@ -82,7 +85,8 @@ class OpenVLAClient:
         response = self.session.post(f"{self.server_url}/act", json=payload, timeout=self.timeout)
 
         # If an HTTPError occured we raise it!
-        response.raise_for_status()
+        if response.status_code != 200:
+            raise RuntimeError(f"Server error {response.status_code}: {response.text[:500]}")
 
         # If there was no error => Deserialize the server's response.
         result = response.json()

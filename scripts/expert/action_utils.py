@@ -1,8 +1,8 @@
 import numpy as np
-import scripts.expert.settings as settings
+from scripts.expert import settings
 
 
-def process_osc_action(raw_action: np.ndarray, previous_action: np.ndarray) -> np.ndarray:
+def process_osc_action(raw_action: np.ndarray, previous_action: np.ndarray = None) -> np.ndarray:
     """
     Centralizza la logica di clipping, binarizzazione del gripper e smoothing (rampa).
     Assicura che la raccolta dati HDF5 e l'inferenza OpenVLA siano matematicamente identiche.
@@ -19,6 +19,9 @@ def process_osc_action(raw_action: np.ndarray, previous_action: np.ndarray) -> n
     # 3. Discretize gripper action.
     action[-1] = 1.0 if action[-1] >= 0.5 else 0.0
 
+    '''
+    This is robot controller's work, not my pipeline's!
+
     # 4. Smoothing / Ramp.
     delta = action - previous_action
     
@@ -29,5 +32,6 @@ def process_osc_action(raw_action: np.ndarray, previous_action: np.ndarray) -> n
     
     # Gripper does not get smoothed.
     actual_action[-1] = action[-1] 
-    
-    return actual_action
+    '''
+
+    return action

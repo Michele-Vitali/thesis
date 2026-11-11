@@ -73,6 +73,7 @@ def main():
                 set_global_seed(current_seed)
                 env = create_randomized_env(joint_config)
                 prepare_episode(env, joint_config, osc_config)
+                #print(type(env.robots[0].controller))
                 configure_task(env)
                 (error, steps) = execute_task(successes, env, recorder, record)
                 success = check_task_success(error)
@@ -98,17 +99,15 @@ def main():
             choice = input("Want to repeat the tasks? (Y/N): ")
             task_loop = choice.upper() == "Y"
 
-    except Exception as e:
+    except KeyboardInterrupt:
         # Make the user understand he killed the process...
-        if isinstance(e, KeyboardInterrupt):
             print("\n")
             print("="*60)
             print("Simulation killed by user...")  
             print("="*60)   
-        else:
-            print(f"Exception occurred: {e}")   
-
-    '''
+    except Exception:
+        import traceback
+        traceback.print_exc()    
     finally:
         # If an environment was initialized we also make sure to close it!
         if env is not None:
@@ -116,7 +115,7 @@ def main():
 
         # Make sure to finalize the HDF5 dataset...
         recorder.finalize()
-    '''
+    
         
 def check_task_success(error_norm: float) -> bool:
     """Checks for task success by comparing the passed task error with the tolerance defined in the 'settings' file.
@@ -131,7 +130,7 @@ def check_task_success(error_norm: float) -> bool:
     # First check if a valid error was actually passed!
     if error_norm is not None:
         # We tag an episode succesfull if its final error_norm was lower than the final allowed tolerance
-        success = error_norm <= settings.final_tolerance
+        success = error_norm <= settings.phase_tolerances['drop'][0]
     else:
         # If the passed error_norm was not valid, the task gets tagged as unsuccessfull
         success = False
@@ -177,6 +176,12 @@ def print_final_report(n_successes: int, n_total_tasks: int, recorder: HDF5Recor
     print(f"Dataset episodes currently saved: {recorder.saved_episodes}")
     print("=" * 60)
     np_results = np.array(results)
+
+    valid = [(e,s) for e,s in results if e is not None]
+    if not valid:
+        print("No valid episodes.")
+        return
+
     errors = np_results[:, 0]
     steps = np_results[:, 1]
 
@@ -374,7 +379,7 @@ def pick_and_place_task(env: "SingleArmEnv", recorder: HDF5Recorder, record: boo
             error, steps = pick_and_place_action(env, obj, pos, quat, recorder, record=record)
 
             # If the action was successfull we save it...
-            if error is not None and error <= settings.final_tolerance:
+            if error is not None and error <= settings.phase_tolerances['drop'][0]:
                 recorder.save_episode(get_global_seed())
             else:
                 recorder.discard_episode()
@@ -432,16 +437,13 @@ def pick_and_place_action(env: "SingleArmEnv", obj, pos: np.ndarray, quat: np.nd
     # Final drop height.
     drop_pos = np.array([settings.drop_point[0], settings.drop_point[1], grasp_pos[2] + settings.drop_clearance], dtype=float)
 
-    # Tolerances
-    transport_tol = settings.transport_position_tolerance
-    rotation_tol = settings.transport_rotation_tolerance
-
     # Total steps for debug/report
     total_steps = 0
     
     # Move over the object.
     recorder.phase = "approach"
-    done, steps = movements_ctrl.move_robot_to_position(above_object_pos, quat, record=record, position_tolerance=transport_tol, rotation_tolerance_deg=rotation_tol, position_gain=settings.gains['position']['approach'], rotation_gain=settings.gains['rotation']['align'])
+    tol_p, tol_r = settings.phase_tolerances['approach']
+    done, steps = movements_ctrl.move_robot_to_position(above_object_pos, quat, record=record, position_tolerance=tol_p, rotation_tolerance_deg=tol_r, position_gain=settings.gains['position']['approach'], rotation_gain=settings.gains['rotation']['align'])
     total_steps += steps
 
     if not done:
@@ -450,7 +452,8 @@ def pick_and_place_action(env: "SingleArmEnv", obj, pos: np.ndarray, quat: np.nd
 
     # Descend to the object.
     recorder.phase = "descend"
-    done, steps = movements_ctrl.move_robot_to_position(grasp_pos, quat, record=record, position_gain=settings.gains['position']['descend'])
+    tol_p, tol_r = settings.phase_tolerances['descend']
+    done, steps = movements_ctrl.move_robot_to_position(grasp_pos, quat, record=record, position_tolerance=tol_p, rotation_tolerance_deg=tol_r, position_gain=settings.gains['position']['descend'])
     total_steps += steps
 
     if not done:
@@ -471,7 +474,8 @@ def pick_and_place_action(env: "SingleArmEnv", obj, pos: np.ndarray, quat: np.nd
     # Lift the object vertically to the transport height.
     # Note: We use payload compensation to achieve higher precision in some particular movements
     recorder.phase = "lift"
-    done, steps = movements_ctrl.move_robot_to_position(transport_pos, quat, payload_compensation=True, position_tolerance=transport_tol, rotation_tolerance_deg=rotation_tol, record=record, position_gain=settings.gains['position']['lift'])
+    tol_p, tol_r = settings.phase_tolerances['lift']
+    done, steps = movements_ctrl.move_robot_to_position(transport_pos, quat, payload_compensation=True, position_tolerance=tol_p, rotation_tolerance_deg=tol_r, record=record, position_gain=settings.gains['position']['lift'])
     total_steps += steps
 
     if not done:
@@ -485,7 +489,8 @@ def pick_and_place_action(env: "SingleArmEnv", obj, pos: np.ndarray, quat: np.nd
     
     # Move diagonally above the central drop point.
     recorder.phase = "transport"
-    done, steps = movements_ctrl.move_robot_to_position(above_drop_pos, payload_compensation=True, record=record, position_tolerance=transport_tol, rotation_tolerance_deg=rotation_tol, position_gain=settings.gains['position']['transport'], rotation_gain=settings.gains['rotation']['align'])
+    tol_p, tol_r = settings.phase_tolerances['transport']
+    done, steps = movements_ctrl.move_robot_to_position(above_drop_pos, payload_compensation=True, record=record, position_tolerance=tol_p, rotation_tolerance_deg=tol_r, position_gain=settings.gains['position']['transport'], rotation_gain=settings.gains['rotation']['align'])
     total_steps += steps
 
     if not done:
@@ -503,7 +508,8 @@ def pick_and_place_action(env: "SingleArmEnv", obj, pos: np.ndarray, quat: np.nd
 
     # Descend to drop position.
     recorder.phase = "lower"
-    done, steps = movements_ctrl.move_robot_to_position(drop_pos, record=record, position_gain=settings.gains['position']['lower'])
+    tol_p, tol_r = settings.phase_tolerances['lower']
+    done, steps = movements_ctrl.move_robot_to_position(drop_pos, record=record, position_tolerance=tol_p, rotation_tolerance_deg=tol_r, position_gain=settings.gains['position']['lower'])
     total_steps += steps
 
     if not done:

@@ -67,6 +67,8 @@ def main():
         print("\n=== SIMULATION STATISTICS ===")
         print(f"Average object position: {np.mean(np.asarray(obj_positions), axis=0)}")
         print(f"Max object distance from center: {np.max(np.linalg.norm(np.asarray(obj_positions), axis=1))}")
+        global no_op_frames
+        print(f"Number of no-op frames in the dataset: {no_op_frames}")
         print("Phase stasts:")
         for i in range(len(phases)):
             num_frames = phase_stats[phases[i]]['num_frames']
@@ -81,9 +83,29 @@ def main():
         print(f"Analyzed all? {'YES' if total_frames == analyzed_frames else 'NO'}")
 
 already_shown = False
+no_op_frames = 0
 
 def analyze_demo(demo, obs):
     num_frames = len(demo['states'])
+
+    global no_op_frames
+    no_op_tol = 1e-4
+    actions = demo['actions'][:]    # Grab all the demonstration actions
+
+    arm_is_still = np.linalg.norm(actions[:, :6], axis=1) < no_op_tol
+    gripper_unchanged = np.concatenate(([False], np.abs(np.diff(actions[:, 6])) < no_op_tol))
+    is_noop = arm_is_still & gripper_unchanged
+
+    noop_frame_indices = np.where(is_noop)[0]
+    kept_frame_indices = np.where(~is_noop)[0]
+
+    noop_actions = actions[is_noop]
+    num_noops = np.sum(is_noop)
+
+    print(f"No-op frames for demo: {demo} -> {noop_frame_indices}")
+    print(noop_actions)
+
+    no_op_frames += num_noops
 
     for i in range(num_frames):
 

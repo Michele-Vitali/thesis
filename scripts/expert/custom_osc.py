@@ -1,3 +1,5 @@
+import sys
+
 import numpy as np
 import robosuite.controllers.osc as osc_module
 from robosuite.controllers import controller_factory
@@ -127,6 +129,9 @@ def install_prob3_custom_osc():
     so replacing that module attribute is sufficient.
     """
 
-    controller_factory.OperationalSpaceController = (PRob3OperationalSpaceController)
+    #factory_module = sys.modules["robosuite.controllers.controller_factory"]
+    #factory_module.OperationalSpaceController = PRob3OperationalSpaceController
+
+    controller_factory.OperationalSpaceCOntroller = (PRob3OperationalSpaceController)
 
     print("[P-Rob3] Custom OSC_POSE controller installed.")
