@@ -19,11 +19,13 @@ from robosuite.environments.manipulation.single_arm_env import SingleArmEnv
 
 from scripts.evaluations.vla_client import OpenVLAClient
 from scripts.evaluations.vla_server import DeployConfig, run_server_with_cfg
-from scripts.expert import settings
+from scripts.expert import custom_env, custom_robot, settings
 from scripts.expert.action_utils import process_osc_action
 from scripts.expert.custom_osc import install_prob3_custom_osc
 from scripts.expert.homing import prepare_episode
 from scripts.metrics.plot_metrics import plot_stacked_success_rate
+
+import robosuite.utils.transform_utils as T
 
 
 def set_global_seed(seed: int):
@@ -111,38 +113,43 @@ def main():
                         help="Categorie della coda da valutare (default: SICURO POTREI)")
     parser.add_argument("--skip_done", action=argparse.BooleanOptionalAction, default=True,
                         help="Con --queue, salta i modelli che hanno già evaluation_results.json (default: sì)")
+    parser.add_argument("--model", type=str, default=None, help="The path to the singular adapter we want to evaluate.")
     args = parser.parse_args()
 
-    install_prob3_custom_osc()
+    #install_prob3_custom_osc()
     joint_config = load_controller_config(default_controller="JOINT_POSITION")
     osc_config = load_controller_config(default_controller="OSC_POSE")
     osc_config.update(settings.osc_config)
 
+    models = []
     overfit_demos = []
     if args.hdf5:
         hdf5_path = Path(args.hdf5).resolve()
         with h5py.File(hdf5_path, "r") as f:
             overfit_demos = sorted(f["data"].keys(), key=lambda n: int(n.split("_")[-1]))[: args.max_demos]
         n_tasks = len(overfit_demos)
-    else:
-        n_tasks = int(input("How many tasks you want to evaluate? "))
 
     # Find the models
-    script_dir = Path(__file__).resolve().parent
-    checkpoints_base_dir = script_dir / "../../runs/openvla"
-    
+    # 1. Search for the adapter
+    # 2. If not found, fallback to the checkpoint dir!
+
     if args.queue:
-        models = load_queue(Path(args.queue), args.categories, checkpoints_base_dir, args.skip_done)
-    else:
+        models = load_queue(Path(args.queue), args.categories, settings.adapters_root, args.skip_done)
+    elif args.model is None:
         models = sorted(
-            [p for p in checkpoints_base_dir.iterdir() if p.is_dir() and "chkpt" in p.name],
+            [p for p in settings.adapters_root.iterdir() if p.is_dir() and "chkpt" in p.name],
             key=lambda p: p.stat().st_mtime,
             reverse=True,
         )[:args.n_models]
-    
+    else:
+        model = Path(args.model)
+        models.append(model)
+
     if not models:
-        print("No model to evaluate was found" + (f" in the queue {args.queue}" if args.queue else f" at: {checkpoints_base_dir}"))
-        return
+            print("No model to evaluate was found" + (f" in the queue {args.queue}" if args.queue else f" at: {settings.adapters_root}"))
+            return
+    
+    n_tasks = int(input("How many tasks you want to evaluate?"))
 
     print("=" * 60)
     print(f"Starting evaluation on {len(models)} models")
@@ -187,8 +194,9 @@ def main():
                 observation = read_observation(env)
 
                 t0 = time.monotonic()
-                error, total_steps, placed = execute_task(env, observation, client)
+                error, total_steps, placed, debug_dict = execute_task(env, observation, client)
                 elapsed = time.monotonic() - t0
+
 
                 success = bool(placed)
                 if success: 
@@ -204,6 +212,9 @@ def main():
                     "model": model_path.name,
                     "duration": elapsed,
                 }
+
+                res.update(debug_dict)
+
                 if args.hdf5 and overfit_demos:
                     res["expert_steps"] = expert_steps
                     res["step_ratio"] = round(expert_steps/total_steps, 3) if total_steps > 0 else 0
@@ -251,6 +262,18 @@ def load_queue(queue_path: Path, categories: list, checkpoints_base_dir: Path, s
     print(f"[Queue] {len(models)} modelli da valutare ({', '.join(categories)})")
     return models
 
+from scipy.spatial.transform import Rotation as R
+from scripts.expert.movements import OSCMovementController
+
+def grasp_alignment(eef_quat_xyzw, obj_quat_wxyz, r_top, grasp_target):
+    M = R.from_quat(eef_quat_xyzw).as_matrix() @ r_top.T
+    psi = np.arctan2(M[1, 0], M[0, 0])
+    tilt = np.degrees(np.arccos(np.clip(M[2, 2], -1, 1)))
+    Mo = R.from_quat(obj_quat_wxyz, scalar_first=True).as_matrix()
+    yaw_o = np.arctan2(Mo[1, 0], Mo[0, 0])
+    yaw_err = np.degrees((psi - yaw_o + np.pi / 2) % np.pi - np.pi / 2)
+    return yaw_err, tilt
+
 def execute_task(env: "SingleArmEnv", obs: dict, client: OpenVLAClient, max_steps: int = 400) -> tuple[float, int, bool]:
     total_steps = 0
     error = 1.0
@@ -258,17 +281,39 @@ def execute_task(env: "SingleArmEnv", obs: dict, client: OpenVLAClient, max_step
     placed = False
     stable_steps = 0
 
-    for _ in range(max_steps):
+    obj = env.objects[0]
+    body_id = env.sim.model.body_name2id(obj.root_body)
+    obj_pos = np.array(env.sim.data.body_xpos[body_id])
+    obj_pos0 = obj_pos.copy()
+    obj_quat = np.array(env.sim.data.body_xquat[body_id]).copy()    # MuJoCo convention!
+    obj_quat0 = obj_quat.copy()
+
+    closed = False
+    first_closed_step = -1
+    yaw_err_at_grasp = -1
+    max_lift = -1
+    arm_action_norms = []
+    r_top = OSCMovementController.R_TOP_GRASP
+    grasp_target = obj_pos0 + np.asarray(settings.safe_offset_gripper)
+
+    for step in range(max_steps):
         try:
-            image1 = prepare_rgb(obs, jpeg=True)
-            image2 = prepare_rgb(obs, jpeg=False)
-            prediction1 = client.predict(image1, settings.dataset_task)
-            prediction2 = client.predict(image2, settings.dataset_task)
+            image = prepare_rgb(obs, jpeg=True)
 
-            print(np.abs(prediction1 - prediction2).max())
+            prediction = client.predict(image, settings.dataset_task)
 
-            action = process_osc_action(prediction1) # It was (prediction, previous_action)
+            action = process_osc_action(prediction) # It was (prediction, previous_action)
             #previous_action = action.copy()
+
+            obj_pos1 = np.array(env.sim.data.body_xpos[body_id]).copy()
+            current_lift = obj_pos1[2] - obj_pos0[2]
+            max_lift = max(current_lift, max_lift)
+
+            arm_action_norms.append(np.linalg.norm(action[:6]))
+
+            if action[6] < 0.5 and not closed:
+                first_closed_step = step
+                yaw_err_at_grasp, _ = grasp_alignment(obs['robot0_eef_quat'], obj_quat0, r_top, grasp_target)
 
             next_obs, _, _, _ = env.step(action)
             if env.has_renderer:
@@ -277,8 +322,6 @@ def execute_task(env: "SingleArmEnv", obs: dict, client: OpenVLAClient, max_step
             total_steps += 1
 
             if env.objects:
-                obj = env.objects[0]
-                body_id = env.sim.model.body_name2id(obj.root_body)
                 obj_xy = env.sim.data.body_xpos[body_id][:2]
                 obj_z = env.sim.data.body_xpos[body_id][2]
                 target_xy = np.asarray(settings.drop_point, dtype=float)[:2]
@@ -287,7 +330,7 @@ def execute_task(env: "SingleArmEnv", obs: dict, client: OpenVLAClient, max_step
                 error = float(np.linalg.norm(obj_xy - target_xy))
                 z_error = abs(obj_z - (table_z + obj.size[2]))
 
-                if error < settings.online_eval_tolerance and z_error < 0.002:
+                if error < settings.phase_tolerances['online'][0] and z_error < 0.002:
                     stable_steps += 1
                     if stable_steps >= 10:
                         placed = True
@@ -302,9 +345,16 @@ def execute_task(env: "SingleArmEnv", obs: dict, client: OpenVLAClient, max_step
             print(f"[Task] Unexpected error at step {total_steps}:")
             traceback.print_exc()
             break
+
+    debug_dict = {
+        "grip_closed_step": first_closed_step,
+        "max_lift": max_lift,
+        "arm_action_norms": arm_action_norms,
+        "yaw_err_at_grasp": yaw_err_at_grasp
+    }
             
     env.close()
-    return (error, total_steps, placed)
+    return (error, total_steps, placed, debug_dict)
 
 def read_observation(env: "SingleArmEnv") -> dict:
     try: return env._get_observations(force_update=True)

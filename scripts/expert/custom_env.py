@@ -8,6 +8,7 @@ from robosuite.environments.manipulation.single_arm_env import SingleArmEnv
 from robosuite.models import objects
 from robosuite.models.arenas import TableArena
 from robosuite.models.tasks import ManipulationTask
+from robosuite.utils.mjcf_utils import find_elements
 
 # UniformRandomSampler places objects randomly within a given range
 # We can also give a sampler per object with the SequentialCompositeSampler (future?)
@@ -71,6 +72,11 @@ class CustomTask(SingleArmEnv):
 
         # Lower the camera!
         self.mujoco_arena.set_camera(camera_name=settings.dataset_external_camera_name, pos=settings.camera_pos, quat=settings.camera_quat)
+
+        cam_elem = find_elements(root=self.mujoco_arena.worldbody, tags="camera",attribs={"name": settings.dataset_external_camera_name})
+
+        if cam_elem is not None:
+            cam_elem.set("fovy", str(settings.dataset_camera_fovy))
         
         # 2. Spawn and place some objects...
         self._create_objects()

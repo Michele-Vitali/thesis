@@ -77,6 +77,9 @@ class HDF5Recorder:
         self.actions = []
         self.actions_openvla = []
 
+        self.executed_actions = []
+        self.action_perturbed = []
+
         self.sim_states = []
         self.robot_states = []
 
@@ -145,7 +148,7 @@ class HDF5Recorder:
 
         return action.copy()
 
-    def record_frame(self, env, action: np.ndarray, observation: dict | None = None):
+    def record_frame(self, env, action: np.ndarray, observation: dict | None = None, executed_action: np.ndarray | None = None):
         """
         Record observation_t together with action_t.
 
@@ -212,6 +215,22 @@ class HDF5Recorder:
 
         action_openvla = self._convert_action_for_openvla(action)
 
+        if executed_action is None:
+            executed_action = action.copy()
+
+        executed_action = np.asarray(executed_action, dtype=np.float32).reshape(-1)
+
+        if executed_action.shape != (7,):
+            raise ValueError(f"Expected executed_action shape (7,), got {executed_action.shape}.")
+
+        if not np.all(np.isfinite(executed_action)):
+            raise ValueError("Executed action contains invalid values!")
+
+        if not np.isclose(action[6], executed_action[6], atol=1e-5):
+            raise ValueError("Clean and executed gripper commands must match.")
+
+        was_perturbed = bool(np.any(np.abs(executed_action[:6] - action[:6]) > 1e-6))
+
         sim_state = np.asarray(env.sim.get_state().flatten(), dtype=np.float32)
 
         # LIBERO-style compact robot state.
@@ -233,9 +252,13 @@ class HDF5Recorder:
 
         self.ee_orientations.append(eef_axis_angle)
 
-        self.actions.append(action)
+        self.actions.append(action.copy())
 
-        self.actions_openvla.append(action_openvla)
+        self.actions_openvla.append(action_openvla.copy())
+
+        self.executed_actions.append(executed_action.copy())
+
+        self.action_perturbed.append(was_perturbed)
 
         self.sim_states.append(sim_state)
 
@@ -245,7 +268,7 @@ class HDF5Recorder:
         self._previous_actions.append(self._last_recorded_action.copy())
         self._gripper_targets.append(float(action[6]))
         self._timestamps.append(len(self._timestamps) / float(settings.dataset_fps))
-        self._last_recorded_action = action.copy()
+        self._last_recorded_action = executed_action.copy()
 
     def save_episode(self, rand_seed: int):
         """
@@ -301,6 +324,10 @@ class HDF5Recorder:
 
         episode_group.create_dataset("actions_openvla", data=np.stack(self.actions_openvla, axis=0), dtype=np.float32)
 
+        episode_group.create_dataset("executed_actions", data=np.stack(self.executed_actions, axis=0), dtype=np.float32)
+
+        episode_group.create_dataset("action_perturbed", data=np.asarray(self.action_perturbed, dtype=np.uint8))
+
         episode_group.create_dataset("states", data=np.stack(self.sim_states, axis=0), dtype=np.float32)
 
         episode_group.create_dataset("robot_states", data=np.stack(self.robot_states, axis=0), dtype=np.float32)
@@ -313,6 +340,8 @@ class HDF5Recorder:
 
         episode_group.attrs["phase_id_to_name"] = json.dumps(PHASE_NAMES)
         episode_group.attrs["gripper_convention"] = "absolute: 0=closed,1=open"
+        episode_group.attrs["action_label_semantics"] = "Clean Expert action computed from the current observation"
+        episode_group.attrs["executed_action_semantics"] = "Actions actually sent to the environment, including perturbations"
         episode_group.attrs["recorder_version"] = "v2_camera_shadow"
 
         rewards = np.zeros(num_frames, dtype=np.uint8)

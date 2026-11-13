@@ -98,9 +98,9 @@ def manifest_for(episodes: list[dict], seed: int, val_size: int, folds: int) -> 
         "format": "prob3-episode-splits-v2",
         "created_utc": datetime.now(timezone.utc).isoformat(),
         "seed": seed,
-        "counts": {"total": count, "train": len(train), "validation": len(val), "folds": folds},
+        "counts": {"total": count, "train": len(train), "val": len(val), "folds": folds},
         "episodes": episodes,
-        "split": {"train": train, "validation": val},
+        "split": {"train": train, "val": val},
         "folds": fold_entries,
     }
 
@@ -186,7 +186,7 @@ def main() -> None:
         attrs = dict(h5["data"].attrs.items())
 
     # Note: The splits are just a re-buildable view computed from the full_dataset, so we do not occupy a lot of space!
-    for split in ("train", "validation"):
+    for split in ("train", "val"):
         view = destination / f"{split}.hdf5"
         create_view(view, manifest["split"][split], manifest, attrs)
         print(f"{split:5s}: {len(manifest['split'][split]):4d} episodes -> {view}")

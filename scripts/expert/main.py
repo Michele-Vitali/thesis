@@ -20,6 +20,9 @@ from robosuite.environments.manipulation.single_arm_env import SingleArmEnv
 from robosuite.wrappers import DomainRandomizationWrapper
 import random
 
+from scipy.stats import qmc
+from scipy.spatial.transform import Rotation as R
+
 current_seed = None
 
 def set_global_seed(seed: int):
@@ -34,6 +37,66 @@ def get_global_seed() -> int:
         raise ValueError("Global seed not initialized yet!")
     else:
         return current_seed
+
+def generate_sobol_conditions(n_samples: int, seed: int) ->list[dict]:
+
+    sampler = qmc.Sobol(d=6, scramble=True, seed=seed)
+    # Potenza di 2 abbastanza ampia da compensare gli scarti nella zona centrale vietata
+    m = max(12, int(np.ceil(np.log2(max(n_samples * 12, 1)))))
+    raw_u = sampler.random_base2(m=m)
+
+    table_half_width = settings.table_width / 2.0
+    table_top_z = settings.table_height + 0.025  # 0.05 / 2 in TableArena
+    robot_xy = np.array([-settings.rob_x, 0.0])
+    #forbidden_xy = np.array(settings.forbidden_spawning_pos, dtype=float)
+
+    conditions = []
+    for u in raw_u:
+        # 1. Dimensioni 3D (half-sizes)
+        half_sizes = settings.object_half_size_min + u[3:6] * (
+            settings.object_half_size_max - settings.object_half_size_min
+        )
+        obj_radius = float(np.hypot(half_sizes[0], half_sizes[1]))
+
+        # 2. Posizione planare (x, y) dentro table_bounds con margine per ingombro oggetto
+        x = -table_half_width + u[0] * (2.0 * table_half_width)
+        y = -table_half_width + u[1] * (2.0 * table_half_width)
+
+        if abs(x) + obj_radius > table_half_width or abs(y) + obj_radius > table_half_width:
+            continue
+
+        xy = np.array([x, y])
+
+        # Vincolo anello radiale raggiungibile dal robot
+        dist_robot = float(np.linalg.norm(xy - robot_xy))
+        if not (settings.radial_range[0] + obj_radius <= dist_robot <= settings.radial_range[1] - obj_radius):
+            continue
+
+        # Vincolo zona centrale vietata (drop point)
+        #dist_drop = float(np.linalg.norm(xy - forbidden_xy))
+        #if dist_drop < settings.forbidden_spawning_radius + obj_radius:
+            #continue
+
+        # 3. Orientamento yaw [-pi, pi] -> quaternione MuJoCo [w, x, y, z]
+        yaw = -np.pi + u[2] * (2.0 * np.pi)
+        quat_wxyz = R.from_euler("z", yaw).as_quat(scalar_first=True)
+
+        conditions.append({
+            "init_obj_size": half_sizes.tolist(),
+            "init_obj_pos": [float(x), float(y), float(table_top_z + half_sizes[2])],
+            "init_obj_quat": quat_wxyz.tolist(),
+        })
+
+        if len(conditions) == n_samples:
+            break
+
+    if len(conditions) < n_samples:
+        raise RuntimeError(f"Generate solo {len(conditions)}/{n_samples} condizioni valide.")
+
+    # Mescola l'ordine di presentazione senza alterare la copertura dello spazio 6D
+    rng = np.random.default_rng(seed)
+    rng.shuffle(conditions)
+    return conditions
 
 def main():
     target_seed = settings.base_env_rand_collect_seed
@@ -65,13 +128,23 @@ def main():
             # Variables for debugging and reporting
             n_simulated_tasks = 0
             successes = 0   # Also works as incremental ID of tasks...
+            cond_id = 0
+            retries = 0
+            max_retries_per_condition = 2
+            total_retries = 0
             results = []
+
+            pool_size = int(np.ceil(n_tasks * 1.20))
+            sobol_conditions = generate_sobol_conditions(pool_size, target_seed)
 
             # Loop to ensure we get N successes (and not N simulations, as failures should not be included or the model will learn on bad episodes...)
             while successes < n_tasks:
+                if cond_id >= len(sobol_conditions):
+                    sobol_conditions.extend(generate_sobol_conditions(pool_size, target_seed + n_simulated_tasks))
+
                 current_seed = target_seed + n_simulated_tasks
                 set_global_seed(current_seed)
-                env = create_randomized_env(joint_config)
+                env = create_randomized_env(joint_config, sobol_conditions[cond_id])
                 prepare_episode(env, joint_config, osc_config)
                 #print(type(env.robots[0].controller))
                 configure_task(env)
@@ -84,8 +157,17 @@ def main():
                 # Increase the success counter if the task was successfull
                 if success:
                     successes += 1
+                    cond_id += 1
+                    retries = 0
                 else:
-                    print("Task was not a success, retry!")
+                    retries += 1
+                    if retries >= max_retries_per_condition:
+                        print(f"[Condition-{cond_id}] Failed {retries} times (probably a joint limit!)... Skip the condition.")
+                        cond_id += 1
+                        retries = 0
+                    else:
+                        print("Task was not a success, retrythe same sobol condition!")
+                        total_retries += 1
             
                 # Increase the counter of the total number of simulated tasks
                 n_simulated_tasks += 1
@@ -93,7 +175,7 @@ def main():
                 env = None
 
             # Print the debug report
-            print_final_report(successes, n_simulated_tasks, recorder, results)
+            print_final_report(successes, n_simulated_tasks, total_retries, recorder, results)
 
             # Menu code...
             choice = input("Want to repeat the tasks? (Y/N): ")
@@ -161,7 +243,7 @@ def execute_task(task_number: int, env: "SingleArmEnv", recorder: HDF5Recorder, 
     return (error, steps)
     
 
-def print_final_report(n_successes: int, n_total_tasks: int, recorder: HDF5Recorder, results: list[tuple[float, int]]) -> None:
+def print_final_report(n_successes: int, n_total_tasks: int, total_retries: int, recorder: HDF5Recorder, results: list[tuple[float, int]]) -> None:
     """This function print the final report after executing N tasks.
 
     Args:
@@ -172,7 +254,7 @@ def print_final_report(n_successes: int, n_total_tasks: int, recorder: HDF5Recor
     """
 
     print("=" * 60)
-    print(f"OSC final report: {n_successes}/{n_total_tasks} successful tasks.")
+    print(f"OSC final report: {n_successes}/{n_total_tasks - total_retries} successful tasks.")
     print(f"Dataset episodes currently saved: {recorder.saved_episodes}")
     print("=" * 60)
     np_results = np.array(results)
@@ -213,7 +295,7 @@ def configure_task(env: "SingleArmEnv"):
 
     env.sim.forward()
 
-def create_randomized_env(config: dict | None) -> DomainRandomizationWrapper:
+def create_randomized_env(config: dict | None, init_conditions: dict | None = None) -> DomainRandomizationWrapper:
     """This function creates and initializes the simulation environment with the configurations chosen in the 'settings' file.
         In particular we also use a DomainRandomizationWrapper which wraps our robosuite environment and applies the Domain Randomization features to it.
 
@@ -235,7 +317,7 @@ def create_randomized_env(config: dict | None) -> DomainRandomizationWrapper:
         has_renderer=settings.render_on_screen, # On-screen renderer, usefule for debug, but slow for dataset gathering...
         has_offscreen_renderer=True, # Necessary for the dataset!
         use_camera_obs=True, # Also for dataset...
-        #render_camera="gripper0_wristview",    # De-comment this line to see the simulation from the wrist camera
+        render_camera=settings.dataset_external_camera_name,    # De-comment this line to see the simulation from the wrist camera
         camera_names=settings.dataset_camera_names, # Note: We changed the value to the list of cameras!
         camera_heights=settings.dataset_image_height,
         camera_widths=settings.dataset_image_width,
@@ -245,6 +327,7 @@ def create_randomized_env(config: dict | None) -> DomainRandomizationWrapper:
         hard_reset=False, # Avoids segfault on macos or glfw error on Linux (per docs...)
         horizon=1500, # So we are sure that all the pick and places terminate
         reward_shaping=True, # Not useful in our case but had implemented it anyway...
+        init_conditions=init_conditions,
     )
 
     """
@@ -439,7 +522,13 @@ def pick_and_place_action(env: "SingleArmEnv", obj, pos: np.ndarray, quat: np.nd
 
     # Total steps for debug/report
     total_steps = 0
-    
+
+    '''
+    obs = env._get_observations(force_update=True)
+    from PIL import Image
+    img_upright = np.flipud(obs[settings.dataset_external_camera_observation_key])
+    Image.fromarray(img_upright).save("check_frontview_256.png")
+    '''
     # Move over the object.
     recorder.phase = "approach"
     tol_p, tol_r = settings.phase_tolerances['approach']

@@ -20,7 +20,7 @@ robot_position = np.array([-rob_x, 0.0, 0.0])
 table_height = 0.1
 
 # Object geometry
-object_half_size_min = 0.010
+object_half_size_min = 0.018
 object_half_size_max = 0.035
 
 max_object_height = 2.0 * object_half_size_max
@@ -29,7 +29,7 @@ recreate_env_every = 5
 
 # Object spawning variables
 forbidden_spawning_pos = (0.0, 0.0) # As it is the drop point!
-forbidden_spawning_radius = 0.08
+forbidden_spawning_radius = 0.0
 radial_range = [0.35, 0.55] # Stable pre-waypoint working range
 
 # Important variables
@@ -42,7 +42,7 @@ gains = {
         "descend": 0.11,
         "lift": 0.11,
         "transport": 0.09,
-        "lower": 0.20,
+        "lower": 0.15,
     },
     "rotation": {
         "align": 0.15
@@ -54,6 +54,16 @@ max_position_action = 0.50  # Safe maximum output so the robot stays in a contro
 max_rotation_action = 0.50
 min_pos_step = 0.002
 min_rot_step_deg = 0.5
+
+perturbation_enabled = True
+perturbation_episode_prob = 0.20
+perturbation_allowed_phases = ("appraoch", "transport")
+perturbation_min_target_distance = 0.02
+perturbation_max_position_m = 0.01
+perturbation_max_rotation_deg = 5.0
+perturbation_burst_min_steps = 2
+perturbation_burst_max_steps = 3
+perturbation_phase_probability = 0.50
 
 gripper_transition_seconds = 1.0
 
@@ -78,8 +88,9 @@ drop_clearance = 0.005
 # Lower the original front camera without changing its orientation (the following values have been collected by testing)
 # camera_init_pos = [1.6, 0.0, 1.45]
 # camera_init_quat = [0.561, 0.431, 0.431, 0.561]
-camera_target = np.array([0.0, 0.0, 0.10])
-camera_pos = np.array([-0.40, -0.55, 0.64])
+camera_target = np.array([-0.04, 0.0, 0.16])
+camera_pos = np.array([0.12, -0.66, 0.66])
+dataset_camera_fovy = 48.0
 
 #camera_pos = np.array([-1.0, -2.0, -2.0]) Camera for debugging...
 
@@ -131,7 +142,7 @@ z_target = 0.3
 # Tolerances
 phase_tolerances = {
     "approach": (0.005, 5.0),
-    "descend": (0.003, 1.0),
+    "descend": (0.003, 1.5),
     "lift": (0.005, 5.0),
     "transport": (0.005, 5.0),
     "lower": (0.003, 2.0),
@@ -144,7 +155,7 @@ n_objects = 1
 
 # RLDS 
 dataset_root = str(Path(__file__).resolve().parents[2] / "hdf5_data")
-dataset_name = "v4.0_no_randomization_fixed_ramp"
+dataset_name = "v5.1_no_randomization_better_camera_perturbed_overfit"
 
 dataset_fps = 5
 
@@ -178,13 +189,13 @@ free_damping = np.full(6, 1.0)
 grasp_kp = np.array([250, 250, 300, 150, 150, 150])
 grasp_damping = np.array([1.15, 1.15, 1.30, 1.0, 1.0, 1.0])
 
-test_kp = np.array([250, 250, 300, 150, 150, 150])
+test_kp = np.array([350, 350, 400, 150, 150, 150])
 test_damping = np.array([1.15, 1.15, 1.30, 1.0, 1.0, 1.0])
 
 osc_config = {
     "type": "OSC_POSE",
     "interpolate": True,
-    "ramp_ratio": 0.1,
+    "ramp_ratio": 0.05,
     "interpolation": "linear",
     "impedance_mode": "fixed",
     "kp": test_kp,

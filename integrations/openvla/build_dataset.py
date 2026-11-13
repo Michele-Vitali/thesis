@@ -19,7 +19,7 @@ def project_root() -> Path:
     """Expected position: <thesis>/integrations/openvla/build_dataset.py."""
     return Path(__file__).resolve().parents[2]
 
-SPLIT_FILES = {"train": "train.hdf5", "validation": "validation.hdf5"}
+SPLIT_FILES = {"train": "train.hdf5", "val": "val.hdf5"}
 
 def find_source(root: Path, source: str | None) -> Path:
     """Require a prepared directory, never infer or create split assignments."""
@@ -229,7 +229,7 @@ def main() -> int:
     staged_root = root / "rlds_data" / "rlds_builds" / (
         datetime.now().strftime("%Y%m%d_%H%M%S_%f") + "_" + uuid.uuid4().hex[:6]
     )
-    staged_dataset = staged_root / "prob3_pick_place" / "4.0.0"
+    staged_dataset = staged_root / "prob3_pick_place" / "5.0.0"
     print(f"Python:      {sys.executable}")
     print(f"HDF5 input:  {source}")
     print(f"Builder:     {builder_dir}")
@@ -267,7 +267,7 @@ def main() -> int:
 
     if args.publish:
         active, backup = publish_dataset(root, staged_dataset.parent, args.variant)
-        print(f"\nDATASET ATTIVO: {active / '4.0.0'}")
+        print(f"\nDATASET ATTIVO: {active / '5.0.0'}")
         if backup is not None:
             print(f"Dataset precedente salvato in: {backup}")
         print("IMPORTANTE: riesegui il preflight prima del training per ricalcolare le statistiche.")

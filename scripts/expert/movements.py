@@ -35,6 +35,99 @@ class OSCMovementController:
         # Optional HDF5 dataset recorder.
         self.recorder = recorder
 
+        self.perturbation_episode = bool(settings.perturbation_enabled) and np.random.random() < settings.perturbation_episode_prob
+
+        self._perturbation_noise = None
+        self._perturbation_steps_remaining = 0
+        self._perturbation_phases_used = set()
+
+    @staticmethod
+    def _random_unit_vector(size: int) -> np.ndarray:
+        """Generate a random unit vector."""
+        vector = np.random.normal(size=size)
+        norm = np.linalg.norm(vector)
+
+        if norm < 1e-8:
+            return np.zeros(size, dtype=float)
+
+        return vector / norm
+
+    def _apply_action_perturbation(self, clean_action: np.ndarray, phase: str, target_distance: float, record: bool) -> np.ndarray:
+        """
+        Apply a correlated perturbation to the executed action.
+
+        The clean Expert action is never modified.
+
+        Perturbations are allowed only during approach and transport,
+        and only when the EEF is sufficiently far from the target.
+        """
+
+        clean_action = np.asarray(clean_action, dtype=float).copy()
+
+        # No perturbation outside dataset collection.
+        if not self.perturbation_episode:
+            return clean_action
+
+        # Restrict perturbations to safe phases.
+        if phase not in settings.perturbation_allowed_phases:
+            self._perturbation_noise = None
+            self._perturbation_steps_remaining = 0
+            return clean_action
+
+        # Avoid perturbations close to the target.
+        if target_distance <= settings.perturbation_min_target_distance:
+            self._perturbation_noise = None
+            self._perturbation_steps_remaining = 0
+            return clean_action
+
+        # Start at most one burst per eligible phase.
+        if self._perturbation_steps_remaining == 0:
+
+            if phase in self._perturbation_phases_used:
+                return clean_action
+
+            # Mark the phase as considered, even if no burst is started.
+            self._perturbation_phases_used.add(phase)
+
+            if np.random.random() >= settings.perturbation_phase_probability:
+                return clean_action
+
+            noise = np.zeros(7, dtype=float)
+
+            # Translation noise: random direction, maximum 1 cm.
+            position_direction = self._random_unit_vector(3)
+
+            position_magnitude = np.random.uniform(0.5, 1.0) * settings.perturbation_max_position_m
+
+            noise[:3] = (position_direction * position_magnitude / self.OSC_POSITION_OUTPUT_MAX)
+
+            # Rotation noise: random axis, maximum 5 degrees.
+            rotation_direction = self._random_unit_vector(3)
+
+            rotation_magnitude = np.random.uniform(0.5, 1.0) * np.radians(settings.perturbation_max_rotation_deg)
+
+            noise[3:6] = (rotation_direction * rotation_magnitude / self.OSC_ROTATION_OUTPUT_MAX)
+
+            # Gripper is NEVER perturbed.
+            noise[6] = 0.0
+
+            self._perturbation_noise = noise
+
+            self._perturbation_steps_remaining = np.random.randint(settings.perturbation_burst_min_steps, settings.perturbation_burst_max_steps + 1)
+
+            print(f"[PERTURBATION] Starting burst | phase={phase} | steps={self._perturbation_steps_remaining} | noise={np.round(noise[:6], 3)}")
+
+        # Apply the same noise vector throughout the burst.
+        executed_action = clean_action.copy()
+        executed_action[:6] += self._perturbation_noise[:6]
+
+        self._perturbation_steps_remaining -= 1
+
+        # Apply the same action limits used by the normal pipeline.
+        executed_action = process_osc_action(executed_action)
+
+        return executed_action
+
     def _get_eef_pose(self, observation: dict | None = None) -> tuple[np.ndarray, R]:
         """
         Retrieve the current EEF Cartesian position and orientation.
@@ -59,7 +152,7 @@ class OSCMovementController:
 
         return (eef_pos, eef_rotation)
 
-    def _step(self, action: np.ndarray, observation: dict | None = None, record: bool = True) -> tuple[dict, float, bool, dict]:
+    def _step(self, action: np.ndarray, observation: dict | None = None, record: bool = True, record_action: np.ndarray | None = None) -> tuple[dict, float, bool, dict]:
         """
         Execute one robosuite control step.
 
@@ -81,7 +174,10 @@ class OSCMovementController:
         # If the recording is enabled and a recorder was initialized...
         if record and self.recorder is not None:
             # Record the frame.
-            self.recorder.record_frame(env=self.env, action=action, observation=observation)
+            if record_action is None:
+                record_action = action
+
+            self.recorder.record_frame(self.env, record_action, observation, action)
 
         # Execute the action and store the result in a 4-tuple variable 
         result = self.env.step(action)
@@ -133,7 +229,9 @@ class OSCMovementController:
         candidate_rotations = []
 
         # The gripper is parallel => It has a 180° symmetry!
-        for candidate_yaw in (object_yaw, object_yaw + np.pi):
+        for k in range(4):
+
+            candidate_yaw = object_yaw + k * np.pi / 2
 
             # Convert the candidate yaw to a rotation matrix
             cos_yaw = np.cos(candidate_yaw)
@@ -298,16 +396,13 @@ class OSCMovementController:
                 # NOTA: Rimosso np.clip qui, delegato a process_osc_action
                 # action[2] = float(np.clip(action[2], -0.40, +0.40))
 
-            # --- INIZIO BLOCCO MODIFICATO ---
-            # Elabora l'azione con la funzione centralizzata (Clipping + Rampa)
-            actual_action = process_osc_action(action) # It was (action, self.previous_action)
-            
-            # Update previous action buffer for the next step.
-            #self.previous_action = actual_action.copy()
-            # --- FINE BLOCCO MODIFICATO ---
+            clean_action = process_osc_action(action)
 
-            # Save observation_ and action_t for dataset population...
-            self._step(action=actual_action, observation=observation, record=record)
+            current_phase = self.recorder.phase if self.recorder is not None else None
+
+            executed_action = self._apply_action_perturbation(clean_action, current_phase, position_error_norm, record)
+
+            self._step(executed_action, observation, record, clean_action)
 
         # If we arrive here it means we did not reach the target in max_steps => We are sure to have failed!
         print("OSC target NOT reached!")
@@ -480,12 +575,6 @@ class OSCMovementController:
                 else: stable_steps = 0
 
                 if stable_steps >= 5:
-                    print(
-                    f"[GRIPPER CLOSE] "
-                    f"steps={steps} | "
-                    f"recorded={recorded_steps} | "
-                    f"skipped={skipped_steps}"
-                )
                     return (True, steps)
 
             if target == 1 and obj is not None:
@@ -499,12 +588,6 @@ class OSCMovementController:
                     stable_steps = 0
 
                 if stable_steps >= 7:
-                    print(
-                    f"[GRIPPER OPEN] "
-                    f"steps={steps} | "
-                    f"recorded={recorded_steps} | "
-                    f"skipped={skipped_steps}"
-                )
                     return (True, steps)
 
             previous_action = actual_action.copy()

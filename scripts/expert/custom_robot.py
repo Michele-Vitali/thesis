@@ -100,7 +100,7 @@ class PRob3Gripper(GripperModel):
         desired_action = 2.0 * target - 1.0
 
         max_delta = self.speed
-
+ 
         current = np.asarray(self.current_action, dtype=float).reshape(-1)
 
         delta = desired_action - current

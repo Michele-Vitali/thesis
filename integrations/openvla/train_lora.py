@@ -31,7 +31,7 @@ RUN_ROOT = str(THESIS_ROOT / "runs" / "openvla")
 ADAPTER_ROOT = str(THESIS_ROOT / "adapters" / "openvla")
 os.environ["HF_HOME"] = str(THESIS_ROOT / "cache" / "huggingface")
 
-VAL_FILE = str(THESIS_ROOT / "hdf5_data" / "v4.0_no_randomization_fixed_ramp_20261111_133304_230811" / "splits" / "validation.hdf5")
+VAL_FILE = str(THESIS_ROOT / "hdf5_data" / "v5.0_no_randomization_better_camera_perturbed_20261113_133035_010799" / "splits" / "val.hdf5")
 TRAIN_WRAPPER = str(THESIS_ROOT / "integrations" / "openvla" / "finetune.py")
 
 # --- 3. IPERPARAMETRI FISSI ---
@@ -42,30 +42,33 @@ NUM_GPUS = 2
 USE_LORA = "True"
 LORA_DROPOUT = "0.05" 
 USE_QUANTIZATION = "False"
-BATCH_SIZE = "8"
 IMAGE_AUG = "True"
 SHUFFLE_BUFFER_SIZE = "100000"
 SAVE_LATEST_CHECKPOINT_ONLY = "False"
 TARGET_MODULES = "all-linear"
 
-MAX_STEPS = "30000"
-WARMUP_STEPS = "100"
-SAVE_STEPS = "1500"
-
 # --- 4. GRIGLIA DI CONFIGURAZIONI (Variabili nel loop) ---
 # Ogni tupla contiene: (learning_rate, grad_accumulation, lora_rank, note)
 CONFIGURATIONS = [
-    ("2e-4", "2", 32, "v4.0_LR2e_4_Acc2_R32_A16_alllinear"),
-    ("1e-4", "2", 64, "v4.0_LR1e_4_Acc2_R64_A16_alllinear"),
-    ("3e-5", "2", 32, "v4.0_LR3e_5_Acc2_R32_A16_alllinear")
+    (32000, "500", "1e-4", "8", "2", 64, "v5.0_LR1e_4_ACC2_R64_A16_alllinear"),
+    (32000, "500", "5e-4", "8", "4", 64, "v5.0_LR5e_4_Acc4_R64_A16_alllinear"),
+    (32000, "500", "3e-4", "8", "4", 32, "v5.0_LR3e_4_Acc4_R32_A16_alllinear"),
+    (32000, "500", "3e-5", "8", "2", 32, "v5.0_LR3e_5_ACC2_R32_A16_alliinear"),
+    (32000, "500", "5e-5", "8", "4", 32, "v5.0_LR5e_5_Acc4_R32_A16_alllinear")
 ]
 
 # --- 5. LOOP DI TRAINING ---
 torchrun_path = str(VENV / "bin" / "torchrun")
 
-for lr, accum, rank, note in CONFIGURATIONS:
+for max_st, warm_st, lr, batch_size, accum, rank, note in CONFIGURATIONS:
     str_rank = str(rank)
+    if max_st % 20 != 0:
+        raise ValueError(f"Combination of max steps and save steps not correct! {max_st} / {20} -> {max_st / 20}")
+
+    str_save_st = str(max_st // 20)
+    str_max_st = str(max_st)
     #alpha = str_rank
+
 
     print("=" * 60)
     print(f"INIZIO TRAINING: {note} (LR={lr} | Accum={accum} | Rank={str_rank})")
@@ -92,14 +95,15 @@ for lr, accum, rank, note in CONFIGURATIONS:
         #"--lora_alpha", alpha,
         "--lora_dropout", LORA_DROPOUT,
         "--use_quantization", USE_QUANTIZATION,
-        "--batch_size", BATCH_SIZE,
+        "--batch_size", batch_size,
         "--grad_accumulation_steps", accum,
         "--learning_rate", lr,
-        "--max_steps", MAX_STEPS,
-        "--warmup_steps", WARMUP_STEPS,
-        "--save_steps", SAVE_STEPS,
+        "--max_steps", str_max_st,
+        "--warmup_steps", warm_st,
+        "--save_steps", str_save_st,
         "--image_aug", IMAGE_AUG,
         "--shuffle_buffer_size", SHUFFLE_BUFFER_SIZE,
+        "--val_max_batches", "300",
         "--run_id_note", note,
         "--save_latest_checkpoint_only", SAVE_LATEST_CHECKPOINT_ONLY,
         "--target_modules", TARGET_MODULES,
