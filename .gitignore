@@ -74,6 +74,7 @@ Thumbs.db
 # ================================================================
 
 /runs/
+/adapters/
 /preflight/
 
 wandb/
@@ -81,6 +82,8 @@ wandb/
 
 checkpoints/
 **/checkpoints/
+
+/evaluations/
 
 
 # ================================================================
@@ -102,3 +105,6 @@ temp/
 /tools/openvla/
 /hdf5_data/
 /rlds_data/
+
+# Exempt the fine-tuning file from the gitignore!
+!/tools/openvla/vla-scripts/finetune.py

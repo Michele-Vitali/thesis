@@ -341,7 +341,21 @@ def create_randomized_env(config: dict | None, init_conditions: dict | None = No
     env = DomainRandomizationWrapper(
         env,
         randomize_color=False,
-        randomize_lighting=False,
+        randomize_lighting=True,
+        lighting_randomization_args={
+            "light_names": None,
+            "randomize_position": True,
+            "randomize_direction": True,
+            "randomize_specular": True, 
+            "randomize_ambient": True, 
+            "randomize_diffuse": True,
+            "randomize_active": False,
+            "position_perturbation_size": 0.1,
+            "direction_perturbation_size": 0.2,
+            "specular_perturbation_size": 0.1, 
+            "ambient_perturbation_size": 0.1, 
+            "diffuse_perturbation_size": 0.1
+        },
         randomize_camera=False, # We first set this to False so we don't randomize the grip camera as well...
         randomize_dynamics=False, # Seems useful but for the first trainings we avoid using this...
         randomize_on_reset=True, # So the arena gets re-randomized every time we reset the env

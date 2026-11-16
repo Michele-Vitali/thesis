@@ -81,27 +81,56 @@ def inventory(files: list[Path]) -> list[dict]:
     return episodes
 
 
-def manifest_for(episodes: list[dict], seed: int, val_size: int, folds: int) -> dict:
+def manifest_for(
+    episodes: list[dict],
+    seed: int,
+    val_fraction: float,
+    folds: int,
+    val_size: int | None = None,
+) -> dict:
     count = len(episodes)
-    if val_size < 0 or val_size > count:
-        raise ValueError("Invalid validation size")
+
+    if count < 2:
+        raise ValueError("At least 2 successful episodes are required for train/val split.")
+
+    if not 0.0 < val_fraction < 1.0:
+        raise ValueError("val_fraction must be between 0 and 1.")
+
+    # Use an explicit validation size if provided.
+    # Otherwise, reserve the requested fraction of the episodes.
+    if val_size is None:
+        val_size = max(1, int(round(count * val_fraction)))
+
+    if val_size < 1 or val_size >= count:
+        raise ValueError(
+            f"Invalid validation size: {val_size}. "
+            f"At least one episode must remain in both train and val."
+        )
 
     ids = [ep["id"] for ep in episodes]
     random.Random(seed).shuffle(ids)
 
-    # Solo validation e train
     val = ids[:val_size]
     train = ids[val_size:]
-    fold_entries = [] # (Mantieni la logica dei folds se ti serve)
 
     return {
-        "format": "prob3-episode-splits-v2",
+        "format": "prob3-episode-splits-v3",
         "created_utc": datetime.now(timezone.utc).isoformat(),
         "seed": seed,
-        "counts": {"total": count, "train": len(train), "val": len(val), "folds": folds},
+        "split_strategy": "random_episode_split",
+        "val_fraction": val_fraction,
+        "counts": {
+            "total": count,
+            "train": len(train),
+            "val": len(val),
+            "folds": folds,
+        },
         "episodes": episodes,
-        "split": {"train": train, "val": val},
-        "folds": fold_entries,
+        "split": {
+            "train": train,
+            "val": val,
+        },
+        "folds": [],
     }
 
 
@@ -140,7 +169,8 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source", type=Path, default=None)
     parser.add_argument("--expected", type=int, default=None, help="Assert exact number of episodes")
-    parser.add_argument("--val-size", type=int, default=30)
+    parser.add_argument("--val-fraction", type=float, default=0.10, help="Fraction of episodes reserved for validation (default: 0.10).")
+    parser.add_argument("--val-size", type=int, default=None, help="Optional explicit validation episode count. Overrides --val-fraction.")
     parser.add_argument("--folds", type=int, default=0)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--output-root", type=Path, default=None)
@@ -170,7 +200,7 @@ def main() -> None:
         raise ValueError(f"Found {len(episodes)} episodes, expected {args.expected}")
 
     # Create the splits/folds.
-    manifest = manifest_for(episodes, args.seed, args.val_size, args.folds)
+    manifest = manifest_for(episodes=episodes, seed=args.seed, val_fraction=args.val_fraction, folds=args.folds, val_size=args.val_size)
 
     # Define the output path...
     output_root = args.output_root or files[0].parent / "splits"

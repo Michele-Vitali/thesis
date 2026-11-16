@@ -131,7 +131,7 @@ def decode_text(item: object) -> str:
     return str(item)
 
 
-def verify_rlds(dataset_dir: Path, inventories: dict[str, dict[tuple[str, str], int]]) -> None:
+def verify_rlds(dataset_dir: Path, inventories: dict[str, dict[tuple[str, str], int]], expected_source: str) -> None:
     """Check all three RLDS splits, identity, episode lengths and exact actions."""
     import h5py
     import numpy as np
@@ -150,6 +150,10 @@ def verify_rlds(dataset_dir: Path, inventories: dict[str, dict[tuple[str, str], 
         observed = set()
         for episode in tfds.as_numpy(builder.as_dataset(split=split)):
             metadata = episode["episode_metadata"]
+            observed_source = decode_text(metadata['source'])
+
+            if observed_source != expected_source:
+                raise AssertionError(f"Wrong source metadata: expected {expected_source}, got {observed_source}")
             key = (str(Path(decode_text(metadata["file_path"])).resolve()),
                    decode_text(metadata["demo_name"]))
             if key not in expected or key in observed:
@@ -229,7 +233,7 @@ def main() -> int:
     staged_root = root / "rlds_data" / "rlds_builds" / (
         datetime.now().strftime("%Y%m%d_%H%M%S_%f") + "_" + uuid.uuid4().hex[:6]
     )
-    staged_dataset = staged_root / "prob3_pick_place" / "5.0.0"
+    staged_dataset = staged_root / "prob3_pick_place" / "6.1.0"
     print(f"Python:      {sys.executable}")
     print(f"HDF5 input:  {source}")
     print(f"Builder:     {builder_dir}")
@@ -252,6 +256,7 @@ def main() -> int:
     staged_root.mkdir(parents=True, exist_ok=False)
     env = os.environ.copy()
     env["PROB3_HDF5_ROOT"] = str(source)
+    env["PROB3_SOURCE_NAME"] = args.variant
     env.setdefault("TF_CPP_MIN_LOG_LEVEL", "2")
     # TFDS conversion/validation uses the CPU. This does NOT change training configuration.
     env["CUDA_VISIBLE_DEVICES"] = "-1"
@@ -263,11 +268,11 @@ def main() -> int:
     # Keep TensorFlow off the GPU when running validation too.
     os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
     os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "2")
-    verify_rlds(staged_dataset, inventories)
+    verify_rlds(staged_dataset, inventories, args.variant)
 
     if args.publish:
         active, backup = publish_dataset(root, staged_dataset.parent, args.variant)
-        print(f"\nDATASET ATTIVO: {active / '5.0.0'}")
+        print(f"\nDATASET ATTIVO: {active / '6.1.0'}")
         if backup is not None:
             print(f"Dataset precedente salvato in: {backup}")
         print("IMPORTANTE: riesegui il preflight prima del training per ricalcolare le statistiche.")

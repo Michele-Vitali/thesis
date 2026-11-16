@@ -9,8 +9,8 @@ robot = "PRob3"
 gripper_types = "PRob3Gripper"
 render_on_screen = False    # Set to false for faster simulations
 record = True
-base_env_rand_collect_seed = 200  # Important: Change when we want true fresh unseenOkay randomization!
-base_env_rand_test_seed = 5000
+base_env_rand_collect_seed = 10000  # Base dataset: 100, Lighting dataset: 10000
+base_env_rand_test_seed = 50000
 
 # Environment variables
 max_reachable_x = 0.55 # It is 60cm, but we take a margin and set it to 55cm

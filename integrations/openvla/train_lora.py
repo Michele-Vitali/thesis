@@ -23,9 +23,9 @@ VENV = THESIS_ROOT / "venv_openvla"
 # Definizione dei Dataset (Predisposta per i futuri mix)
 DATA_DIRS = [
     str(THESIS_ROOT / "rlds_data" / "rlds_base"),
-    # str(THESIS_ROOT / "rlds_data" / "rlds_lights"), # Decommenta in futuro
+    str(THESIS_ROOT / "rlds_data" / "rlds_lights"),
 ]
-DATA_WEIGHTS = [1.0]  # Aggiungi pesi futuri (es. , 0.3) qui
+DATA_WEIGHTS = [0.6, 0.4]
 
 RUN_ROOT = str(THESIS_ROOT / "runs" / "openvla")
 ADAPTER_ROOT = str(THESIS_ROOT / "adapters" / "openvla")
@@ -50,11 +50,8 @@ TARGET_MODULES = "all-linear"
 # --- 4. GRIGLIA DI CONFIGURAZIONI (Variabili nel loop) ---
 # Ogni tupla contiene: (learning_rate, grad_accumulation, lora_rank, note)
 CONFIGURATIONS = [
-    (32000, "500", "1e-4", "8", "2", 64, "v5.0_LR1e_4_ACC2_R64_A16_alllinear"),
-    (32000, "500", "5e-4", "8", "4", 64, "v5.0_LR5e_4_Acc4_R64_A16_alllinear"),
-    (32000, "500", "3e-4", "8", "4", 32, "v5.0_LR3e_4_Acc4_R32_A16_alllinear"),
-    (32000, "500", "3e-5", "8", "2", 32, "v5.0_LR3e_5_ACC2_R32_A16_alliinear"),
-    (32000, "500", "5e-5", "8", "4", 32, "v5.0_LR5e_5_Acc4_R32_A16_alllinear")
+    (30000, "400", "1e-4", "8", "2", 64, "v5.0_LR1e_4_ACC2_R64_A16_alllinear"),
+    (30000, "400", "3e-4", "8", "4", 32, "v5.0_LR3e_4_Acc4_R32_A16_alllinear"),
 ]
 
 # --- 5. LOOP DI TRAINING ---
@@ -103,7 +100,7 @@ for max_st, warm_st, lr, batch_size, accum, rank, note in CONFIGURATIONS:
         "--save_steps", str_save_st,
         "--image_aug", IMAGE_AUG,
         "--shuffle_buffer_size", SHUFFLE_BUFFER_SIZE,
-        "--val_max_batches", "300",
+        "--val_max_batches", "1000",
         "--run_id_note", note,
         "--save_latest_checkpoint_only", SAVE_LATEST_CHECKPOINT_ONLY,
         "--target_modules", TARGET_MODULES,
