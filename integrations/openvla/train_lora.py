@@ -23,9 +23,9 @@ VENV = THESIS_ROOT / "venv_openvla"
 # Definizione dei Dataset (Predisposta per i futuri mix)
 DATA_DIRS = [
     str(THESIS_ROOT / "rlds_data" / "rlds_base"),
-    str(THESIS_ROOT / "rlds_data" / "rlds_lights"),
+    #str(THESIS_ROOT / "rlds_data" / "rlds_lights"),
 ]
-DATA_WEIGHTS = [0.6, 0.4]
+DATA_WEIGHTS = [1.0] #0.4]
 
 RUN_ROOT = str(THESIS_ROOT / "runs" / "openvla")
 ADAPTER_ROOT = str(THESIS_ROOT / "adapters" / "openvla")
@@ -48,10 +48,9 @@ SAVE_LATEST_CHECKPOINT_ONLY = "False"
 TARGET_MODULES = "all-linear"
 
 # --- 4. GRIGLIA DI CONFIGURAZIONI (Variabili nel loop) ---
-# Ogni tupla contiene: (learning_rate, grad_accumulation, lora_rank, note)
 CONFIGURATIONS = [
-    (30000, "400", "1e-4", "8", "2", 64, "v5.0_LR1e_4_ACC2_R64_A16_alllinear"),
-    (30000, "400", "3e-4", "8", "4", 32, "v5.0_LR3e_4_Acc4_R32_A16_alllinear"),
+    (100000, "1000", "3e-4", "8", "4", 32, "v5.0_LR3e_4_ACC4_R32_A16_alllinear"),
+    (100000, "1000", "5e-4", "8", "2", 64, "v5.0_LR5e_4_Acc2_R64_A16_alllinear"),
 ]
 
 # --- 5. LOOP DI TRAINING ---
@@ -59,10 +58,10 @@ torchrun_path = str(VENV / "bin" / "torchrun")
 
 for max_st, warm_st, lr, batch_size, accum, rank, note in CONFIGURATIONS:
     str_rank = str(rank)
-    if max_st % 20 != 0:
+    if max_st % 100 != 0:
         raise ValueError(f"Combination of max steps and save steps not correct! {max_st} / {20} -> {max_st / 20}")
 
-    str_save_st = str(max_st // 20)
+    str_save_st = str(max_st // 100)
     str_max_st = str(max_st)
     #alpha = str_rank
 
@@ -104,6 +103,12 @@ for max_st, warm_st, lr, batch_size, accum, rank, note in CONFIGURATIONS:
         "--run_id_note", note,
         "--save_latest_checkpoint_only", SAVE_LATEST_CHECKPOINT_ONLY,
         "--target_modules", TARGET_MODULES,
+        "--early_stopping_enabled", "True",
+        "--early_stopping_target_acc", "0.95",
+        "--early_stopping_patience", "5",
+        "--early_stopping_min_rel_delta", "0.005",
+        "--early_stopping_ema_alpha", "0.5",
+        "--early_stopping_l1_source", "val",
     ]
 
     try:
