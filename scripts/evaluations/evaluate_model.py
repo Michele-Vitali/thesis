@@ -26,6 +26,7 @@ from scripts.expert.homing import prepare_episode
 from scripts.metrics.plot_metrics import plot_stacked_success_rate
 
 import robosuite.utils.transform_utils as T
+from scripts.expert.image_utils import to_dataset_image
 
 
 def set_global_seed(seed: int):
@@ -51,8 +52,8 @@ def create_env(joint_config: dict | None = None, init_cond: dict | None = None) 
         has_offscreen_renderer=True,
         use_camera_obs=True,
         camera_names=settings.dataset_camera_names,
-        camera_heights=settings.dataset_image_height,
-        camera_widths=settings.dataset_image_width,
+        camera_heights=settings.dataset_render_height,
+        camera_widths=settings.dataset_render_width,
         camera_depths=False,
         control_freq=settings.dataset_fps,
         controller_configs=joint_config,
@@ -289,6 +290,7 @@ def execute_task(env: "SingleArmEnv", obs: dict, client: OpenVLAClient, max_step
     obj_quat0 = obj_quat.copy()
 
     closed = False
+    has_lifted = False
     first_closed_step = -1
     yaw_err_at_grasp = -1
     max_lift = -1
@@ -330,7 +332,10 @@ def execute_task(env: "SingleArmEnv", obs: dict, client: OpenVLAClient, max_step
                 error = float(np.linalg.norm(obj_xy - target_xy))
                 z_error = abs(obj_z - (table_z + obj.size[2]))
 
-                if error < settings.phase_tolerances['online'][0] and z_error < 0.002:
+                if z_error > 0.05:
+                    has_lifted = True
+
+                if error < settings.phase_tolerances['online'][0] and z_error < 0.002 and has_lifted:
                     stable_steps += 1
                     if stable_steps >= 10:
                         placed = True
@@ -362,14 +367,7 @@ def read_observation(env: "SingleArmEnv") -> dict:
 
 def prepare_rgb(obs: dict, jpeg: bool = True):
     key = settings.dataset_external_camera_observation_key
-    image = np.asarray(obs[key])
-    if image.dtype != np.uint8:
-        image = image.astype(np.float32)
-        if np.max(image) <= 1.0: 
-            image *= 255.0
-        image = np.clip(image, 0, 255).astype(np.uint8)
-    
-    image = np.flipud(image).copy()
+    image = to_dataset_image(obs[key])
 
     if jpeg:
         buf = io.BytesIO()

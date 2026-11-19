@@ -129,13 +129,15 @@ def install_prob3_train_only_statistics(
 
     # Pre-compute unified statistics if mixing multiple datasets
     if data_root_dirs and len(data_root_dirs) > 1:
+        from integrations.openvla.register import register_prob3
         from prismatic.vla.datasets.rlds.oxe import get_oxe_dataset_kwargs_and_weights
 
+        register_prob3()
         weights = dataset_weights or [1.0] * len(data_root_dirs)
         per_source_stats = []
         for root_dir in data_root_dirs:
             ds_kwargs, _ = get_oxe_dataset_kwargs_and_weights(
-                Path(root_dir), [dataset_name], load_camera_views=("primary",), load_proprio=True
+                Path(root_dir), [dataset_name], load_camera_views=("primary",), load_proprio=False
             )
             # Build raw dlimp train dataset to compute/load its cached train-only stats
             raw_ds = dl.DLataset.from_rlds(

@@ -9,7 +9,7 @@ robot = "PRob3"
 gripper_types = "PRob3Gripper"
 render_on_screen = False    # Set to false for faster simulations
 record = True
-base_env_rand_collect_seed = 10000  # Base dataset: 100, Lighting dataset: 10000
+base_env_rand_collect_seed = 15000  # Base dataset: 10000, Lighting dataset: 15000
 base_env_rand_test_seed = 50000
 
 # Environment variables
@@ -56,13 +56,13 @@ min_pos_step = 0.002
 min_rot_step_deg = 0.5
 
 perturbation_enabled = True
-perturbation_episode_prob = 0.20
-perturbation_allowed_phases = ("appraoch", "transport")
+perturbation_episode_prob = 0.60
+perturbation_allowed_phases = ("approach", "transport")
 perturbation_min_target_distance = 0.02
-perturbation_max_position_m = 0.01
-perturbation_max_rotation_deg = 5.0
+perturbation_max_position_m = 0.015
+perturbation_max_rotation_deg = 8.0
 perturbation_burst_min_steps = 2
-perturbation_burst_max_steps = 3
+perturbation_burst_max_steps = 4
 perturbation_phase_probability = 0.50
 
 gripper_transition_seconds = 1.0
@@ -88,9 +88,9 @@ drop_clearance = 0.005
 # Lower the original front camera without changing its orientation (the following values have been collected by testing)
 # camera_init_pos = [1.6, 0.0, 1.45]
 # camera_init_quat = [0.561, 0.431, 0.431, 0.561]
-camera_target = np.array([-0.04, 0.0, 0.16])
+camera_target = np.array([-0.04, 0.0, 0.19])
 camera_pos = np.array([0.12, -0.66, 0.66])
-dataset_camera_fovy = 48.0
+dataset_camera_fovy = 32.0
 
 #camera_pos = np.array([-1.0, -2.0, -2.0]) Camera for debugging...
 
@@ -155,7 +155,7 @@ n_objects = 1
 
 # RLDS 
 dataset_root = str(Path(__file__).resolve().parents[2] / "hdf5_data")
-dataset_name = "v5.1_no_randomization_better_camera_perturbed_overfit"
+dataset_name = "v7.0_no_randomization_better_camera"
 
 dataset_fps = 5
 
@@ -173,6 +173,10 @@ dataset_camera_names = [dataset_external_camera_name, f"all-{dataset_wrist_camer
 
 dataset_image_width = 256
 dataset_image_height = 256
+dataset_render_width = 512
+dataset_render_height = 512
+
+dataset_crop = (0.20, 0.19, 0.75)
 
 dataset_use_videos = False
 

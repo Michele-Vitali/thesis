@@ -233,7 +233,7 @@ def main() -> int:
     staged_root = root / "rlds_data" / "rlds_builds" / (
         datetime.now().strftime("%Y%m%d_%H%M%S_%f") + "_" + uuid.uuid4().hex[:6]
     )
-    staged_dataset = staged_root / "prob3_pick_place" / "6.1.0"
+    staged_dataset = staged_root / "prob3_pick_place" / "7.1.0"
     print(f"Python:      {sys.executable}")
     print(f"HDF5 input:  {source}")
     print(f"Builder:     {builder_dir}")
@@ -272,7 +272,7 @@ def main() -> int:
 
     if args.publish:
         active, backup = publish_dataset(root, staged_dataset.parent, args.variant)
-        print(f"\nDATASET ATTIVO: {active / '6.1.0'}")
+        print(f"\nDATASET ATTIVO: {active / '7.1.0'}")
         if backup is not None:
             print(f"Dataset precedente salvato in: {backup}")
         print("IMPORTANTE: riesegui il preflight prima del training per ricalcolare le statistiche.")

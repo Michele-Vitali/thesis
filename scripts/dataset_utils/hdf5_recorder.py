@@ -6,6 +6,7 @@ import h5py
 import numpy as np
 import scripts.expert.settings as settings
 from scipy.spatial.transform import Rotation as R
+from scripts.expert.image_utils import to_dataset_image
 
 PHASE_NAMES = ("approach", "descend", "grasp", "lift", "transport", "lower", "release")
 PHASE_TO_ID = {name: idx for idx, name in enumerate(PHASE_NAMES)}
@@ -101,24 +102,9 @@ class HDF5Recorder:
         if image.ndim == 3 and image.shape[0] == 3 and image.shape[-1] != 3:
             image = np.transpose(image, (1, 2, 0))
 
-        if image.dtype != np.uint8:
-            image = image.astype(np.float32)
+        return to_dataset_image(image)
 
-            if np.max(image) <= 1.0:
-                image *= 255.0
-
-            image = np.clip(image, 0.0, 255.0).astype(np.uint8)
-
-        expected_shape = (settings.dataset_image_height, settings.dataset_image_width, 3)
-
-        if image.shape != expected_shape:
-            raise ValueError(f"Unexpected image shape: {image.shape}, expected {expected_shape}.")
-
-        # IMPORTANT: Flip the image! Robosuite return upside-down images!!!
-        image = np.flipud(image).copy()
-
-        return np.ascontiguousarray(image)
-
+        
     def _get_gripper_state(self, observation: dict) -> np.ndarray:
         """
         Return physical P-Grip joint positions.
