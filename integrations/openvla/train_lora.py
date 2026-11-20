@@ -26,7 +26,6 @@ existing_pp = os.environ.get("PYTHONPATH", "")
 os.environ["PYTHONPATH"] = f"{existing_pp}:{THESIS_ROOT}:{pwd}".strip(":")
 
 RLDS_BASE = str(THESIS_ROOT / "rlds_data" / "rlds_base")
-RLDS_LIGHTS = str(THESIS_ROOT / "rlds_data" / "rlds_lights")
 
 RUN_ROOT = str(THESIS_ROOT / "runs" / "openvla")
 ADAPTER_ROOT = str(THESIS_ROOT / "adapters" / "openvla")
@@ -48,17 +47,17 @@ DATASET = "prob3_pick_place"
 NUM_GPUS = 2
 
 USE_LORA = "True"
-LORA_DROPOUT = "0.0"
+LORA_DROPOUT = "0.05"
 USE_QUANTIZATION = "False"
 IMAGE_AUG = "True"
 SHUFFLE_BUFFER_SIZE = "100000"
 SAVE_LATEST_CHECKPOINT_ONLY = "False"
 TARGET_MODULES = "all-linear"
-VAL_MAX_BATCHES = "500"
+VAL_MAX_BATCHES = "1000"
 
-# Se True, in caso di errore su una run prosegue comunque con le successive nella notte
+# Se True, in caso di errore su una run prosegue comunque con le successive nel weekend
 CONTINUE_ON_ERROR = True
-MIN_FREE_DISK_GB = 65.0
+MIN_FREE_DISK_GB = 135.0
 
 
 @dataclass(frozen=True)
@@ -68,61 +67,99 @@ class TrainExperiment:
     data_weights: List[float]
     max_steps: int
     warmup_steps: int
+    save_steps: int
     lr: str
     batch_size: int
     grad_accum: int
     lora_rank: int
+    lora_alpha: int
 
 
-# --- 4. GRIGLIA DI CONFIGURAZIONI (2 Baseline + 2 Baseline+Lights) ---
+# --- 4. GRIGLIA DI CONFIGURAZIONI WEEKEND SU v5.0 (~84.4 ore -> fine ~martedì 04:20) ---
 CONFIGURATIONS: List[TrainExperiment] = [
-    # 1) Baseline: Effective Batch Size = 8 * 1 * 2 GPU = 16
+    # 1) Estensione diretta della best run v5.0 (LR=1e-4, BES=32, R=64, A=16, D=0.05) -> 45k step (~18.9h)
     TrainExperiment(
-        note="v6.0_base_LR1e_4_ACC1_BES16_R32_A16_alllinear",
+        note="v5.0_LR1e_4_ACC2_BES32_R64_A16_D005_45k",
         data_dirs=[RLDS_BASE],
         data_weights=[1.0],
-        max_steps=30000,
+        max_steps=45000,
         warmup_steps=400,
+        save_steps=1500,
         lr="1e-4",
-        batch_size=8,
-        grad_accum=1,
-        lora_rank=32,
-    ),
-    # 2) Baseline: capacità LoRA maggiore (Effective Batch Size = 8 * 2 * 2 GPU = 32)
-    TrainExperiment(
-        note="v6.0_base_LR3e_4_ACC2_BES32_R64_A16_alllinear",
-        data_dirs=[RLDS_BASE],
-        data_weights=[1.0],
-        max_steps=30000,
-        warmup_steps=600,
-        lr="3e-4",
         batch_size=8,
         grad_accum=2,
         lora_rank=64,
+        lora_alpha=16,
     ),
-    # 3) Mix Baseline + Lights (60%/40%): BES = 16
+    # 2) BES=32 con LR moderato (-30%): 7e-5 su 45k step (~18.9h)
     TrainExperiment(
-        note="v6.0_base_lights_LR1e_4_ACC1_BES16_R32_A16_alllinear",
-        data_dirs=[RLDS_BASE, RLDS_LIGHTS],
-        data_weights=[0.6, 0.4],
-        max_steps=35000,
-        warmup_steps=400,
-        lr="1e-4",
-        batch_size=8,
-        grad_accum=1,
-        lora_rank=32,
-    ),
-    # 4) Mix Baseline + Lights (60%/40%): capacità LoRA maggiore (BES = 32)
-    TrainExperiment(
-        note="v6.0_base_lights_LR3e_4_ACC2_BES32_R64_A16_alllinear",
-        data_dirs=[RLDS_BASE, RLDS_LIGHTS],
-        data_weights=[0.6, 0.4],
-        max_steps=35000,
-        warmup_steps=600,
-        lr="3e-4",
+        note="v5.0_LR7e_5_ACC2_BES32_R64_A16_D005_45k",
+        data_dirs=[RLDS_BASE],
+        data_weights=[1.0],
+        max_steps=45000,
+        warmup_steps=500,
+        save_steps=1500,
+        lr="7e-5",
         batch_size=8,
         grad_accum=2,
         lora_rank=64,
+        lora_alpha=16,
+    ),
+    # 3) Ricetta forum su BES=32: LR=2e-5, R=32, A=64 (scaling 2.0x), warmup=100 su 48k step (~19.8h)
+    TrainExperiment(
+        note="v5.0_LR2e_5_ACC2_BES32_R32_A64_D005_48k",
+        data_dirs=[RLDS_BASE],
+        data_weights=[1.0],
+        max_steps=48000,
+        warmup_steps=100,
+        save_steps=2000,
+        lr="2e-5",
+        batch_size=8,
+        grad_accum=2,
+        lora_rank=32,
+        lora_alpha=64,
+    ),
+    # 4) ACC=1 (BES=16) con LR=7e-5, R=64, A=16 su 40k step (~8.7h)
+    TrainExperiment(
+        note="v5.0_LR7e_5_ACC1_BES16_R64_A16_D005_40k",
+        data_dirs=[RLDS_BASE],
+        data_weights=[1.0],
+        max_steps=40000,
+        warmup_steps=500,
+        save_steps=2000,
+        lr="7e-5",
+        batch_size=8,
+        grad_accum=1,
+        lora_rank=64,
+        lora_alpha=16,
+    ),
+    # 5) ACC=1 (BES=16) con LR basso 5e-5, R=64, A=16 su 44k step (~9.5h)
+    TrainExperiment(
+        note="v5.0_LR5e_5_ACC1_BES16_R64_A16_D005_44k",
+        data_dirs=[RLDS_BASE],
+        data_weights=[1.0],
+        max_steps=44000,
+        warmup_steps=600,
+        save_steps=2200,
+        lr="5e-5",
+        batch_size=8,
+        grad_accum=1,
+        lora_rank=64,
+        lora_alpha=16,
+    ),
+    # 6) Ricetta forum su BES=16: LR=2e-5, R=32, A=64 (scaling 2.0x), warmup=100 su 40k step (~8.7h)
+    TrainExperiment(
+        note="v5.0_LR2e_5_ACC1_BES16_R32_A64_D005_40k",
+        data_dirs=[RLDS_BASE],
+        data_weights=[1.0],
+        max_steps=40000,
+        warmup_steps=100,
+        save_steps=2000,
+        lr="2e-5",
+        batch_size=8,
+        grad_accum=1,
+        lora_rank=32,
+        lora_alpha=64,
     ),
 ]
 
@@ -155,8 +192,10 @@ def validate_configurations(torchrun_bin: Path, exps: List[TrainExperiment]) -> 
             raise ValueError(f"run_id_note duplicato: {exp.note}")
         seen_notes.add(exp.note)
 
-        if exp.max_steps % 20 != 0:
-            raise ValueError(f"[{exp.note}] max_steps ({exp.max_steps}) non divisibile per 20!")
+        if exp.max_steps % exp.save_steps != 0:
+            raise ValueError(
+                f"[{exp.note}] max_steps ({exp.max_steps}) non divisibile per save_steps ({exp.save_steps})!"
+            )
         if exp.warmup_steps >= exp.max_steps:
             raise ValueError(f"[{exp.note}] warmup_steps ({exp.warmup_steps}) >= max_steps ({exp.max_steps})")
         if len(exp.data_dirs) != len(exp.data_weights) or not exp.data_dirs:
@@ -196,15 +235,16 @@ def main() -> None:
     results = []
 
     for idx, exp in enumerate(CONFIGURATIONS, start=1):
-        save_steps = exp.max_steps // 20
         eff_batch = exp.batch_size * exp.grad_accum * NUM_GPUS
+        num_ckpts = exp.max_steps // exp.save_steps
 
         print("\n" + "=" * 72)
         print(
             f"[{idx}/{len(CONFIGURATIONS)}] INIZIO TRAINING: {exp.note}\n"
             f"  Datasets : {[Path(d).name for d in exp.data_dirs]} | Weights: {exp.data_weights}\n"
-            f"  Params   : LR={exp.lr} | Batch/GPU={exp.batch_size} | Accum={exp.grad_accum} "
-            f"(BES={eff_batch}) | Rank={exp.lora_rank} | Steps={exp.max_steps} (save every {save_steps})"
+            f"  Params   : LR={exp.lr} | Batch/GPU={exp.batch_size} | Accum={exp.grad_accum} (BES={eff_batch})\n"
+            f"  LoRA     : Rank={exp.lora_rank} | Alpha={exp.lora_alpha} (scale={exp.lora_alpha / exp.lora_rank:.2f}) | Dropout={LORA_DROPOUT}\n"
+            f"  Schedule : Steps={exp.max_steps} | Warmup={exp.warmup_steps} | Save every {exp.save_steps} ({num_ckpts} ckpts)"
         )
         print("=" * 72)
 
@@ -223,6 +263,7 @@ def main() -> None:
             "--adapter_tmp_dir", ADAPTER_ROOT,
             "--use_lora", USE_LORA,
             "--lora_rank", str(exp.lora_rank),
+            "--lora_alpha", str(exp.lora_alpha),
             "--lora_dropout", LORA_DROPOUT,
             "--use_quantization", USE_QUANTIZATION,
             "--batch_size", str(exp.batch_size),
@@ -230,7 +271,7 @@ def main() -> None:
             "--learning_rate", exp.lr,
             "--max_steps", str(exp.max_steps),
             "--warmup_steps", str(exp.warmup_steps),
-            "--save_steps", str(save_steps),
+            "--save_steps", str(exp.save_steps),
             "--image_aug", IMAGE_AUG,
             "--shuffle_buffer_size", SHUFFLE_BUFFER_SIZE,
             "--val_max_batches", VAL_MAX_BATCHES,
@@ -258,7 +299,7 @@ def main() -> None:
                 sys.exit(e.returncode)
 
     print("\n" + "=" * 72)
-    print("RIEPILOGO FINALE CODA TRAINING:")
+    print("RIEPILOGO FINALE CODA WEEKEND:")
     for note, status in results:
         print(f"  - {note}: {status}")
     print("=" * 72)
